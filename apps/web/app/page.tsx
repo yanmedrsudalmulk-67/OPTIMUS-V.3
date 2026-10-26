@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import {
@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { CHARACTERS } from '../../../packages/shared/src';
-import { setMuted as muteAudio, playSound } from '../lib/audio';
+import { setMuted as muteAudio, playSound, configureAudio, stopMusic } from '../lib/audio';
 import './home.css';
 const Arena = dynamic(() => import('../components/arena/Arena'), {
   ssr: false,
@@ -49,6 +49,11 @@ export default function HomePage() {
   const [muted, setMuted] = useState(true);
   const [menu, setMenu] = useState(false);
   const [theme, setTheme] = useState<'hospital' | 'fantasy'>('hospital');
+  useEffect(() => {
+    muteAudio(true);
+    configureAudio({ sound: true, music: true, volume: 0.35 });
+    return () => stopMusic();
+  }, []);
   function join(e: React.FormEvent) {
     e.preventDefault();
     const value = code.trim().toUpperCase();

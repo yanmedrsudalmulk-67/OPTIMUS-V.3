@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import Crowd from './Crowd';
 import * as THREE from 'three';
 import type { Quality } from '../../../../packages/shared/src';
 
@@ -94,33 +95,178 @@ function Flag({ position, team }: { position: [number, number, number]; team: 'A
   );
 }
 
+function Sign({
+  text,
+  subtitle,
+  position,
+  width = 3.4,
+}: {
+  text: string;
+  subtitle?: string;
+  position: [number, number, number];
+  width?: number;
+}) {
+  const texture = useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.fillStyle = '#fff9e9';
+    ctx.fillRect(0, 0, 1024, 256);
+    ctx.fillStyle = '#176c62';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 86px sans-serif';
+    ctx.fillText(text, 512, subtitle ? 100 : 132, 960);
+    if (subtitle) {
+      ctx.font = 'bold 37px sans-serif';
+      ctx.fillStyle = '#6c8e85';
+      ctx.fillText(subtitle, 512, 190, 950);
+    }
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    return map;
+  }, [text, subtitle]);
+  useEffect(() => () => texture?.dispose(), [texture]);
+  return (
+    <group position={position}>
+      <Box position={[0, 0, -0.03]} size={[width + 0.12, width / 4 + 0.1, 0.15]} color="#548f82" />
+      <mesh position={[0, 0, 0.052]}>
+        <planeGeometry args={[width, width / 4]} />
+        <meshBasicMaterial
+          map={texture}
+          color={texture ? '#ffffff' : '#fff9e9'}
+          toneMapped={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function Hospital() {
   return (
-    <group position={[0, 0, -6]}>
-      <Box position={[0, 1.7, 0]} size={[6.7, 3.4, 1.8]} color="#f4f1e4" />
-      <Box position={[0, 3.42, 0]} size={[6.95, 0.19, 2.03]} color="#d0dfd8" />
-      <Box position={[0, 0.2, 0.11]} size={[7.2, 0.4, 2.04]} color="#c8d6cc" />
-      <Box position={[0, 1.98, 0.94]} size={[1.9, 3.55, 0.35]} color="#e0e8dc" />
-      <Box position={[0, 3.8, 0.83]} size={[2.15, 0.18, 0.8]} color="#f3f1e6" />
-      <Box position={[0, 3, 1.14]} size={[1.17, 1.17, 0.08]} color="#168f78" />
-      <Box position={[0, 3, 1.2]} size={[0.19, 0.67, 0.04]} color="#fff8e5" />
-      <Box position={[0, 3, 1.2]} size={[0.67, 0.19, 0.04]} color="#fff8e5" />
-      <Box position={[0, 0.91, 1.04]} size={[1.1, 1.42, 0.08]} color="#578c92" />
-      <Box position={[0, 0.91, 1.09]} size={[0.045, 1.42, 0.04]} color="#e2e9dd" />
-      <Box position={[0, 1.73, 1.24]} size={[1.65, 0.18, 0.7]} color="#1c9d83" />
-      {[-2.6, -1.6, 1.6, 2.6].map((x, i) => (
-        <group key={i}>
-          {[1.1, 2.35].map((y) => (
+    <group position={[0, 0, -7.1]}>
+      <Box position={[0, 1.9, 0]} size={[9.1, 3.8, 1.9]} color="#f5eedd" />
+      <Box position={[0, 3.82, 0]} size={[9.35, 0.22, 2.14]} color="#8fbeb3" />
+      <Box position={[0, 0.2, 0.1]} size={[9.5, 0.4, 2.16]} color="#c0cec3" />
+      <Box position={[0, 2.25, 0.65]} size={[2.6, 4.5, 1.16]} color="#fff8e9" />
+      <Box position={[0, 4.53, 0.65]} size={[2.9, 0.18, 1.42]} color="#6aab9c" />
+      <Box position={[0, 4.98, 0.67]} size={[0.85, 0.85, 0.2]} color="#258b76" />
+      <Box position={[0, 4.98, 0.79]} size={[0.19, 0.6, 0.04]} color="#fff8e5" />
+      <Box position={[0, 4.98, 0.79]} size={[0.6, 0.19, 0.04]} color="#fff8e5" />
+      <Sign
+        text="RUMAH SAKIT"
+        subtitle="HEALTHCARE HEROES"
+        position={[0, 3.86, 1.27]}
+        width={3.35}
+      />
+      <Box position={[0, 1.07, 1.27]} size={[1.55, 1.72, 0.09]} color="#79afb1" />
+      <Box position={[0, 1.07, 1.33]} size={[0.045, 1.72, 0.04]} color="#fff8e8" />
+      {[-0.17, 0.17].map((x) => (
+        <Box key={x} position={[x, 1.02, 1.37]} size={[0.035, 0.35, 0.03]} color="#ebc475" />
+      ))}
+      <Box position={[0, 2.11, 1.5]} size={[2.55, 0.21, 1.03]} color="#459d89" />
+      <Box position={[0, 2.34, 1.28]} size={[1.75, 0.11, 0.05]} color="#e9b767" />
+      {[-3.73, -2.62, 2.62, 3.73].map((x) => (
+        <group key={x}>
+          {[1.2, 2.66].map((y) => (
             <group key={y}>
-              <Box position={[x, y, 0.918]} size={[0.67, 0.79, 0.04]} color="#91bec2" />
-              <Box position={[x, y + 0.04, 0.947]} size={[0.035, 0.71, 0.025]} color="#e7f0e7" />
-              <Box position={[x, y - 0.07, 0.947]} size={[0.61, 0.035, 0.025]} color="#e7f0e7" />
-              <Box position={[x, y - 0.44, 0.96]} size={[0.8, 0.1, 0.16]} color="#d4dfd2" />
+              <Box position={[x, y, 0.976]} size={[0.8, 0.95, 0.07]} color="#6c9fa6" />
+              <Box
+                position={[x + 0.1, y + 0.14, 1.02]}
+                size={[0.55, 0.58, 0.015]}
+                color="#b3d3cd"
+                shadow={false}
+              />
+              <Box position={[x, y + 0.04, 1.036]} size={[0.045, 0.91, 0.03]} color="#f5f3dd" />
+              <Box position={[x, y - 0.1, 1.036]} size={[0.75, 0.045, 0.03]} color="#f5f3dd" />
+              <Box position={[x, y - 0.52, 1.07]} size={[0.97, 0.11, 0.2]} color="#d7d6b9" />
             </group>
           ))}
         </group>
       ))}
-      <Box position={[0, 0.025, 2]} size={[2.2, 0.05, 2]} color="#e4dfca" />
+      <Box position={[0, 0.025, 2]} size={[2.8, 0.05, 2.8]} color="#e4dfca" />
+    </group>
+  );
+}
+
+function Festival() {
+  const cordGeometry = useMemo(
+    () =>
+      new THREE.TubeGeometry(
+        new THREE.CatmullRomCurve3(
+          Array.from(
+            { length: 16 },
+            (_, i) =>
+              new THREE.Vector3(-6.7 + i * 0.9, 3.7 - Math.sin((i / 15) * Math.PI) * 0.52, -4.8),
+          ),
+        ),
+        48,
+        0.012,
+        5,
+        false,
+      ),
+    [],
+  );
+  useEffect(() => () => cordGeometry.dispose(), [cordGeometry]);
+  const flagGeometry = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute([-0.2, 0, 0, 0, -0.39, 0, 0.2, 0, 0], 3),
+    );
+    geometry.computeVertexNormals();
+    return geometry;
+  }, []);
+  useEffect(() => () => flagGeometry.dispose(), [flagGeometry]);
+  return (
+    <group>
+      <mesh geometry={cordGeometry}>
+        <meshStandardMaterial color="#9b8367" />
+      </mesh>
+      <Box position={[0, 0.12, -3.62]} size={[14.1, 0.24, 1.55]} color="#c5b28c" />
+      <Box position={[0, 0.28, -3.66]} size={[13.8, 0.14, 1.25]} color="#e5d8b9" />
+      {[-1, 1].map((sign) => (
+        <group key={sign} position={[sign * 7.15, 0, -4.8]}>
+          <Box position={[0, 1.9, 0]} size={[0.07, 3.8, 0.07]} color="#af9571" />
+          {[0, 1, 2].map((i) => (
+            <group key={i} position={[(i - 1) * 0.22, 0.15 + i * 0.1, 0]}>
+              <mesh position={[0, 3.6 + i * 0.16, 0]} scale={[0.24, 0.31, 0.24]} castShadow>
+                <sphereGeometry args={[1, 16, 12]} />
+                <meshStandardMaterial
+                  color={['#e4b852', '#83b9bf', '#df8d85'][i]}
+                  roughness={0.34}
+                />
+              </mesh>
+              <Box
+                position={[0, 3.08 + i * 0.1, 0]}
+                size={[0.012, 0.68, 0.012]}
+                color="#eee3c9"
+                shadow={false}
+              />
+            </group>
+          ))}
+        </group>
+      ))}
+      {Array.from({ length: 16 }, (_, i) => {
+        const x = -6.7 + i * 0.9;
+        const y = 3.7 - Math.sin((i / 15) * Math.PI) * 0.52;
+        return (
+          <mesh
+            key={i}
+            geometry={flagGeometry}
+            position={[x, y, -4.8]}
+            rotation={[0, 0, Math.cos(i) * 0.08]}
+          >
+            <meshStandardMaterial
+              color={['#60a68f', '#dfad58', '#749fc6', '#dc8e87'][i % 4]}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+        );
+      })}
     </group>
   );
 }
@@ -155,52 +301,6 @@ function Ambulance() {
   );
 }
 
-function Spectator({
-  position,
-  color,
-  index,
-}: {
-  position: [number, number, number];
-  color: string;
-  index: number;
-}) {
-  return (
-    <group position={position} scale={0.62}>
-      <mesh position={[0, 0.57, 0]} castShadow>
-        <capsuleGeometry args={[0.18, 0.34, 4, 8]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0, 1.07, 0.015]} castShadow>
-        <sphereGeometry args={[0.24, 10, 8]} />
-        <meshStandardMaterial color={index % 2 ? '#d3a077' : '#ad7959'} />
-      </mesh>
-      <mesh position={[0, 1.21, -0.025]}>
-        <sphereGeometry args={[0.245, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.5]} />
-        <meshStandardMaterial color="#4b3728" />
-      </mesh>
-      {[-1, 1].map((sign) => (
-        <group key={sign}>
-          <mesh position={[sign * 0.1, 0.19, 0]}>
-            <capsuleGeometry args={[0.067, 0.22, 3, 6]} />
-            <meshStandardMaterial color="#455c60" />
-          </mesh>
-          <mesh
-            position={[sign * 0.23, 0.65, 0.04]}
-            rotation={[0, 0, sign * (index % 2 ? 0.8 : -0.3)]}
-          >
-            <capsuleGeometry args={[0.06, 0.26, 3, 6]} />
-            <meshStandardMaterial color={color} />
-          </mesh>
-          <mesh position={[sign * 0.085, 1.09, 0.218]}>
-            <sphereGeometry args={[0.022, 6, 6]} />
-            <meshStandardMaterial color="#2e3837" />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
 function Grass() {
   const positions = useMemo(
     () =>
@@ -228,9 +328,13 @@ function Grass() {
 export default function Environment({
   theme = 'hospital',
   quality = 'AUTO',
+  phase,
+  paused = false,
 }: {
   theme?: 'hospital' | 'fantasy';
   quality?: Quality;
+  phase?: string;
+  paused?: boolean;
 }) {
   const fantasy = theme === 'fantasy';
   return (
@@ -289,6 +393,7 @@ export default function Environment({
       ) : (
         <>
           <Hospital />
+          <Festival />
           <Ambulance />
           <Tree position={[-6.6, 0, -5.3]} scale={1.4} />
           <Tree position={[8.3, 0, -2.4]} scale={1.15} />
@@ -299,14 +404,12 @@ export default function Environment({
       )}
       <Flag position={[-8.3, 0, 1.5]} team="A" />
       <Flag position={[8.3, 0, 1.5]} team="B" />
-      {Array.from({ length: 10 }, (_, i) => (
-        <Spectator
-          key={i}
-          index={i}
-          color={['#eeeede', '#7caf9c', '#7c9eb8', '#deb392', '#d2a1ad'][i % 5]}
-          position={[-5.8 + i * 1.28, 0, -2.8 - (i % 2) * 0.15]}
-        />
-      ))}
+      <Crowd
+        low={quality === 'LOW'}
+        phase={phase}
+        paused={paused}
+        baseHeight={fantasy ? 0 : 0.37}
+      />
       {[
         [-8.8, 0, -2.8],
         [9, 0, 1.6],

@@ -85,7 +85,9 @@ Restart frontend/server setelah perubahan. Izinkan port 3005 pada firewall LAN b
 - Socket.IO server-authoritative: deadline server, satu jawaban final per pemain/soal, transaksi/unique constraint, snapshot, penolakan aksi ganda/terlambat. Kunci jawaban tidak dikirim sebelum reveal.
 - Scoring standar: benar 10 power, salah/kosong 0. `delta = (powerB - powerA) × multiplier`; posisi negatif menguntungkan A. Batas default ±100; jika soal habis, posisi menentukan pemenang/seri.
 - Bonus kecepatan/combo deterministik opsional (default mati), sudden death dengan cadangan soal terbatas dan hasil seri jika cadangan habis.
-- Arena 3D nyata: enam karakter tenaga kesehatan, delapan profesi, animasi sendi/ekspresi, tali bertekstur, label, dua tema, kualitas grafis, debu/konfeti, fallback WebGL.
+- Arena 3D: enam karakter tenaga kesehatan dengan wajah/mata ekspresif, rambut berlapis, jas dan kacamata; delapan profesi, animasi sendi/ekspresi, tali bertekstur, label, dua tema, kualitas grafis, debu/konfeti, fallback WebGL.
+- Arena rumah sakit dengan papan nama, dekorasi pertandingan, dan penonton anak-anak yang melambai/bertepuk tangan. Mode LOW mengurangi jumlah penonton.
+- Musik pertandingan instrumental orisinal 128 BPM (melodi, bass, akor, drum) dengan efek sorak/tepuk tangan sintetis saat mulai, menarik, dan menang. Aktifkan ikon speaker pada preview; pertandingan baru mengaktifkan opsi musik, pilihan pertandingan lama tetap dihormati.
 - HP portrait, dashboard responsif, display fullscreen, audio/musik sintetis orisinal dengan mute dan volume; browser membutuhkan interaksi sebelum audio dimulai.
 
 ## Struktur dan teknologi

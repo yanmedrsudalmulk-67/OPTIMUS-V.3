@@ -30,9 +30,9 @@ function CameraRig({ state }: { state?: RoomState | null }) {
     const shake = pulling ? Math.sin(clock.elapsedTime * 14) * 0.018 : 0;
     camera.position.x = THREE.MathUtils.damp(camera.position.x, shake, 5, delta);
     const fit = Math.max(1, 1.65 / (size.width / Math.max(1, size.height)));
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, 13.8 * fit, 6, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, 5.9 * fit, 6, delta);
-    camera.lookAt(0, 1, -0.8);
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, 12 * fit, 6, delta);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, 4.5 * fit, 6, delta);
+    camera.lookAt(0, 1.45, -1);
   });
   return null;
 }
@@ -202,7 +202,7 @@ function NameAnchor({ id, labels }: { id: string; labels: LabelRefs }) {
     element.style.transform = `translate(-50%,-50%) translate(${(point.x * 0.5 + 0.5) * size.width}px,${(-point.y * 0.5 + 0.5) * size.height}px)`;
     element.style.visibility = point.z > 1 || point.z < -1 ? 'hidden' : 'visible';
   });
-  return <group ref={ref} position={[0, 2.72, 0]} />;
+  return <group ref={ref} position={[0, 2.95, 0]} />;
 }
 
 function Contestants({ state, labels }: { state?: RoomState | null; labels: LabelRefs }) {
@@ -283,21 +283,22 @@ export default function Arena({ state, preview = false, theme, quality, classNam
         <Canvas
           shadows={!low}
           dpr={low ? 1 : [1, 1.7]}
-          camera={{ position: [0, 5.9, 13.8], fov: 40, near: 0.1, far: 80 }}
+          camera={{ position: [0, 4.5, 12], fov: 40, near: 0.1, far: 80 }}
           gl={{ antialias: !low, powerPreference: low ? 'low-power' : 'high-performance' }}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.15;
+            gl.toneMappingExposure = 1.05;
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
           }}
         >
           <color attach="background" args={[arenaTheme === 'hospital' ? '#dae9e7' : '#d8e6eb']} />
           <fog attach="fog" args={['#dae9e7', 26, 48]} />
-          <hemisphereLight args={['#fff9e9', '#81a39a', 2.3]} />
-          <ambientLight intensity={0.35} />
+          <hemisphereLight args={['#fff3da', '#87a7a0', 2.0]} />
+          <ambientLight intensity={0.45} />
+          <directionalLight position={[1, 4, 10]} intensity={0.55} color="#fff0da" />
           <directionalLight
             position={[-6, 12, 6]}
-            intensity={3.2}
+            intensity={2.7}
             castShadow={!low}
             shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
             shadow-camera-left={-13}
@@ -311,7 +312,12 @@ export default function Arena({ state, preview = false, theme, quality, classNam
           />
           <directionalLight position={[6, 5, -8]} intensity={1.2} color="#b4d2e5" />
           <Suspense fallback={null}>
-            <Environment theme={arenaTheme} quality={low ? 'LOW' : resolved} />
+            <Environment
+              theme={arenaTheme}
+              quality={low ? 'LOW' : resolved}
+              phase={state?.phase}
+              paused={state?.paused}
+            />
             <Contestants state={state} labels={labels} />
           </Suspense>
           <CameraRig state={state} />

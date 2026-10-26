@@ -126,7 +126,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   quality: 'AUTO',
   particles: true,
   sound: true,
-  music: false,
+  music: true,
   volume: 0.4,
   cameraMotion: true,
 };

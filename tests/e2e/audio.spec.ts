@@ -11,7 +11,7 @@ test('original audio honors gesture, music, volume, sound, mute and cleanup', as
   await page.evaluate(() => {
     const browser = window as any;
     const Native = window.AudioContext;
-    browser.audioProbe = { contexts: [], gains: [], oscillators: 0 };
+    browser.audioProbe = { contexts: [], gains: [], oscillators: 0, buffers: 0, activeSources: 0 };
     browser.AudioContext = class extends Native {
       constructor(options?: AudioContextOptions) {
         super(options);
@@ -24,7 +24,17 @@ test('original audio honors gesture, music, volume, sound, mute and cleanup', as
       }
       createOscillator() {
         browser.audioProbe.oscillators++;
-        return super.createOscillator();
+        const source = super.createOscillator();
+        browser.audioProbe.activeSources++;
+        source.addEventListener('ended', () => browser.audioProbe.activeSources--);
+        return source;
+      }
+      createBufferSource() {
+        browser.audioProbe.buffers++;
+        browser.audioProbe.activeSources++;
+        const source = super.createBufferSource();
+        source.addEventListener('ended', () => browser.audioProbe.activeSources--);
+        return source;
       }
     };
   });
@@ -53,6 +63,7 @@ test('original audio honors gesture, music, volume, sound, mute and cleanup', as
       return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length);
     });
   await expect.poll(energy).toBeGreaterThan(0.00001);
+  expect(await page.evaluate(() => (window as any).audioProbe.buffers)).toBeGreaterThan(0);
   expect(await page.evaluate(() => (window as any).audioProbe.gains[0].gain.value)).toBeCloseTo(
     0.35,
     2,
@@ -73,6 +84,11 @@ test('original audio honors gesture, music, volume, sound, mute and cleanup', as
     audio.playSound('correct');
   });
   expect(await page.evaluate(() => (window as any).audioProbe.oscillators)).toBe(countBefore + 3);
+  const crowdBefore = await page.evaluate(() => (window as any).audioProbe.buffers);
+  await page.evaluate(() => (window as any).testAudio.playSound('victory'));
+  expect(await page.evaluate(() => (window as any).audioProbe.buffers)).toBeGreaterThan(
+    crowdBefore,
+  );
   await page.evaluate(() => {
     const audio = (window as any).testAudio;
     audio.configureAudio({ music: true });
@@ -81,4 +97,6 @@ test('original audio honors gesture, music, volume, sound, mute and cleanup', as
   const countStopped = await page.evaluate(() => (window as any).audioProbe.oscillators);
   await page.waitForTimeout(550);
   expect(await page.evaluate(() => (window as any).audioProbe.oscillators)).toBe(countStopped);
+  await expect.poll(() => page.evaluate(() => (window as any).audioProbe.activeSources)).toBe(0);
+  await expect.poll(energy).toBeLessThan(0.00001);
 });

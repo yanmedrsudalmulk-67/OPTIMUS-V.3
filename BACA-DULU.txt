@@ -22,6 +22,13 @@ UPDATE GAME
 5. Jika repo privat, updater dapat meminta token baca GitHub (input tersembunyi).
    Tidak perlu token untuk repo publik; token tidak disimpan oleh updater.
 
+ARENA DAN MUSIK
+Pilih arena Rumah Sakit untuk penonton anak-anak yang bersorak dan bertepuk tangan.
+Klik ikon speaker pada preview untuk mendengar musik pertandingan.
+Musik aktif pada pertandingan baru; pilihan musik pada pertandingan lama tetap
+mengikuti pengaturannya. Volume dan mute tetap dapat diubah.
+Karakter memakai model kartun 3D prosedural, belum identik dengan render referensi.
+
 DATABASE
 Semua tabel kuis, admin, room, jawaban, skor, dan pengaturan ada di medical.db
 pada folder game. Jangan hapus file ini. Gambar unggahan tersimpan terpisah.

@@ -28,3 +28,13 @@ Uji browser memakai Chromium software rendering. FPS perangkat fisik, LAN/HTTPS 
 - Seluruh 95 file source diterapkan pada instalasi SQLite hasil ekstrak sebelumnya menggunakan payload lokal; medical.db, .env, dan AKUN-ADMIN.txt identik byte demi byte. Setup sesudah update berhasil dan mempertahankan 25 soal.
 - Pengujian unduhan memakai respons GitHub simulasi. Akses langsung API GitHub dari cloud ini dibatasi proxy (HTTP 403); alur download langsung dari laptop dan PowerShell Windows belum terverifikasi.
 - Updater tidak menjalankan migrasi atau mengganti database. Migrasi versi aplikasi dilakukan oleh setup saat game dibuka lagi, setelah backup updater tersedia.
+
+## Penyempurnaan visual dan musik — 27 Oktober 2026
+
+- Karakter: mata/iris/highlight lebih jelas, pipi dan senyum lembut, quiff berlapis, jas panjang dengan lapel/kancing/kantong/dasi, bahan serta pencahayaan lebih lembut. Tube geometry dicache dan dibersihkan saat unmount. Tetap model prosedural, belum identik dengan render referensi pengguna.
+- Arena: rumah sakit dengan papan nama lokal, dekorasi, 14 penonton anak-anak (8 pada LOW), animasi melambai/bertepuk tangan/bounce, serta framing kamera lebih dekat. Crowd menggunakan instancing dan geometri lebih ringan pada LOW.
+- Audio: instrumental orisinal 128 BPM, bass/akor/drum/perkusi, efek sorak dan tepuk tangan sintetis. Musik pertandingan baru aktif secara default; pengaturan tersimpan tidak ditimpa. Preview tetap memerlukan klik tombol speaker.
+- Production build + TypeScript lulus. `npm test`: 42 lulus; lima tes integrasi opsional tidak diaktifkan pada pemeriksaan visual ini (hasil integrasi SQLite sebelumnya tetap tercatat di atas).
+- Empat tes Playwright lulus (2,7 menit), termasuk enam browser pemain, kontrol admin, audio/perkusi/sorak dan penghentian semua sumber suara, serta navigasi mobile.
+- Screenshot desktop dan ponsel 390 px diperiksa: tidak ada page error atau overflow horizontal. Framing preview kemudian dilonggarkan agar rambut utuh, dan segmen geometri penonton latar dikurangi; build dan inspeksi visual diperbarui untuk penyesuaian ini.
+- Browser cloud memakai software rendering; FPS laptop/HP fisik belum diukur. Efek sorak disintesis, bukan rekaman suara anak-anak.

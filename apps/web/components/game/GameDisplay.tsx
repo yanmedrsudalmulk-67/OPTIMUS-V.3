@@ -64,6 +64,8 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       if (state.phase === 'FINISHED') playSound('victory');
       else if (state.phase === 'COUNTDOWN') playSound('countdown');
       else if (state.phase === 'PULL_ANIMATION') playSound('pull');
+      else if (state.phase === 'QUESTION_ACTIVE' && phase.current === 'COUNTDOWN')
+        playSound('start');
       phase.current = state.phase;
     }
   }, [state?.phase]);

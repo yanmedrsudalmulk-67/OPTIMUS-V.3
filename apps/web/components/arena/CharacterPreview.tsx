@@ -1,5 +1,6 @@
 'use client';
 import { Suspense } from 'react';
+import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, ContactShadows } from '@react-three/drei';
 import type { Team } from '../../../../packages/shared/src';
@@ -20,7 +21,7 @@ export default function CharacterPreview({
         width: '100%',
         height: '100%',
         minHeight: 220,
-        background: 'radial-gradient(ellipse at center,#f5f5e8,#e6eee5)',
+        background: 'radial-gradient(ellipse at 45% 36%,#fff8ed,#e6e5db)',
         borderRadius: 'inherit',
         position: 'relative',
         touchAction: 'pan-y',
@@ -30,12 +31,22 @@ export default function CharacterPreview({
         <Canvas
           shadows
           dpr={[1, 1.5]}
-          camera={{ position: [0, 1.8, 4.7], fov: 34, near: 0.1, far: 20 }}
+          camera={{ position: [0, 1.7, 5.35], fov: 34, near: 0.1, far: 20 }}
           gl={{ antialias: true }}
+          onCreated={({ gl }) => {
+            gl.toneMapping = THREE.ACESFilmicToneMapping;
+            gl.toneMappingExposure = 1.05;
+          }}
         >
-          <hemisphereLight args={['#fff7e1', '#94b8a9', 2.6]} />
-          <directionalLight position={[-3, 5, 4]} intensity={3} castShadow shadow-mapSize={512} />
-          <directionalLight position={[3, 3, -3]} intensity={1.5} color="#b7d9df" />
+          <hemisphereLight args={['#fff4e0', '#b5ada0', 1.8]} />
+          <directionalLight
+            position={[-3, 5, 4]}
+            intensity={2.8}
+            color="#ffedd0"
+            castShadow
+            shadow-mapSize={512}
+          />
+          <directionalLight position={[3, 3, -3]} intensity={1.8} color="#c5deed" />
           <Suspense fallback={null}>
             <Character characterId={characterId} team={team} facing={-0.12} />
             <ContactShadows
@@ -48,7 +59,7 @@ export default function CharacterPreview({
             />
           </Suspense>
           <OrbitControls
-            target={[0, 1.2, 0]}
+            target={[0, 1.38, 0]}
             enablePan={false}
             enableZoom={false}
             minPolarAngle={Math.PI * 0.35}
