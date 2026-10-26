@@ -1,13 +1,31 @@
 import 'dotenv/config';
-import { DatabaseSync, backup } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { databaseLocation } from '../packages/database/location';
+import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 mkdirSync('.data', { recursive: true, mode: 0o700 });
-const db = new DatabaseSync(databaseLocation().filename, { readOnly: true });
-try {
-  const destination = `.data/medical-${new Date().toISOString().replace(/[:.]/g, '-')}.db`;
-  await backup(db, destination);
-  console.log('Backup SQLite tersimpan:', destination);
-} finally {
-  db.close();
+const result = spawnSync(
+  'docker',
+  [
+    'compose',
+    'exec',
+    '-T',
+    'postgres',
+    'pg_dump',
+    '--no-owner',
+    '--no-acl',
+    '-U',
+    process.env.POSTGRES_USER || 'medical',
+    '-d',
+    process.env.POSTGRES_DB || 'medical',
+  ],
+  { encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 },
+);
+if (result.status !== 0) {
+  console.error('Backup gagal. Periksa status PostgreSQL.');
+  process.exitCode = 1;
+} else {
+  writeFileSync('.data/database-snapshot.sql.tmp', result.stdout, { mode: 0o600 });
+  renameSync('.data/database-snapshot.sql.tmp', '.data/database-snapshot.sql');
+  console.log(
+    'Backup tersimpan di .data/database-snapshot.sql. Simpan dengan aman; file ini memuat data pertandingan.',
+  );
 }

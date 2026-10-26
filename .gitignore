@@ -14,9 +14,11 @@ apps/realtime-server/uploads/
 launcher/local.env
 AKUN-ADMIN.txt
 
-.runtime/
+# Local SQLite databases
 *.db
-*.db-*
-*.sqlite
-*.sqlite-*
-*.env.backup
+*.db-journal
+packages/database/prisma/*.db
+packages/database/prisma/*.db-journal
+
+# Runtime cache
+.runtime/

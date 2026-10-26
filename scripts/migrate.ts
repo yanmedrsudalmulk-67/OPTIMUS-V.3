@@ -1,44 +1,53 @@
 import 'dotenv/config';
-import { DatabaseSync } from 'node:sqlite';
+import { Pool } from 'pg';
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync, mkdirSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { databaseLocation } from '../packages/database/location';
-const { filename } = databaseLocation();
-mkdirSync(path.dirname(filename), { recursive: true });
-const db = new DatabaseSync(filename);
-try {
-  db.exec(
-    'PRAGMA foreign_keys=ON; PRAGMA busy_timeout=10000; PRAGMA journal_mode=DELETE; BEGIN IMMEDIATE',
-  );
-  db.exec(
-    'CREATE TABLE IF NOT EXISTS "_medical_migrations" (name TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
-  );
-  const folder = path.resolve('packages/database/prisma/migrations');
-  for (const entry of readdirSync(folder, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .sort((a, b) => a.name.localeCompare(b.name))) {
-    const sql = readFileSync(path.join(folder, entry.name, 'migration.sql'), 'utf8');
-    const checksum = createHash('sha256').update(sql).digest('hex');
-    const applied = db
-      .prepare('SELECT checksum FROM "_medical_migrations" WHERE name=?')
-      .get(entry.name);
-    if (applied) {
-      if (applied.checksum !== checksum)
-        throw new Error(`Migrasi ${entry.name} berubah setelah diterapkan.`);
-      continue;
-    }
-    db.exec(sql);
-    db.prepare('INSERT INTO "_medical_migrations" (name,checksum) VALUES (?,?)').run(
-      entry.name,
-      checksum,
+
+// Checked-in Prisma-compatible SQL, applied transactionally without a native CLI engine.
+async function migrate() {
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL belum dikonfigurasi.');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock(746925813)');
+    await client.query(
+      'CREATE TABLE IF NOT EXISTS "_medical_migrations" (name TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())',
     );
+    const folder = path.resolve('packages/database/prisma/migrations');
+    for (const entry of (await readdir(folder, { withFileTypes: true }))
+      .filter((e) => e.isDirectory())
+      .sort((a, b) => a.name.localeCompare(b.name))) {
+      const sql = await readFile(path.join(folder, entry.name, 'migration.sql'), 'utf8');
+      const checksum = createHash('sha256').update(sql).digest('hex');
+      const applied = await client.query<{ checksum: string }>(
+        'SELECT checksum FROM "_medical_migrations" WHERE name=$1',
+        [entry.name],
+      );
+      if (applied.rows.length) {
+        if (applied.rows[0].checksum !== checksum)
+          throw new Error(`Migrasi ${entry.name} telah berubah setelah diterapkan.`);
+        continue;
+      }
+      await client.query(sql);
+      await client.query('INSERT INTO "_medical_migrations" (name,checksum) VALUES ($1,$2)', [
+        entry.name,
+        checksum,
+      ]);
+      console.log(`Migrasi diterapkan: ${entry.name}`);
+    }
+    await client.query('COMMIT');
+    console.log('Database siap; seluruh migrasi terverifikasi.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
   }
-  db.exec('COMMIT');
-  console.log('Database SQLite siap:', filename);
-} catch (error) {
-  if (db.isTransaction) db.exec('ROLLBACK');
-  throw error;
-} finally {
-  db.close();
 }
+migrate().catch((error) => {
+  console.error(error instanceof Error ? error.message : 'Migrasi gagal.');
+  process.exitCode = 1;
+});

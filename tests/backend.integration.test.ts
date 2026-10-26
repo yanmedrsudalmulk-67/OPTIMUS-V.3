@@ -55,7 +55,7 @@ async function state(code: string, predicate: (s: RoomState) => boolean, timeout
 }
 
 describe.runIf(process.env.RUN_INTEGRATION === '1')(
-  'real SQLite + Socket.IO multiplayer integration',
+  'real PostgreSQL + Socket.IO multiplayer integration',
   () => {
     afterAll(async () => {
       sockets.forEach((s) => s.disconnect());

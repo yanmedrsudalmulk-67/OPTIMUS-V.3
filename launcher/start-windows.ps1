@@ -1,41 +1,27 @@
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path $PSScriptRoot -Parent)
 try {
-  $root = (Get-Location).Path
-  $runtime = Join-Path $root '.runtime'
-  $node = Get-Command node -ErrorAction SilentlyContinue
-  if (-not $node -or ((& node --version) -notmatch '^v24\.') -or ((& node -p process.arch) -ne 'x64')) {
-    $portable = Get-ChildItem $runtime -Filter node.exe -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if (-not $portable) {
-      Write-Host 'Menyiapkan Node.js 24 portabel. Internet diperlukan; tidak perlu Docker.'
-      New-Item -ItemType Directory -Force $runtime | Out-Null
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-      $arch = 'x64' # libSQL ships a Windows x64 binary; ARM Windows uses x64 emulation.
-      $base = 'https://nodejs.org/dist/latest-v24.x/'
-      $checksums = (Invoke-WebRequest -UseBasicParsing ($base + 'SHASUMS256.txt')).Content
-      $line = ($checksums -split "`n" | Where-Object { $_ -match "node-v24\..*-win-$arch\.zip$" } | Select-Object -First 1).Trim()
-      if (-not $line) { throw 'Daftar unduhan Node.js tidak ditemukan.' }
-      $parts = $line -split '\s+'
-      $archive = Join-Path $runtime $parts[1]
-      Invoke-WebRequest -UseBasicParsing ($base + $parts[1]) -OutFile $archive
-      if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne $parts[0].ToLower()) { throw 'Verifikasi unduhan Node.js gagal. Coba jalankan lagi.' }
-      Expand-Archive -LiteralPath $archive -DestinationPath $runtime -Force
-      Remove-Item -LiteralPath $archive
-      $portable = Get-ChildItem $runtime -Filter node.exe -Recurse | Select-Object -First 1
-    }
-    $env:Path = $portable.DirectoryName + ';' + $env:Path
+  if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+    throw 'Node.js belum terpasang di komputer ini. Silakan unduh dan pasang dari https://nodejs.org/'
   }
-  $desktop = [Environment]::GetFolderPath('Desktop')
-  $shell = New-Object -ComObject WScript.Shell
-  $shortcut = $shell.CreateShortcut((Join-Path $desktop 'Medical Tug of War.lnk'))
-  $shortcut.TargetPath = Join-Path $root 'MULAI-WINDOWS.bat'
-  $shortcut.WorkingDirectory = $root
-  $shortcut.Description = 'Medical Tug of War - SQLite - port 3005'
-  $shortcut.Save()
-  Write-Host 'Shortcut Desktop dibuat. Tunggu setup selesai; browser akan terbuka otomatis.'
-  & node launcher/start-local.mjs
-  if ($LASTEXITCODE -ne 0) { throw 'Game gagal dijalankan. Baca pesan kesalahan di atas.' }
+  Write-Host 'Memulai Medical Tug of War di localhost:3005 (Database SQLite Lokal)...' -ForegroundColor Cyan
+
+  if (-not (Test-Path 'packages/database/prisma/medical.db')) {
+    Write-Host 'Menyiapkan database lokal pertama kali...' -ForegroundColor Yellow
+    npm run db:setup
+    npm run admin:create
+  }
+
+  Start-Process 'http://localhost:3005'
+  if (Test-Path 'AKUN-ADMIN.txt') {
+    Start-Process notepad.exe -ArgumentList 'AKUN-ADMIN.txt'
+  }
+
+  Write-Host 'Game berjalan di http://localhost:3005. Jangan tutup jendela ini selama bermain.' -ForegroundColor Green
+  Write-Host 'Untuk menghentikan game, tekan Ctrl+C di jendela ini atau jalankan HENTIKAN-WINDOWS.bat.' -ForegroundColor Gray
+  npm run dev
 } catch {
   Write-Host $_.Exception.Message -ForegroundColor Red
+  pause
   exit 1
 }

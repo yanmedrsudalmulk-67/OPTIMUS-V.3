@@ -13,16 +13,16 @@ import {
   Minimize,
   Pause,
   QrCode,
-  Settings2,
+  Swords,
   Users,
   Volume2,
   VolumeX,
   Wifi,
   WifiOff,
 } from 'lucide-react';
-import type { Quality } from '@shared/index';
+import { CHARACTERS, type Quality } from '@shared/index';
 import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
-import { Balance, ResultCard, TeamRoster } from './RoomParts';
+import { Balance, ResultCard } from './RoomParts';
 import { useRoom } from './useRoom';
 import './game.css';
 
@@ -35,6 +35,7 @@ const Arena = dynamic(() => import('../arena/Arena'), {
     </div>
   ),
 });
+
 export default function GameDisplay({ code: rawCode }: { code: string }) {
   const code = rawCode.toUpperCase();
   const { state, connected, loading, error, seconds } = useRoom(code);
@@ -47,6 +48,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
   const [uiError, setUiError] = useState('');
   const displayRef = useRef<HTMLDivElement>(null);
   const phase = useRef('');
+
   useEffect(() => {
     const url = `${window.location.origin}/join/${code}`;
     setJoinUrl(url);
@@ -54,11 +56,13 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       .then(setQr)
       .catch(() => setUiError('QR tidak dapat dibuat. Gunakan kode room untuk bergabung.'));
   }, [code]);
+
   useEffect(() => {
     const change = () => setFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener('fullscreenchange', change);
     return () => document.removeEventListener('fullscreenchange', change);
   }, []);
+
   useEffect(() => {
     if (state && phase.current !== state.phase) {
       if (state.phase === 'FINISHED') playSound('victory');
@@ -69,6 +73,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       phase.current = state.phase;
     }
   }, [state?.phase]);
+
   const toggleFullscreen = async () => {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -77,6 +82,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       setUiError('Layar penuh tidak tersedia pada browser ini.');
     }
   };
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(joinUrl);
@@ -86,7 +92,8 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       setUiError('Salin URL bergabung dari bilah alamat atau gunakan QR.');
     }
   };
-  if (!state)
+
+  if (!state) {
     return (
       <div className="game-display">
         <div className="game-loading">
@@ -99,7 +106,11 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
         </div>
       </div>
     );
+  }
+
   const lobby = ['WAITING', 'READY'].includes(state.phase);
+  const teamAnswersCount = (state.teams.A.answered ? 1 : 0) + (state.teams.B.answered ? 1 : 0);
+
   return (
     <div className={`game-display ${lobby ? 'display-lobby' : ''}`} ref={displayRef}>
       <header className="display-header">
@@ -108,7 +119,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
         </Link>
         <div className="display-title">
           <strong>{state.title}</strong>
-          <span>{state.packageName}</span>
+          <span>{state.packageName} · 2 Team Controllers</span>
         </div>
         <div className={`display-connected ${connected ? '' : 'offline'}`}>
           {connected ? <Wifi size={15} /> : <WifiOff size={15} />}
@@ -142,11 +153,14 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
           {fullscreen ? <Minimize size={19} /> : <Maximize size={19} />}
         </button>
       </header>
+
       {uiError && (
         <div className="display-notice" onClick={() => setUiError('')}>
           {uiError}
         </div>
       )}
+
+      {/* TOP SCOREBOARD */}
       <div className="display-scoreboard">
         <div className="display-team team-a">
           <span className="team-dot" />
@@ -155,12 +169,13 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
             <h1>{state.teamAName}</h1>
           </div>
           <strong>
-            {state.teamAPower}
+            {state.teams.A.power}
             <small>POWER</small>
           </strong>
         </div>
+
         <div className="display-round">
-          <span>{lobby ? 'HEALTHCARE HEROES' : 'QUIZ BATTLE'}</span>
+          <span>{lobby ? 'TWO TEAM CONTROLLERS' : 'QUIZ BATTLE'}</span>
           <b>
             {lobby ? (
               <Users size={26} />
@@ -171,14 +186,14 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
             ) : state.phase === 'QUESTION_ACTIVE' ? (
               `${seconds}s`
             ) : state.phase === 'COUNTDOWN' ? (
-              seconds || 'GO!'
+              seconds || 'BATTLE!'
             ) : (
               `${Math.min(state.questionIndex + 1, state.questionCount)} / ${state.questionCount}`
             )}
           </b>
           <small>
             {lobby
-              ? `${state.players.length}/6 PEMAIN`
+              ? `${(state.teams.A.connected ? 1 : 0) + (state.teams.B.connected ? 1 : 0)}/2 TIM TERHUBUNG`
               : state.paused
                 ? 'DIJEDA'
                 : state.phase === 'QUESTION_ACTIVE'
@@ -188,19 +203,22 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
                     : 'RONDE PERTANDINGAN'}
           </small>
         </div>
+
         <div className="display-team team-b">
           <strong>
-            {state.teamBPower}
+            {state.teams.B.power}
             <small>POWER</small>
           </strong>
           <div>
             <small>TEAM BLUE</small>
             <h1>{state.teamBName}</h1>
           </div>
-          <span className="team-dot" />
+          <span className="team-dot dot-blue" />
         </div>
       </div>
-      <section className="display-arena">
+
+      {/* MASSIVE CINEMATIC 3D BATTLE ARENA (ARENA FIRST) */}
+      <section className="display-arena full-cinematic-arena">
         <Arena state={state} theme={state.settings.arena} quality={quality ?? undefined} />
         {state.paused && (
           <div className="arena-paused">
@@ -219,38 +237,67 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
           <div className="arena-pull-label">
             {state.teamAPower === state.teamBPower
               ? 'POWER BALANCED!'
-              : `${state.teamAPower > state.teamBPower ? state.teamAName : state.teamBName} MENARIK!`}
+              : `${state.teamAPower > state.teamBPower ? state.teamAName : state.teamBName} MENARIK TALI!`}
           </div>
         )}
       </section>
+
       <div className="display-balance">
         <Balance state={state} />
       </div>
+
+      {/* BOTTOM AREA: LOBBY TEAMS OR SEPARATE QUESTION PANEL */}
       {lobby ? (
         <section className="display-lobby-bottom">
-          <TeamRoster state={state} team="A" compact />
+          <div className="display-team-roster team-a-box">
+            <h3>
+              <span className="team-dot" /> {state.teamAName}
+              <small>{state.teams.A.ready ? '✓ READY' : 'MENUNGGU READY'}</small>
+            </h3>
+            <div className="display-hero-chips">
+              {state.teams.A.characters.map((ch, idx) => (
+                <span key={idx} className="display-chip">
+                  {ch.name}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="display-join">
             <div>
               <QrCode size={18} />
-              <strong>Pindai. Pilih hero. READY!</strong>
+              <strong>2 HP Pengendali · Scan & Pilih 3 Hero</strong>
             </div>
             {qr && <img src={qr} alt={`QR bergabung ke room ${code}`} width="118" height="118" />}
             <span>
-              atau masukkan kode <b>{code}</b>
+              atau buka di HP: <b>{code}</b>
             </span>
             <button onClick={() => void copy()}>
               <Copy size={13} />
-              {copied ? 'Tautan disalin' : 'Salin tautan bergabung'}
+              {copied ? 'Tautan disalin' : 'Salin tautan'}
             </button>
           </div>
-          <TeamRoster state={state} team="B" compact />
+
+          <div className="display-team-roster team-b-box">
+            <h3>
+              <span className="team-dot dot-blue" /> {state.teamBName}
+              <small>{state.teams.B.ready ? '✓ READY' : 'MENUNGGU READY'}</small>
+            </h3>
+            <div className="display-hero-chips">
+              {state.teams.B.characters.map((ch, idx) => (
+                <span key={idx} className="display-chip chip-blue">
+                  {ch.name}
+                </span>
+              ))}
+            </div>
+          </div>
         </section>
       ) : state.phase === 'FINISHED' ? (
         <div className="display-results-overlay">
           <ResultCard state={state} />
         </div>
       ) : state.question ? (
-        <section className="display-question">
+        <section className="display-question separate-question-panel">
           <div className="display-question-number">
             <span>SOAL</span>
             <strong>{String(state.questionIndex + 1).padStart(2, '0')}</strong>
@@ -272,27 +319,28 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
           </div>
           <div className="display-answered">
             <strong>
-              {state.players.filter((p) => p.answered).length}
-              <small>/6</small>
+              {teamAnswersCount}
+              <small>/2</small>
             </strong>
             <span>
-              JAWABAN
+              TIM SUDAH
               <br />
-              TERKIRIM
+              MENJAWAB
             </span>
           </div>
         </section>
       ) : (
         <div className="display-waiting">Menyiapkan pertanyaan berikutnya…</div>
       )}
+
       <footer className="display-footer">
         <span>
           MEDICAL TUG OF WAR <i /> Healthcare Heroes Quiz Battle
         </span>
         <span>
           {lobby
-            ? 'Host memulai setelah 6 pemain siap.'
-            : 'Jawab melalui smartphone masing-masing.'}
+            ? 'Pertandingan dimulai setelah kedua tim siap (2 pengendali tim).'
+            : 'Masing-masing tim mengirimkan satu jawaban dari HP pengendali.'}
         </span>
       </footer>
     </div>

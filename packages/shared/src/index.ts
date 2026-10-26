@@ -150,6 +150,39 @@ export interface QuestionPackage {
   questions: Question[];
   active?: boolean;
 }
+export interface TeamCharacterSlot {
+  slot: number; // 0, 1, 2
+  characterId: string;
+  name: string;
+}
+export function defaultTeamCharacters(team: Team): [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot] {
+  if (team === 'A') {
+    return [
+      { slot: 0, characterId: 'doctor-m', name: 'Dr. Arga' },
+      { slot: 1, characterId: 'nurse-f', name: 'Ners Alya' },
+      { slot: 2, characterId: 'midwife', name: 'Bidan Sari' },
+    ];
+  }
+  return [
+    { slot: 0, characterId: 'doctor-f', name: 'Dr. Maya' },
+    { slot: 1, characterId: 'pharmacist', name: 'Apt. Dimas' },
+    { slot: 2, characterId: 'analyst', name: 'Analis Raka' },
+  ];
+}
+export interface TeamController {
+  id: string;
+  team: Team;
+  name: string;
+  connected: boolean;
+  ready: boolean;
+  characters: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+  score: number;
+  power: number;
+  correctCount: number;
+  answered: boolean;
+  lastAnswer?: number;
+  lastCorrect?: boolean;
+}
 export interface Player {
   id: string;
   name: string;
@@ -191,6 +224,10 @@ export interface RoomState {
   paused: boolean;
   locked: boolean;
   settings: GameSettings;
+  teams: {
+    A: TeamController;
+    B: TeamController;
+  };
   players: Player[];
   questionIndex: number;
   questionCount: number;
@@ -215,7 +252,9 @@ export interface Ack<T = unknown> {
 }
 export interface JoinResult {
   token: string;
-  playerId: string;
+  team: Team;
+  teamId: string;
+  playerId?: string;
   state: RoomState;
 }
 export interface DashboardData {

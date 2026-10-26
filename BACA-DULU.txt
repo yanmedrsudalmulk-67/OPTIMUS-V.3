@@ -1,46 +1,23 @@
-MEDICAL TUG OF WAR - SQLITE - PORT 3005
+MEDICAL TUG OF WAR - PAKET LOKAL (PORT 3005 - SQLITE)
+TERINTEGRASI GITHUB: https://github.com/yanmedrsudalmulk-67/OPTIMUS-V.3
 
-WINDOWS (64-bit)
-1. Extract All ZIP ke folder BARU yang tetap, misalnya Documents\Medical-Tug-SQLite.
-   Jangan campurkan dengan konfigurasi PostgreSQL dari versi sebelumnya.
-2. Klik dua kali MULAI-WINDOWS.bat. Jangan jalankan dari dalam ZIP.
-3. Tunggu pemasangan pertama. Internet diperlukan untuk mengunduh Node.js
-   portabel (jika Node 24 belum tersedia) dan dependensi. Tidak perlu Docker.
-4. Shortcut Medical Tug of War dibuat otomatis di Desktop komputer Anda.
-5. Browser terbuka setelah game siap. Akun login ada di AKUN-ADMIN.txt.
-6. Untuk berikutnya, klik shortcut Desktop. Jangan pindahkan folder game;
-   jika dipindah, jalankan MULAI-WINDOWS.bat lagi untuk memperbarui shortcut.
-7. Berhenti: tekan Ctrl+C di jendela game. Jangan jalankan dua salinan bersamaan.
+CARA MENJALANKAN GAME:
+1. Klik dua kali MULAI-WINDOWS.bat untuk menjalankan game.
+2. Game otomatis terbuka di browser: http://localhost:3005
+3. Akun admin otomatis terbuka di AKUN-ADMIN.txt (Username: admin, Password: admin12345678).
+4. Untuk berhenti, cukup tutup jendela terminal atau klik dua kali HENTIKAN-WINDOWS.bat.
 
-UPDATE GAME
-1. Tutup game dengan Ctrl+C, lalu klik UPDATE-GAME.bat di folder yang sama.
-2. Tunggu pesan berhasil, lalu jalankan kembali shortcut game.
-3. Source terbaru diambil dari GitHub branch codex/game-local-launcher.
-   Edit kode lokal akan diganti; source lama dan data disimpan sebagai backup
-   di .data/update-backups. Database, akun, dan uploads tidak ditimpa.
-4. Jika update terputus, jalankan UPDATE-GAME.bat lagi untuk pemulihan.
-5. Jika repo privat, updater dapat meminta token baca GitHub (input tersembunyi).
-   Tidak perlu token untuk repo publik; token tidak disimpan oleh updater.
 
-ARENA DAN MUSIK
-Pilih arena Rumah Sakit untuk penonton anak-anak yang bersorak dan bertepuk tangan.
-Klik ikon speaker pada preview untuk mendengar musik pertandingan.
-Musik aktif pada pertandingan baru; pilihan musik pada pertandingan lama tetap
-mengikuti pengaturannya. Volume dan mute tetap dapat diubah.
-Karakter memakai model kartun 3D prosedural, belum identik dengan render referensi.
+CARA INTEGRASI DENGAN GITHUB (CHATGPT):
+- Jika Anda meminta ChatGPT memperbarui fitur/menu game di GitHub:
+  Cukup klik dua kali: UPDATE-DARI-GITHUB.bat
+  Perubahan kode terbaru dari GitHub akan otomatis ditarik dan disinkronkan ke komputer lokal ini.
+- Jika Anda ingin mengirim perubahan lokal ke GitHub:
+  Cukup klik dua kali: PUSH-KE-GITHUB.bat
 
-DATABASE
-Semua tabel kuis, admin, room, jawaban, skor, dan pengaturan ada di medical.db
-pada folder game. Jangan hapus file ini. Gambar unggahan tersimpan terpisah.
-Saat memindahkan game, hentikan dahulu dan ikut salin medical.db, .env,
-AKUN-ADMIN.txt serta apps/realtime-server/uploads. Jangan bagikan akun privat.
 
-MAC / LINUX / ANTIGRAVITY
-Pasang Node.js 24. Jalankan: npm run local
-macOS juga dapat menjalankan MULAI-MAC.command.
-
-CATATAN
-Port browser 3005; API internal 4001. Kedua port harus tersedia.
-Windows memakai Node x64. Pada Windows ARM dibutuhkan emulasi x64.
-Peluncur Windows dan shortcut belum diuji pada OS Windows dari cloud ini.
-Baca README.md untuk akses HP lewat LAN, backup, dan pengembangan.
+PENYIMPANAN DATA LOKAL:
+- Database: packages/database/prisma/medical.db (SQLite)
+- Upload Gambar: apps/realtime-server/uploads
+- Data lokal (bank soal yang sudah dibuat, akun admin, riwayat skor pertandingan)
+  TIDAK AKAN HILANG saat melakukan update dari GitHub karena sudah dilindungi di .gitignore.

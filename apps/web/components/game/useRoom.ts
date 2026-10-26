@@ -1,17 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { JoinResult, RoomState, Team } from '@shared/index';
+import type { JoinResult, RoomState, Team, TeamCharacterSlot, TeamController } from '@shared/index';
 import { api } from '../../lib/api';
 import { emit, getSocket } from '../../lib/socket';
 import { configureAudio, stopMusic } from '../../lib/audio';
 
 export interface PlayerSession {
   token: string;
-  playerId: string;
-  name: string;
   team: Team;
-  characterId: string;
+  teamId?: string;
+  teamName?: string;
+  characters?: TeamCharacterSlot[];
+  playerId?: string;
+  name?: string;
+  characterId?: string;
 }
 export const sessionKey = (code: string) => `medical-player-${code.toUpperCase()}`;
 export function readSession(code: string): PlayerSession | null {
@@ -119,5 +122,6 @@ export function useRoom(rawCode: string, asPlayer = false) {
       )
     : 0;
   const player = state?.players.find((p) => p.id === session?.playerId) || null;
-  return { state, connected, loading, error, setError, session, player, seconds, receive };
+  const myTeam = session?.team ? state?.teams?.[session.team] : null;
+  return { state, connected, loading, error, setError, session, player, myTeam, seconds, receive };
 }

@@ -53,13 +53,30 @@ export const codeSchema = z
   .trim()
   .toUpperCase()
   .regex(/^[A-Z0-9]{6}$/, 'Kode room harus 6 karakter');
-export const joinSchema = z.object({
-  code: codeSchema,
-  name: z.string().trim().min(2).max(30),
-  team: z.enum(['A', 'B']),
+export const characterSlotSchema = z.object({
+  slot: z.number().int().min(0).max(2),
   characterId: z
     .string()
     .refine((id) => CHARACTERS.some((c) => c.id === id), 'Karakter tidak valid'),
+  name: z.string().trim().min(1).max(30),
+});
+export const teamJoinSchema = z.object({
+  code: codeSchema,
+  team: z.enum(['A', 'B']),
+  teamName: z.string().trim().min(1).max(40).optional(),
+  characters: z.array(characterSlotSchema).length(3).optional(),
+  token: z.string().max(200).optional(),
+});
+export const joinSchema = z.object({
+  code: codeSchema,
+  name: z.string().trim().min(2).max(30).optional(),
+  team: z.enum(['A', 'B']),
+  characterId: z
+    .string()
+    .refine((id) => CHARACTERS.some((c) => c.id === id), 'Karakter tidak valid')
+    .optional(),
+  characters: z.array(characterSlotSchema).length(3).optional(),
+  teamName: z.string().trim().min(1).max(40).optional(),
   token: z.string().max(200).optional(),
 });
 export const matchSchema = z.object({

@@ -8,7 +8,7 @@ export default defineConfig({
   expect: { timeout: 15000 },
   reporter: 'list',
   use: {
-    baseURL: process.env.TEST_WEB_URL || 'http://127.0.0.1:3005',
+    baseURL: process.env.TEST_WEB_URL || 'http://127.0.0.1:3000',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {

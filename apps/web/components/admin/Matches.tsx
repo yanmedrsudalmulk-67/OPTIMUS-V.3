@@ -412,10 +412,13 @@ export function HostMatch({ id }: { id: string }) {
   if (!room) return error ? <ErrorNotice error={error} /> : <Loading />;
   const waiting = ['WAITING', 'READY'].includes(room.phase);
   const ready = room.players.filter((p) => p.ready && p.connected).length;
-  const canStart =
-    room.players.length === 6 &&
-    ready === 6 &&
-    ['A', 'B'].every((t) => room.players.filter((p) => p.team === t).length === 3);
+  const teamsConnected = Boolean(room.teams?.A?.connected && room.teams?.B?.connected);
+  const teamsReady = Boolean(room.teams?.A?.ready && room.teams?.B?.ready);
+  const canStart = room.teams
+    ? teamsConnected && teamsReady && room.teams.A.characters?.length === 3 && room.teams.B.characters?.length === 3
+    : room.players.length === 6 &&
+      ready === 6 &&
+      ['A', 'B'].every((t) => room.players.filter((p) => p.team === t).length === 3);
   const seconds = room.deadlineAt
     ? Math.max(0, Math.ceil((room.deadlineAt - now - offset) / 1000))
     : 0;
@@ -445,10 +448,16 @@ export function HostMatch({ id }: { id: string }) {
           {connected ? 'Server terhubung' : 'Menyambungkan kembali…'}
         </span>
         <span>
-          <Users size={15} /> {room.players.length}/6 pemain
+          <Users size={15} />{' '}
+          {room.teams
+            ? `${(room.teams.A.connected ? 1 : 0) + (room.teams.B.connected ? 1 : 0)}/2 tim terhubung`
+            : `${room.players.length}/6 pemain`}
         </span>
         <span>
-          <CheckCircle2 size={15} /> {ready}/6 siap
+          <CheckCircle2 size={15} />{' '}
+          {room.teams
+            ? `${(room.teams.A.ready ? 1 : 0) + (room.teams.B.ready ? 1 : 0)}/2 tim siap`
+            : `${ready}/6 siap`}
         </span>
         <span>
           <Clock3 size={15} />
@@ -749,8 +758,14 @@ export function HostMatch({ id }: { id: string }) {
                 </button>
                 <p className="muted">
                   {canStart
-                    ? 'Enam pahlawan siap. Saatnya bertanding!'
-                    : `Menunggu ${6 - ready} pemain siap dan terhubung.`}
+                    ? 'Kedua tim sudah siap! Klik tombol START BATTLE untuk memulai pertandingan.'
+                    : room.teams
+                      ? !teamsConnected
+                        ? 'Menunggu kedua tim terhubung...'
+                        : !teamsReady
+                          ? 'Menunggu kedua tim menekan tombol READY...'
+                          : 'Menunggu kedua tim memilih 3 pahlawan.'
+                      : `Menunggu ${6 - ready} pemain siap dan terhubung.`}
                 </p>
                 <button
                   className="btn btn-secondary"

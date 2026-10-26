@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  engineType = "client"
 }
 
 datasource db {
@@ -61,14 +60,15 @@ model Question {
 }
 
 model Character {
-  id              String        @id
+  id              String               @id
   name            String
   profession      String
   modelPath       String?
   thumbnailPath   String?
-  animationConfig Json          @default("{}")
-  active          Boolean       @default(true)
+  animationConfig Json
+  active          Boolean              @default(true)
   players         MatchPlayer[]
+  teamCharacters  MatchTeamCharacter[]
 }
 
 model Match {
@@ -83,8 +83,8 @@ model Match {
   paused       Boolean          @default(false)
   locked       Boolean          @default(false)
   settings     Json
-  state        Json             @default("{}")
-  snapshots    Json             @default("[]")
+  state        Json
+  snapshots    Json
   ropePosition Float            @default(0)
   winner       String?
   createdAt    DateTime         @default(now())
@@ -92,12 +92,67 @@ model Match {
   finishedAt   DateTime?
   package      QuestionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
   players      MatchPlayer[]
+  teams        MatchTeam[]
   questions    MatchQuestion[]
   answers      PlayerAnswer[]
+  teamAnswers  TeamAnswer[]
   rounds       MatchRound[]
 
   @@index([phase, createdAt])
   @@index([finishedAt])
+}
+
+model MatchTeam {
+  id                  String               @id @default(cuid())
+  matchId             String
+  teamSide            String               // "A" | "B"
+  teamName            String
+  controllerSessionId String               @unique
+  readyStatus         Boolean              @default(false)
+  connectedStatus     Boolean              @default(false)
+  totalPower          Float                @default(0)
+  score               Int                  @default(0)
+  correctCount        Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  match               Match                @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  characters          MatchTeamCharacter[]
+  answers             TeamAnswer[]
+
+  @@unique([matchId, teamSide])
+  @@index([matchId])
+}
+
+model MatchTeamCharacter {
+  id                   String    @id @default(cuid())
+  matchTeamId          String
+  slotNumber           Int       // 0, 1, 2
+  characterId          String
+  characterDisplayName String
+  team                 MatchTeam @relation(fields: [matchTeamId], references: [id], onDelete: Cascade)
+  character            Character @relation(fields: [characterId], references: [id])
+
+  @@unique([matchTeamId, slotNumber])
+  @@index([matchTeamId])
+}
+
+model TeamAnswer {
+  id              String        @id @default(cuid())
+  matchId         String
+  matchQuestionId String
+  matchTeamId     String
+  selectedAnswer  Int
+  isCorrect       Boolean
+  powerAwarded    Float         @default(0)
+  pointsAwarded   Int           @default(0)
+  responseTimeMs  Int           @default(0)
+  submittedAt     DateTime      @default(now())
+  match           Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchQuestion   MatchQuestion @relation(fields: [matchQuestionId], references: [id], onDelete: Cascade)
+  team            MatchTeam     @relation(fields: [matchTeamId], references: [id], onDelete: Cascade)
+
+  @@unique([matchTeamId, matchQuestionId])
+  @@index([matchId])
 }
 
 model MatchPlayer {
@@ -133,6 +188,7 @@ model MatchQuestion {
   match            Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
   sourceQuestion   Question?      @relation(fields: [sourceQuestionId], references: [id], onDelete: SetNull)
   answers          PlayerAnswer[]
+  teamAnswers      TeamAnswer[]
   round            MatchRound?
 
   @@unique([matchId, questionOrder])

@@ -5,14 +5,19 @@ import { prisma } from '../../../../packages/database/client';
 import { calculateAward, calculateRound, winnerAtEnd } from '../../../../packages/game-engine/src';
 import {
   CHARACTERS,
+  defaultTeamCharacters,
   type RoomState,
   type Question,
   type Player,
   type Team,
+  type TeamController,
+  type TeamCharacterSlot,
   type RoundResult,
 } from '../../../../packages/shared/src';
-import { settings as parseSettings, matchSchema, joinSchema } from '../validation';
+export { defaultTeamCharacters };
+import { settings as parseSettings, matchSchema, joinSchema, teamJoinSchema } from '../validation';
 import { hashToken } from '../auth';
+
 interface Answer {
   answer: number;
   responseTimeMs: number;
@@ -25,6 +30,7 @@ interface Internal {
   streaks: Record<string, number>;
   remainingMs: number;
 }
+
 const json = (value: unknown) => JSON.parse(JSON.stringify(value));
 const revealed = new Set([
   'ANSWER_REVEAL',
@@ -34,17 +40,30 @@ const revealed = new Set([
   'FINISHED',
 ]);
 const lobby = (s: RoomState) => s.phase === 'WAITING' || s.phase === 'READY';
+
+
 export class GameService {
   private rooms = new Map<string, Internal>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private queues = new Map<string, Promise<unknown>>();
-  private sockets = new Map<string, Set<string>>();
+  private teamSockets = new Map<string, Set<string>>(); // key: `${code}_${team}`
+
   constructor(private io: Server) {}
+
   async initialize() {
-    const rows = await prisma.match.findMany({ include: { answers: true, players: true } });
+    const rows = await prisma.match.findMany({
+      include: {
+        answers: true,
+        players: true,
+        teams: { include: { characters: true } },
+        teamAnswers: true,
+      },
+    });
+
     for (const row of rows) {
       const room = row.state as unknown as Internal;
       if (!room?.state?.code) continue;
+
       room.answers = {};
       for (const answer of row.answers) {
         (room.answers[answer.matchQuestionId] ||= {})[answer.playerId] = {
@@ -52,14 +71,51 @@ export class GameService {
           responseTimeMs: answer.responseTimeMs,
         };
       }
-      room.state.players = room.state.players.filter((p) =>
-        row.players.some((saved) => saved.id === p.id),
-      );
-      for (const p of room.state.players) {
-        p.connected = false;
-        p.answered = !!room.answers[room.state.question?.id || '']?.[p.id];
+      for (const teamAns of row.teamAnswers) {
+        (room.answers[teamAns.matchQuestionId] ||= {})[teamAns.matchTeamId] = {
+          answer: teamAns.selectedAnswer,
+          responseTimeMs: teamAns.responseTimeMs,
+        };
       }
+
+      // Ensure teams structure exists
+      if (!room.state.teams) {
+        room.state.teams = {
+          A: {
+            id: `team_A_${row.id}`,
+            team: 'A',
+            name: room.state.teamAName || 'Tim Emerald',
+            connected: false,
+            ready: false,
+            characters: defaultTeamCharacters('A'),
+            score: 0,
+            power: 0,
+            correctCount: 0,
+            answered: false,
+          },
+          B: {
+            id: `team_B_${row.id}`,
+            team: 'B',
+            name: room.state.teamBName || 'Tim Sapphire',
+            connected: false,
+            ready: false,
+            characters: defaultTeamCharacters('B'),
+            score: 0,
+            power: 0,
+            correctCount: 0,
+            answered: false,
+          },
+        };
+      }
+
+      room.state.teams.A.connected = false;
+      room.state.teams.B.connected = false;
+      room.state.teams.A.answered = !!room.answers[room.state.question?.id || '']?.[room.state.teams.A.id];
+      room.state.teams.B.answered = !!room.answers[room.state.question?.id || '']?.[room.state.teams.B.id];
+
+      this.syncPlayers(room);
       this.rooms.set(row.code, room);
+
       if (!lobby(room.state) && room.state.phase !== 'FINISHED') {
         room.remainingMs = room.state.paused
           ? Math.max(1, room.remainingMs)
@@ -71,8 +127,46 @@ export class GameService {
       await this.persist(room);
     }
   }
+
+  syncPlayers(room: Internal) {
+    const s = room.state;
+    const tA = s.teams?.A;
+    const tB = s.teams?.B;
+
+    const charsA = tA?.characters || defaultTeamCharacters('A');
+    const charsB = tB?.characters || defaultTeamCharacters('B');
+
+    s.players = [
+      ...charsA.map((c, i) => ({
+        id: `A_${i}`,
+        name: c.name || `Hero A${i + 1}`,
+        team: 'A' as Team,
+        characterId: c.characterId || 'doctor-m',
+        connected: Boolean(tA?.connected),
+        ready: Boolean(tA?.ready),
+        correctCount: tA?.correctCount || 0,
+        power: tA?.power || 0,
+        score: tA?.score || 0,
+        answered: Boolean(tA?.answered),
+      })),
+      ...charsB.map((c, i) => ({
+        id: `B_${i}`,
+        name: c.name || `Hero B${i + 1}`,
+        team: 'B' as Team,
+        characterId: c.characterId || 'doctor-f',
+        connected: Boolean(tB?.connected),
+        ready: Boolean(tB?.ready),
+        correctCount: tB?.correctCount || 0,
+        power: tB?.power || 0,
+        score: tB?.score || 0,
+        answered: Boolean(tB?.answered),
+      })),
+    ];
+  }
+
   serialize(code: string): RoomState {
     const room = this.get(code);
+    this.syncPlayers(room);
     const state = json(room.state) as RoomState;
     state.serverTime = Date.now();
     if (!revealed.has(state.phase)) {
@@ -81,21 +175,25 @@ export class GameService {
     }
     return state;
   }
+
   all() {
     return [...this.rooms.values()]
       .sort((a, b) => b.state.createdAt.localeCompare(a.state.createdAt))
       .map((r) => this.serialize(r.state.code));
   }
+
   getById(id: string) {
     const found = [...this.rooms.values()].find((r) => r.state.id === id);
     if (!found) throw new Error('Pertandingan tidak ditemukan');
     return this.serialize(found.state.code);
   }
+
   private get(code: string) {
     const r = this.rooms.get(code);
     if (!r) throw new Error('Room tidak ditemukan');
     return r;
   }
+
   run<T>(code: string, fn: () => Promise<T>): Promise<T> {
     const before = this.queues.get(code) || Promise.resolve();
     const task = before
@@ -113,8 +211,9 @@ export class GameService {
               checkpoint.state.deadlineAt &&
               !checkpoint.state.paused &&
               checkpoint.state.phase !== 'FINISHED'
-            )
+            ) {
               this.schedule(checkpoint, Math.max(1, checkpoint.state.deadlineAt - Date.now()));
+            }
           }
           throw error;
         }
@@ -127,16 +226,16 @@ export class GameService {
       .catch(() => {});
     return task;
   }
+
   private broadcast(room: Internal) {
     const s = this.serialize(room.state.code);
     this.io.to(room.state.code).emit('room:state', s);
   }
-  private async persist(
-    room: Internal,
-    extra: Prisma.PrismaPromise<unknown>[] = [],
-    skipPlayers: string[] = [],
-  ) {
+
+  private async persist(room: Internal, extra: Prisma.PrismaPromise<unknown>[] = []) {
     const s = room.state;
+    this.syncPlayers(room);
+
     await prisma.$transaction([
       prisma.match.update({
         where: { id: s.id },
@@ -146,41 +245,28 @@ export class GameService {
           locked: s.locked,
           ropePosition: s.ropePosition,
           winner: s.winner,
+          teamAName: s.teamAName,
+          teamBName: s.teamBName,
           state: json(room),
           startedAt: s.startedAt ? new Date(s.startedAt) : null,
           finishedAt: s.finishedAt ? new Date(s.finishedAt) : null,
         },
       }),
-      ...s.players
-        .filter((p) => !skipPlayers.includes(p.id))
-        .map((p) =>
-          prisma.matchPlayer.update({
-            where: { id: p.id },
-            data: {
-              name: p.name,
-              team: p.team,
-              characterId: p.characterId,
-              connected: p.connected,
-              ready: p.ready,
-              correctCount: p.correctCount,
-              power: p.power,
-              score: p.score,
-              answered: p.answered,
-            },
-          }),
-        ),
       ...extra,
     ]);
     this.broadcast(room);
   }
+
   async create(input: unknown) {
     const data = matchSchema.parse(input);
     const pack = await prisma.questionPackage.findUnique({
       where: { id: data.packageId },
       include: { questions: { where: { active: true }, orderBy: { sortOrder: 'asc' } } },
     });
-    if (!pack || !pack.active || !pack.questions.length)
+    if (!pack || !pack.active || !pack.questions.length) {
       throw new Error('Paket harus memiliki soal aktif');
+    }
+
     const config = parseSettings(data.settings);
     let qs = pack.questions.map((q) => ({ ...q, options: q.options as string[] }));
     if (config.shuffle) {
@@ -191,6 +277,7 @@ export class GameService {
     }
     const initialCount = Math.min(qs.length, config.questionCount);
     if (!config.suddenDeath) qs = qs.slice(0, initialCount);
+
     const id = crypto.randomUUID();
     let code = '';
     do {
@@ -199,19 +286,52 @@ export class GameService {
         () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[crypto.randomInt(32)],
       ).join('');
     } while (this.rooms.has(code) || (await prisma.match.findUnique({ where: { code } })));
+
     const snapshots = qs.map((q) => ({ ...q, id: crypto.randomUUID() })) as Question[];
+
+    const teamAId = crypto.randomUUID();
+    const teamBId = crypto.randomUUID();
+
+    const teams: { A: TeamController; B: TeamController } = {
+      A: {
+        id: teamAId,
+        team: 'A',
+        name: data.teamAName || 'Tim Emerald',
+        connected: false,
+        ready: false,
+        characters: defaultTeamCharacters('A'),
+        score: 0,
+        power: 0,
+        correctCount: 0,
+        answered: false,
+      },
+      B: {
+        id: teamBId,
+        team: 'B',
+        name: data.teamBName || 'Tim Sapphire',
+        connected: false,
+        ready: false,
+        characters: defaultTeamCharacters('B'),
+        score: 0,
+        power: 0,
+        correctCount: 0,
+        answered: false,
+      },
+    };
+
     const state: RoomState = {
       id,
       code,
       title: data.title,
       packageId: pack.id,
       packageName: pack.name,
-      teamAName: data.teamAName,
-      teamBName: data.teamBName,
+      teamAName: data.teamAName || 'Tim Emerald',
+      teamBName: data.teamBName || 'Tim Sapphire',
       phase: 'WAITING',
       paused: false,
       locked: false,
       settings: config,
+      teams,
       players: [],
       questionIndex: 0,
       questionCount: initialCount,
@@ -227,6 +347,7 @@ export class GameService {
       startedAt: null,
       finishedAt: null,
     };
+
     const room: Internal = {
       state,
       snapshots,
@@ -235,6 +356,9 @@ export class GameService {
       streaks: {},
       remainingMs: 0,
     };
+
+    this.syncPlayers(room);
+
     await prisma.match.create({
       data: {
         id,
@@ -242,12 +366,46 @@ export class GameService {
         title: data.title,
         packageId: pack.id,
         packageName: pack.name,
-        teamAName: data.teamAName,
-        teamBName: data.teamBName,
+        teamAName: state.teamAName,
+        teamBName: state.teamBName,
         phase: state.phase,
         settings: json(config),
         state: json(room),
         snapshots: json(snapshots),
+        teams: {
+          create: [
+            {
+              id: teamAId,
+              teamSide: 'A',
+              teamName: state.teamAName,
+              controllerSessionId: crypto.randomBytes(32).toString('hex'),
+              readyStatus: false,
+              connectedStatus: false,
+              characters: {
+                create: teams.A.characters.map((c) => ({
+                  slotNumber: c.slot,
+                  characterId: c.characterId,
+                  characterDisplayName: c.name,
+                })),
+              },
+            },
+            {
+              id: teamBId,
+              teamSide: 'B',
+              teamName: state.teamBName,
+              controllerSessionId: crypto.randomBytes(32).toString('hex'),
+              readyStatus: false,
+              connectedStatus: false,
+              characters: {
+                create: teams.B.characters.map((c) => ({
+                  slotNumber: c.slot,
+                  characterId: c.characterId,
+                  characterDisplayName: c.name,
+                })),
+              },
+            },
+          ],
+        },
         questions: {
           create: snapshots.map((q, i) => ({
             id: q.id,
@@ -259,175 +417,320 @@ export class GameService {
         },
       },
     });
+
     this.rooms.set(code, room);
     return this.serialize(code);
   }
+
   async join(input: unknown, socketId: string) {
-    const data = joinSchema.parse(input);
-    return this.run(data.code, async () => {
-      const room = this.get(data.code);
-      let player: Player | undefined;
-      let token = data.token;
-      const extra: Prisma.PrismaPromise<unknown>[] = [];
-      const skip: string[] = [];
-      if (token) {
-        const prior = await prisma.matchPlayer.findUnique({
-          where: { sessionHash: hashToken(token) },
-        });
-        if (!prior || prior.matchId !== room.state.id) throw new Error('Sesi pemain tidak valid');
-        player = room.state.players.find((p) => p.id === prior.id);
-        if (!player) throw new Error('Slot pemain sudah dihapus host');
-      } else {
-        if (!lobby(room.state) || room.state.locked) throw new Error('Lobby sudah dikunci');
-        if (room.state.players.filter((p) => p.team === data.team).length >= 3)
-          throw new Error('Tim sudah penuh');
-        token = crypto.randomBytes(32).toString('hex');
-        player = {
-          id: crypto.randomUUID(),
-          name: data.name,
-          team: data.team,
-          characterId: data.characterId,
-          connected: true,
-          ready: false,
-          correctCount: 0,
-          power: 0,
-          score: 0,
-          answered: false,
-        };
-        extra.push(
-          prisma.matchPlayer.create({
-            data: {
-              id: player.id,
-              matchId: room.state.id,
-              name: player.name,
-              team: player.team,
-              characterId: player.characterId,
-              sessionHash: hashToken(token),
-              connected: true,
-            },
-          }),
-        );
-        skip.push(player.id);
-        room.state.players.push(player);
-      }
-      player.connected = true;
-      let connections = this.sockets.get(player.id);
+    const raw = input as any;
+    const team: Team = raw.team === 'B' ? 'B' : 'A';
+    const code: string = String(raw.code || '').trim().toUpperCase();
+
+    return this.run(code, async () => {
+      const room = this.get(code);
+      const teamObj = room.state.teams[team];
+      let token = raw.token as string | undefined;
+
+      const teamKey = `${code}_${team}`;
+      let connections = this.teamSockets.get(teamKey);
       if (!connections) {
         connections = new Set();
-        this.sockets.set(player.id, connections);
+        this.teamSockets.set(teamKey, connections);
       }
+
+      if (token) {
+        const hashed = hashToken(token);
+        const matchTeam = await prisma.matchTeam.findFirst({
+          where: { matchId: room.state.id, controllerSessionId: hashed },
+        });
+        if (!matchTeam && teamObj.id !== raw.playerId && teamObj.id !== raw.teamId) {
+          // Token mismatch or session expired
+          token = undefined;
+        }
+      }
+
+      if (!token) {
+        if (!lobby(room.state) || room.state.locked) {
+          throw new Error('Pertandingan sudah berlangsung atau lobby dikunci');
+        }
+        if (teamObj.connected && connections.size > 0) {
+          throw new Error(`Tim ${team === 'A' ? 'A (Hijau)' : 'B (Biru)'} sudah memiliki pengendali yang terhubung`);
+        }
+        token = crypto.randomBytes(32).toString('hex');
+      }
+
+      // Update team properties
+      teamObj.connected = true;
+      if (raw.teamName && typeof raw.teamName === 'string') {
+        const trimmed = raw.teamName.trim().slice(0, 40);
+        if (trimmed) {
+          teamObj.name = trimmed;
+          if (team === 'A') room.state.teamAName = trimmed;
+          else room.state.teamBName = trimmed;
+        }
+      }
+
+      if (Array.isArray(raw.characters) && raw.characters.length === 3) {
+        teamObj.characters = raw.characters.map((c: any, index: number) => ({
+          slot: index,
+          characterId: CHARACTERS.some((ch) => ch.id === c.characterId) ? c.characterId : 'doctor-m',
+          name: (c.name || '').trim().slice(0, 30) || `Hero ${team}${index + 1}`,
+        })) as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+      } else if (raw.characterId && CHARACTERS.some((ch) => ch.id === raw.characterId)) {
+        // Single character selection backwards compatibility: assign to slot 0
+        teamObj.characters[0] = {
+          slot: 0,
+          characterId: raw.characterId,
+          name: raw.name ? raw.name.trim().slice(0, 30) : teamObj.characters[0].name,
+        };
+      }
+
       connections.add(socketId);
+      this.syncPlayers(room);
       this.updateLobby(room);
-      await this.persist(room, extra, skip);
-      return { token: token!, playerId: player.id, state: this.serialize(data.code) };
+
+      const hashedToken = hashToken(token);
+      await this.persist(room, [
+        prisma.matchTeam.upsert({
+          where: { matchId_teamSide: { matchId: room.state.id, teamSide: team } },
+          create: {
+            matchId: room.state.id,
+            teamSide: team,
+            teamName: teamObj.name,
+            controllerSessionId: hashedToken,
+            connectedStatus: true,
+            readyStatus: teamObj.ready,
+          },
+          update: {
+            teamName: teamObj.name,
+            controllerSessionId: hashedToken,
+            connectedStatus: true,
+            readyStatus: teamObj.ready,
+          },
+        }),
+      ]);
+
+      return {
+        token,
+        team,
+        teamId: teamObj.id,
+        playerId: teamObj.id,
+        state: this.serialize(code),
+      };
     });
   }
-  async authenticatePlayer(token: string, code?: string) {
-    const p = await prisma.matchPlayer.findUnique({ where: { sessionHash: hashToken(token) } });
-    if (!p) throw new Error('Sesi pemain tidak valid');
-    const room = [...this.rooms.values()].find((r) => r.state.id === p.matchId);
-    if (
-      !room ||
-      (code && room.state.code !== code) ||
-      !room.state.players.some((x) => x.id === p.id)
-    )
-      throw new Error('Pemain tidak ditemukan');
-    return { playerId: p.id, code: room.state.code };
+
+  async authenticateTeam(token: string, code?: string) {
+    const hashed = hashToken(token);
+    const matchTeam = await prisma.matchTeam.findFirst({
+      where: { controllerSessionId: hashed },
+      include: { match: true },
+    });
+    if (!matchTeam) throw new Error('Sesi pengendali tim tidak valid');
+
+    const room = [...this.rooms.values()].find((r) => r.state.id === matchTeam.matchId);
+    if (!room || (code && room.state.code !== code)) {
+      throw new Error('Pertandingan tidak ditemukan');
+    }
+
+    return {
+      team: matchTeam.teamSide as Team,
+      teamId: matchTeam.id,
+      code: room.state.code,
+    };
   }
+
   async reconnect(token: string, socketId: string) {
-    const identity = await this.authenticatePlayer(token);
+    const identity = await this.authenticateTeam(token);
     const r = this.get(identity.code);
-    const p = r.state.players.find((x) => x.id === identity.playerId)!;
+    const teamObj = r.state.teams[identity.team];
+
     const result = await this.join(
-      { code: identity.code, name: p.name, team: p.team, characterId: p.characterId, token },
+      {
+        code: identity.code,
+        team: identity.team,
+        teamName: teamObj.name,
+        characters: teamObj.characters,
+        token,
+      },
       socketId,
     );
     return { ...identity, ...result };
   }
-  async disconnect(playerId: string, code: string, socketId: string) {
+
+  async disconnect(teamId: string, code: string, socketId: string) {
     await this.run(code, async () => {
-      const connections = this.sockets.get(playerId);
+      const room = this.get(code);
+      const team: Team = room.state.teams.A.id === teamId ? 'A' : 'B';
+      const teamKey = `${code}_${team}`;
+      const connections = this.teamSockets.get(teamKey);
+
       connections?.delete(socketId);
       if (connections?.size) return;
-      const room = this.get(code);
-      const p = room.state.players.find((x) => x.id === playerId);
-      if (p) {
-        p.connected = false;
-        this.updateLobby(room);
-        await this.persist(room);
-      }
+
+      room.state.teams[team].connected = false;
+      this.syncPlayers(room);
+      this.updateLobby(room);
+      await this.persist(room, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: room.state.id, teamSide: team },
+          data: { connectedStatus: false },
+        }),
+      ]);
     });
   }
-  private player(room: Internal, id: string) {
-    const p = room.state.players.find((p) => p.id === id);
-    if (!p) throw new Error('Pemain tidak ditemukan');
-    return p;
-  }
+
   private updateLobby(room: Internal) {
-    if (lobby(room.state))
-      room.state.phase =
-        room.state.players.length === 6 && room.state.players.every((p) => p.ready && p.connected)
-          ? 'READY'
-          : 'WAITING';
+    if (lobby(room.state)) {
+      const tA = room.state.teams.A;
+      const tB = room.state.teams.B;
+      const bothConnected = tA.connected && tB.connected;
+      const bothReady = tA.ready && tB.ready;
+      const charactersValid = tA.characters?.length === 3 && tB.characters?.length === 3;
+
+      room.state.phase = bothConnected && bothReady && charactersValid ? 'READY' : 'WAITING';
+    }
   }
-  async ready(code: string, id: string, value: boolean) {
+
+  async ready(code: string, teamOrPlayerId: string, value: boolean) {
     return this.run(code, async () => {
       const r = this.get(code);
       if (!lobby(r.state)) throw new Error('Pertandingan sudah dimulai');
-      this.player(r, id).ready = value;
+
+      const team: Team =
+        teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      r.state.teams[team].ready = value;
+
+      this.syncPlayers(r);
       this.updateLobby(r);
-      await this.persist(r);
+      await this.persist(r, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: r.state.id, teamSide: team },
+          data: { readyStatus: value },
+        }),
+      ]);
       return this.serialize(code);
     });
   }
-  async select(code: string, id: string, characterId: string, name?: string) {
+
+  async select(code: string, teamOrPlayerId: string, characterId: string, name?: string) {
     return this.run(code, async () => {
       const r = this.get(code);
       if (!lobby(r.state)) throw new Error('Pertandingan sudah dimulai');
       if (!CHARACTERS.some((c) => c.id === characterId)) throw new Error('Karakter tidak valid');
-      const p = this.player(r, id);
-      p.characterId = characterId;
-      if (name) p.name = name;
-      p.ready = false;
+
+      const team: Team =
+        teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      const teamObj = r.state.teams[team];
+
+      // Update slot 0 by default when called with single character
+      teamObj.characters[0].characterId = characterId;
+      if (name) teamObj.characters[0].name = name;
+      teamObj.ready = false;
+
+      this.syncPlayers(r);
       this.updateLobby(r);
       await this.persist(r);
       return this.serialize(code);
     });
   }
-  async leave(code: string, id: string) {
+
+  async updateTeam(
+    code: string,
+    team: Team,
+    payload: { teamName?: string; characters?: TeamCharacterSlot[]; ready?: boolean },
+  ) {
     return this.run(code, async () => {
       const r = this.get(code);
-      if (!lobby(r.state))
-        throw new Error('Slot tidak dapat dilepas saat pertandingan berlangsung');
-      r.state.players = r.state.players.filter((p) => p.id !== id);
-      this.sockets.delete(id);
+      if (!lobby(r.state)) throw new Error('Pertandingan sudah dimulai');
+
+      const teamObj = r.state.teams[team];
+      if (payload.teamName && typeof payload.teamName === 'string') {
+        const trimmed = payload.teamName.trim().slice(0, 40);
+        if (trimmed) {
+          teamObj.name = trimmed;
+          if (team === 'A') r.state.teamAName = trimmed;
+          else r.state.teamBName = trimmed;
+        }
+      }
+
+      if (Array.isArray(payload.characters) && payload.characters.length === 3) {
+        teamObj.characters = payload.characters.map((c, idx) => ({
+          slot: idx,
+          characterId: CHARACTERS.some((ch) => ch.id === c.characterId) ? c.characterId : 'doctor-m',
+          name: (c.name || '').trim().slice(0, 30) || `Hero ${team}${idx + 1}`,
+        })) as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+      }
+
+      if (payload.ready !== undefined) {
+        teamObj.ready = Boolean(payload.ready);
+      } else {
+        teamObj.ready = false;
+      }
+
+      this.syncPlayers(r);
       this.updateLobby(r);
-      await this.persist(r, [prisma.matchPlayer.delete({ where: { id } })]);
+      await this.persist(r, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: r.state.id, teamSide: team },
+          data: { teamName: teamObj.name, readyStatus: teamObj.ready },
+        }),
+      ]);
       return this.serialize(code);
     });
   }
+
+  async leave(code: string, teamOrPlayerId: string) {
+    return this.run(code, async () => {
+      const r = this.get(code);
+      if (!lobby(r.state)) throw new Error('Slot tidak dapat dilepas saat pertandingan berlangsung');
+
+      const team: Team =
+        teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      r.state.teams[team].connected = false;
+      r.state.teams[team].ready = false;
+
+      this.teamSockets.delete(`${code}_${team}`);
+      this.syncPlayers(r);
+      this.updateLobby(r);
+      await this.persist(r, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: r.state.id, teamSide: team },
+          data: { connectedStatus: false, readyStatus: false },
+        }),
+      ]);
+      return this.serialize(code);
+    });
+  }
+
   private stopTimer(code: string) {
     const timer = this.timers.get(code);
     if (timer) clearTimeout(timer);
     this.timers.delete(code);
   }
+
   private schedule(room: Internal, ms: number) {
     this.stopTimer(room.state.code);
     room.remainingMs = ms;
     room.state.deadlineAt = Date.now() + ms;
     const deadline = room.state.deadlineAt;
     const phase = room.state.phase;
-    if (!room.state.paused)
+
+    if (!room.state.paused) {
       this.timers.set(
         room.state.code,
         setTimeout(() => {
           void this.run(room.state.code, async () => {
-            if (room.state.deadlineAt === deadline && room.state.phase === phase)
+            if (room.state.deadlineAt === deadline && room.state.phase === phase) {
               await this.transition(room);
+            }
           }).catch((e) => console.error('Phase transition failed', e));
         }, ms),
       );
+    }
   }
+
   private async beginQuestion(room: Internal) {
     const s = room.state;
     const q = room.snapshots[s.questionIndex];
@@ -435,6 +738,7 @@ export class GameService {
       await this.finish(room);
       return;
     }
+
     s.phase = 'QUESTION_ACTIVE';
     s.question = {
       id: q.id,
@@ -446,9 +750,19 @@ export class GameService {
     };
     delete s.correctAnswer;
     delete s.explanation;
-    s.players.forEach((p) => (p.answered = false));
+
+    s.teams.A.answered = false;
+    s.teams.B.answered = false;
+    delete s.teams.A.lastAnswer;
+    delete s.teams.B.lastAnswer;
+    delete s.teams.A.lastCorrect;
+    delete s.teams.B.lastCorrect;
+
+    this.syncPlayers(room);
+
     const duration = (s.settings.duration || q.duration) * 1000;
     this.schedule(room, duration);
+
     await this.persist(room, [
       prisma.matchQuestion.update({
         where: { id: q.id },
@@ -460,89 +774,127 @@ export class GameService {
       }),
     ]);
   }
-  async answer(code: string, id: string, questionId: string, answer: number) {
+
+  async answer(code: string, teamOrPlayerId: string, questionId: string, answer: number) {
     return this.run(code, async () => {
       const room = this.get(code);
       const s = room.state;
-      const p = this.player(room, id);
+      const team: Team =
+        teamOrPlayerId === 'B' || s.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      const teamObj = s.teams[team];
+
       if (
         s.paused ||
         s.phase !== 'QUESTION_ACTIVE' ||
         s.question?.id !== questionId ||
         !s.deadlineAt ||
         Date.now() >= s.deadlineAt
-      )
+      ) {
         throw new Error('Waktu menjawab sudah berakhir');
-      if (p.answered || room.answers[questionId]?.[id]) throw new Error('Jawaban sudah dikirim');
+      }
+
+      if (teamObj.answered || room.answers[questionId]?.[team]) {
+        throw new Error(`Tim ${team} sudah mengirimkan jawaban`);
+      }
+
       const responseTimeMs = Math.max(0, s.question.duration * 1000 - (s.deadlineAt - Date.now()));
       const q = room.snapshots[s.questionIndex];
-      const answerWrite = prisma.playerAnswer.create({
-        data: {
-          matchId: s.id,
-          matchQuestionId: questionId,
-          playerId: id,
-          selectedAnswer: answer,
-          isCorrect: answer === q.correctAnswer,
-          responseTimeMs,
-        },
-      });
-      (room.answers[questionId] ||= {})[id] = { answer, responseTimeMs };
-      p.answered = true;
-      await this.persist(room, [answerWrite]);
-      if (s.settings.autoClose && s.players.length === 6 && s.players.every((p) => p.answered)) {
+      const isCorrect = answer === q.correctAnswer;
+
+      const extraWrites: Prisma.PrismaPromise<unknown>[] = [
+        prisma.teamAnswer.create({
+          data: {
+            matchId: s.id,
+            matchQuestionId: questionId,
+            matchTeamId: teamObj.id,
+            selectedAnswer: answer,
+            isCorrect,
+            responseTimeMs,
+          },
+        }),
+      ];
+
+      (room.answers[questionId] ||= {})[team] = { answer, responseTimeMs };
+      (room.answers[questionId] ||= {})[teamObj.id] = { answer, responseTimeMs };
+
+      teamObj.answered = true;
+      teamObj.lastAnswer = answer;
+
+      this.syncPlayers(room);
+      await this.persist(room, extraWrites);
+
+      // Auto close when both teams have answered
+      if (s.settings.autoClose && s.teams.A.answered && s.teams.B.answered) {
         this.stopTimer(code);
         this.timers.set(
           code,
           setTimeout(() => {
             void this.run(code, async () => {
               const current = this.get(code);
-              if (current.state.phase === 'QUESTION_ACTIVE' && !current.state.paused)
+              if (current.state.phase === 'QUESTION_ACTIVE' && !current.state.paused) {
                 await this.reveal(current);
+              }
             }).catch((e) => console.error('Auto-close failed', e));
           }, 0),
         );
       }
-      return { accepted: true };
+
+      return { accepted: true, team, answer };
     });
   }
+
   private async reveal(room: Internal) {
     const s = room.state;
     const q = room.snapshots[s.questionIndex];
     if (room.scored.includes(q.id)) return;
     room.scored.push(q.id);
+
     s.phase = 'ANSWER_REVEAL';
     s.correctAnswer = q.correctAnswer;
     s.explanation = q.explanation;
     s.teamAPower = 0;
     s.teamBPower = 0;
+
     const extra: Prisma.PrismaPromise<unknown>[] = [];
-    for (const p of s.players) {
-      const a = room.answers[q.id]?.[p.id];
-      const correct = !!a && a.answer === q.correctAnswer;
+
+    // Calculate score & power for Team A and Team B
+    for (const team of ['A', 'B'] as Team[]) {
+      const tObj = s.teams[team];
+      const ansRecord = room.answers[q.id]?.[team] || room.answers[q.id]?.[tObj.id];
+      const correct = Boolean(ansRecord && ansRecord.answer === q.correctAnswer);
+
+      tObj.lastAnswer = ansRecord?.answer;
+      tObj.lastCorrect = correct;
+
       const award = calculateAward({
         correct,
         points: q.points,
         baseCorrectPower: s.settings.baseCorrectPower,
-        responseTimeMs: a?.responseTimeMs || 0,
+        responseTimeMs: ansRecord?.responseTimeMs || 0,
         durationMs: (s.settings.duration || q.duration) * 1000,
-        streak: room.streaks[p.id] || 0,
+        streak: room.streaks[team] || 0,
         speedBonus: s.settings.speedBonus,
         comboBonus: s.settings.comboBonus,
       });
-      room.streaks[p.id] = correct ? (room.streaks[p.id] || 0) + 1 : 0;
-      p.correctCount += correct ? 1 : 0;
-      p.power += award.power;
-      p.score += award.points;
-      if (p.team === 'A') s.teamAPower += award.power;
-      else s.teamBPower += award.power;
-      if (a)
+
+      room.streaks[team] = correct ? (room.streaks[team] || 0) + 1 : 0;
+      tObj.correctCount += correct ? 1 : 0;
+      tObj.power += award.power;
+      tObj.score += award.points;
+
+      if (team === 'A') s.teamAPower = award.power;
+      else s.teamBPower = award.power;
+
+      if (ansRecord) {
         extra.push(
-          prisma.playerAnswer.update({
-            where: { playerId_matchQuestionId: { playerId: p.id, matchQuestionId: q.id } },
+          prisma.teamAnswer.updateMany({
+            where: { matchTeamId: tObj.id, matchQuestionId: q.id },
             data: { pointsAwarded: award.points, powerAwarded: award.power },
           }),
         );
+      }
     }
+
     const pull = calculateRound({
       ropePosition: s.ropePosition,
       teamAPower: s.teamAPower,
@@ -550,6 +902,7 @@ export class GameService {
       pullMultiplier: s.settings.pullMultiplier,
       winThreshold: s.settings.winThreshold,
     });
+
     const result: RoundResult = {
       questionIndex: s.questionIndex,
       teamAPower: s.teamAPower,
@@ -560,7 +913,10 @@ export class GameService {
       explanation: q.explanation,
     };
     s.rounds.push(result);
+
     this.schedule(room, s.settings.revealSeconds * 1000);
+    this.syncPlayers(room);
+
     extra.push(
       prisma.matchRound.create({
         data: {
@@ -574,8 +930,10 @@ export class GameService {
       }),
       prisma.matchQuestion.update({ where: { id: q.id }, data: { status: 'REVEALED' } }),
     );
+
     await this.persist(room, extra);
   }
+
   private async finish(room: Internal) {
     this.stopTimer(room.state.code);
     room.state.phase = 'FINISHED';
@@ -584,12 +942,15 @@ export class GameService {
     room.state.deadlineAt = null;
     room.state.winner = winnerAtEnd(room.state.ropePosition);
     room.state.finishedAt = new Date().toISOString();
+    this.syncPlayers(room);
     await this.persist(room);
     this.io.to(room.state.code).emit('match:finished', this.serialize(room.state.code));
   }
+
   private async transition(room: Internal) {
     const s = room.state;
     if (s.paused || s.phase === 'FINISHED') return;
+
     switch (s.phase) {
       case 'COUNTDOWN':
         await this.beginQuestion(room);
@@ -612,8 +973,10 @@ export class GameService {
           s.ropePosition === 0 &&
           s.questionIndex + 1 >= s.questionCount &&
           s.questionCount < room.snapshots.length
-        )
+        ) {
           s.questionCount++;
+        }
+
         if (
           Math.abs(s.ropePosition) >= s.settings.winThreshold ||
           s.questionIndex + 1 >= s.questionCount
@@ -621,6 +984,7 @@ export class GameService {
           await this.finish(room);
           return;
         }
+
         s.phase = 'NEXT_QUESTION';
         this.schedule(room, 300);
         break;
@@ -631,56 +995,86 @@ export class GameService {
       default:
         return;
     }
+
+    this.syncPlayers(room);
     await this.persist(room);
   }
+
+  async startMatch(code: string) {
+    return this.run(code, async () => {
+      const r = this.get(code);
+      const s = r.state;
+
+      const tA = s.teams.A;
+      const tB = s.teams.B;
+      if (!tA.connected || !tB.connected) {
+        throw new Error('Kedua tim (Tim A dan Tim B) harus terhubung');
+      }
+      if (!tA.ready || !tB.ready) {
+        throw new Error('Kedua tim harus menekan tombol READY');
+      }
+      if (tA.characters.length !== 3 || tB.characters.length !== 3) {
+        throw new Error('Setiap tim harus memilih tepat 3 hero');
+      }
+
+      s.phase = 'COUNTDOWN';
+      s.locked = true;
+      s.startedAt = new Date().toISOString();
+      this.schedule(r, s.settings.countdownSeconds * 1000);
+
+      this.syncPlayers(r);
+      await this.persist(r);
+      return this.serialize(code);
+    });
+  }
+
   async host(code: string, action: string, payload: any = {}) {
+    if (action === 'start-match') {
+      return this.startMatch(code);
+    }
+
     return this.run(code, async () => {
       const r = this.get(code);
       const s = r.state;
       const extra: Prisma.PrismaPromise<unknown>[] = [];
+
       switch (action) {
-        case 'start-match':
-          if (
-            s.phase !== 'READY' ||
-            s.players.length !== 6 ||
-            s.players.some((p) => !p.ready || !p.connected) ||
-            ['A', 'B'].some((t) => s.players.filter((p) => p.team === t).length !== 3)
-          )
-            throw new Error('Enam pemain (tiga per tim) harus terhubung dan siap');
-          s.phase = 'COUNTDOWN';
-          s.locked = true;
-          s.startedAt = new Date().toISOString();
-          this.schedule(r, s.settings.countdownSeconds * 1000);
-          break;
         case 'pause-match':
-          if (lobby(s) || s.phase === 'FINISHED' || s.paused)
+          if (lobby(s) || s.phase === 'FINISHED' || s.paused) {
             throw new Error('Pertandingan tidak dapat dijeda');
+          }
           r.remainingMs = Math.max(0, (s.deadlineAt || Date.now()) - Date.now());
           this.stopTimer(code);
           s.deadlineAt = null;
           s.paused = true;
           break;
+
         case 'resume-match':
           if (!s.paused) throw new Error('Pertandingan tidak sedang dijeda');
           s.paused = false;
           this.schedule(r, Math.max(1, r.remainingMs));
           break;
+
         case 'next-question':
           if (s.paused) throw new Error('Lanjutkan pertandingan terlebih dahulu');
           if (
             !['ANSWER_REVEAL', 'PULL_ANIMATION', 'ROUND_RESULT', 'NEXT_QUESTION'].includes(s.phase)
-          )
+          ) {
             throw new Error('Tunggu sampai jawaban diungkapkan');
+          }
           this.stopTimer(code);
           await this.transition(r);
           return this.serialize(code);
+
         case 'end-match':
           if (s.phase === 'FINISHED') return this.serialize(code);
           await this.finish(r);
           return this.serialize(code);
+
         case 'reset-match':
-          if (!lobby(s) && s.phase !== 'FINISHED')
+          if (!lobby(s) && s.phase !== 'FINISHED') {
             throw new Error('Akhiri pertandingan sebelum mereset');
+          }
           this.stopTimer(code);
           s.phase = 'WAITING';
           s.paused = false;
@@ -700,14 +1094,21 @@ export class GameService {
           r.answers = {};
           r.scored = [];
           r.streaks = {};
-          s.players.forEach((p) => {
-            p.ready = false;
-            p.score = 0;
-            p.power = 0;
-            p.correctCount = 0;
-            p.answered = false;
-          });
+
+          s.teams.A.ready = false;
+          s.teams.A.score = 0;
+          s.teams.A.power = 0;
+          s.teams.A.correctCount = 0;
+          s.teams.A.answered = false;
+
+          s.teams.B.ready = false;
+          s.teams.B.score = 0;
+          s.teams.B.power = 0;
+          s.teams.B.correctCount = 0;
+          s.teams.B.answered = false;
+
           extra.push(
+            prisma.teamAnswer.deleteMany({ where: { matchId: s.id } }),
             prisma.playerAnswer.deleteMany({ where: { matchId: s.id } }),
             prisma.matchRound.deleteMany({ where: { matchId: s.id } }),
             prisma.matchQuestion.updateMany({
@@ -716,34 +1117,17 @@ export class GameService {
             }),
           );
           break;
+
         case 'lock-lobby':
           if (!lobby(s)) throw new Error('Pertandingan sudah dimulai');
           s.locked = payload.locked === undefined ? !s.locked : payload.locked;
           break;
-        case 'move-player': {
-          if (!lobby(s) || s.locked) throw new Error('Lobby terkunci');
-          const p = this.player(r, payload.playerId);
-          const team = payload.team as Team;
-          if (!['A', 'B'].includes(team)) throw new Error('Tim tidak valid');
-          if (p.team !== team && s.players.filter((x) => x.team === team).length >= 3)
-            throw new Error('Tim tujuan penuh');
-          p.team = team;
-          p.ready = false;
-          this.updateLobby(r);
-          break;
-        }
-        case 'kick-player': {
-          if (!lobby(s)) throw new Error('Pertandingan sudah dimulai');
-          const p = this.player(r, payload.playerId);
-          s.players = s.players.filter((x) => x.id !== p.id);
-          this.sockets.delete(p.id);
-          extra.push(prisma.matchPlayer.delete({ where: { id: p.id } }));
-          this.updateLobby(r);
-          break;
-        }
+
         default:
           throw new Error('Aksi host tidak dikenal');
       }
+
+      this.syncPlayers(r);
       await this.persist(r, extra);
       return this.serialize(code);
     });

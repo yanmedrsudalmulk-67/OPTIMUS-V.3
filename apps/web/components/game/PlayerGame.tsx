@@ -10,23 +10,38 @@ import {
   Check,
   CheckCheck,
   Clock3,
+  Edit2,
   HeartPulse,
   LoaderCircle,
   LogOut,
   Pause,
+  Play,
   Radio,
   ShieldCheck,
+  Sparkles,
+  Swords,
+  Trophy,
+  Users,
   Volume2,
   VolumeX,
 } from 'lucide-react';
-import { CHARACTERS } from '@shared/index';
+import { CHARACTERS, type Team, type TeamCharacterSlot } from '@shared/index';
 import { emit } from '../../lib/socket';
 import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
-import { Balance, GameHeader, ResultCard, TeamRoster } from './RoomParts';
+import { Balance, GameHeader, ResultCard } from './RoomParts';
 import { readSession, saveSession, sessionKey, useRoom } from './useRoom';
 import './game.css';
 
-const CharacterPreview = dynamic(() => import('../arena/CharacterPreview'), { ssr: false });
+const Arena = dynamic(() => import('../arena/Arena'), {
+  ssr: false,
+  loading: () => (
+    <div className="display-canvas-loading">
+      <span className="spinner" />
+      <span>Menyiapkan arena 3D…</span>
+    </div>
+  ),
+});
+
 export default function PlayerGame({
   code: rawCode,
   mode,
@@ -36,28 +51,37 @@ export default function PlayerGame({
 }) {
   const code = rawCode.toUpperCase();
   const router = useRouter();
-  const { state, player, session, connected, loading, error, setError, seconds } = useRoom(
-    code,
-    true,
-  );
+  const { state, session, connected, loading, error, setError, seconds } = useRoom(code, true);
+
   const [busy, setBusy] = useState(false);
   const [muted, updateMuted] = useState(isAudioMuted);
-  const [selections, setSelections] = useState<Record<string, number>>({});
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editCharacter, setEditCharacter] = useState('doctor-m');
+  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+
+  // Edit Team Modal / Inline State
+  const [editingTeam, setEditingTeam] = useState(false);
+  const [editTeamName, setEditTeamName] = useState('');
+  const [editCharacters, setEditCharacters] = useState<TeamCharacterSlot[]>([]);
+
   const previousPhase = useRef('');
+  const myTeamSide: Team = session?.team || 'A';
+  const myTeam = state?.teams?.[myTeamSide];
+  const oppTeamSide: Team = myTeamSide === 'A' ? 'B' : 'A';
+  const oppTeam = state?.teams?.[oppTeamSide];
+
   const questionId = state?.question?.id;
-  const selected = questionId ? selections[questionId] : undefined;
+
   useEffect(() => {
     const saved = readSession(code);
     if (!saved) router.replace(`/join/${code}`);
   }, [code, router]);
+
+  // Handle phase routing between lobby and play
   useEffect(() => {
     if (!state) return;
-    const lobby = ['WAITING', 'READY'].includes(state.phase);
-    if (lobby && mode === 'play') router.replace(`/lobby/${code}`);
-    if (!lobby && mode === 'lobby') router.replace(`/play/${code}`);
+    const isLobbyPhase = ['WAITING', 'READY'].includes(state.phase);
+    if (isLobbyPhase && mode === 'play') router.replace(`/lobby/${code}`);
+    if (!isLobbyPhase && mode === 'lobby') router.replace(`/play/${code}`);
+
     if (state.phase !== previousPhase.current) {
       playSound(
         state.phase === 'FINISHED'
@@ -66,402 +90,394 @@ export default function PlayerGame({
             ? 'start'
             : state.phase === 'COUNTDOWN'
               ? 'countdown'
-              : 'click',
+              : state.phase === 'PULL_ANIMATION'
+                ? 'pull'
+                : 'click',
       );
       previousPhase.current = state.phase;
     }
   }, [state?.phase, mode, code, router]);
-  const action = async (event: string, payload: Record<string, unknown> = {}) => {
+
+  // Reset selected answer on new question
+  useEffect(() => {
+    if (state?.phase === 'QUESTION_ACTIVE') {
+      setSelectedAnswer(null);
+    }
+  }, [state?.question?.id, state?.phase]);
+
+  const toggleReady = async () => {
+    if (!myTeam || busy) return;
     setBusy(true);
     setError('');
     try {
-      await emit(event, { code, ...payload });
+      const nextReady = !myTeam.ready;
+      await emit('team:ready', { code, ready: nextReady });
       playSound('ready');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Aksi gagal. Silakan coba lagi.');
+      setError(e instanceof Error ? e.message : 'Gagal memperbarui status siap.');
     } finally {
       setBusy(false);
     }
   };
-  const answer = async (index: number) => {
-    if (!questionId || selected !== undefined || player?.answered || busy) return;
+
+  const submitTeamAnswer = async (index: number) => {
+    if (!questionId || selectedAnswer !== null || myTeam?.answered || busy) return;
     setBusy(true);
     setError('');
     try {
-      await emit('player:submit-answer', { code, questionId, answer: index });
-      setSelections((s) => ({ ...s, [questionId]: index }));
+      setSelectedAnswer(index);
+      await emit('team:submit-answer', { code, questionId, answer: index });
       playSound('answer');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Jawaban belum terkirim.');
+      setError(e instanceof Error ? e.message : 'Jawaban tim belum terkirim.');
+      setSelectedAnswer(null);
     } finally {
       setBusy(false);
     }
   };
-  const updateProfile = async () => {
+
+  const openEditModal = () => {
+    if (!myTeam) return;
+    setEditTeamName(myTeam.name);
+    setEditCharacters([...myTeam.characters]);
+    setEditingTeam(true);
+  };
+
+  const saveTeamEdits = async () => {
+    if (!myTeam || busy) return;
     setBusy(true);
     setError('');
     try {
-      await emit('player:select-character', {
+      await emit('team:update', {
         code,
-        characterId: editCharacter,
-        name: editName.trim(),
+        teamName: editTeamName.trim(),
+        characters: editCharacters,
+        ready: false,
       });
-      if (session)
-        saveSession(code, { ...session, name: editName.trim(), characterId: editCharacter });
-      setEditing(false);
-      playSound('select');
+      setEditingTeam(false);
+      playSound('ready');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Perubahan belum tersimpan.');
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan perubahan tim.');
     } finally {
       setBusy(false);
     }
   };
-  const leave = async () => {
-    if (!window.confirm('Keluar dari pertandingan? Slotmu akan dikosongkan.')) return;
-    try {
-      await emit('room:leave', { code });
-      localStorage.removeItem(sessionKey(code));
-      router.push('/');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Tidak dapat keluar.');
-    }
-  };
-  const toggleSound = () => {
-    setMuted(!muted);
-    updateMuted(!muted);
-  };
-  if (loading && !state)
+
+  if (!state) {
     return (
       <div className="player-page">
         <GameHeader connected={connected} code={code} />
-        <div className="game-loading">
+        <div className="game-loading card">
           <span className="spinner" />
-          <h2>Menghubungkan ke arena…</h2>
-          <p>Memulihkan sesi pemainmu dengan aman.</p>
+          <h2>Menghubungkan ke Tim…</h2>
+          <p>{error || 'Memulihkan sesi pengendali tim.'}</p>
         </div>
       </div>
     );
-  if (!state)
-    return (
-      <div className="player-page">
-        <GameHeader connected={connected} code={code} />
-        <div className="empty-state card">
-          <h1>Room belum dapat dibuka</h1>
-          <p>{error || 'Periksa kembali kode room dari host.'}</p>
-          <Link href="/join" className="btn btn-primary">
-            Masukkan kode room
-          </Link>
-        </div>
-      </div>
-    );
-  const character = CHARACTERS.find((c) => c.id === player?.characterId);
+  }
+
   const isLobby = ['WAITING', 'READY'].includes(state.phase);
-  const allReady = state.players.filter((p) => p.connected && p.ready).length;
-  const reveal = state.correctAnswer !== undefined && state.phase !== 'QUESTION_ACTIVE';
-  return (
-    <div className={`player-page ${!isLobby ? 'in-match' : ''}`}>
-      <GameHeader connected={connected} code={code} />
-      <main className={`player-main ${isLobby ? 'lobby-main' : ''}`}>
-        {error && (
-          <p className="error-message" role="alert">
-            {error}
-          </p>
-        )}
-        {!connected && (
-          <div className="reconnecting-banner">
-            <LoaderCircle size={16} className="spin" />
-            Koneksi terputus. Menghubungkan kembali tanpa membuat pemain baru…
+  const bothTeamsReady =
+    state.teams.A.connected &&
+    state.teams.A.ready &&
+    state.teams.B.connected &&
+    state.teams.B.ready;
+
+  // -------------------------------------------------------------
+  // LOBBY ROOM VIEW (TWO TEAM PANELS + BIG VS + START BUTTON)
+  // -------------------------------------------------------------
+  if (isLobby) {
+    return (
+      <div className="player-page lobby-page">
+        <GameHeader connected={connected} code={code} />
+
+        <main className="two-teams-lobby">
+          <div className="lobby-header-banner">
+            <span className="eyebrow">TWO TEAM CONTROLLERS · LOBBY</span>
+            <h1>{state.title}</h1>
+            <p className="muted">{state.packageName} · 6 Hero 3D Siap Bertanding</p>
           </div>
-        )}
-        {session && !player && !loading && (
-          <div className="error-message">
-            Sesi belum terhubung atau slot telah dikosongkan oleh host.{' '}
-            <Link href={`/join/${code}`} onClick={() => localStorage.removeItem(sessionKey(code))}>
-              Kembali ke halaman bergabung
-            </Link>
-          </div>
-        )}
-        {state.phase === 'FINISHED' ? (
-          <ResultCard state={state} player={player} />
-        ) : isLobby ? (
-          <>
-            <div className="lobby-title">
-              <span className="badge badge-green">
-                <Radio size={13} /> LOBBY PERTANDINGAN
-              </span>
-              <h1>
-                Tim hebat dimulai
-                <br />
-                dari <em>hero yang siap.</em>
-              </h1>
-              <p>
-                {state.title} <span>·</span> {state.packageName}
-              </p>
-            </div>
-            <div className="lobby-grid">
-              <section className="my-player-card card">
-                <div className="mini-character">
-                  <CharacterPreview
-                    characterId={player?.characterId || session?.characterId || 'doctor-m'}
-                    team={player?.team || session?.team}
-                  />
-                </div>
-                <div className="my-player-info">
-                  <span className="eyebrow">HERO KAMU</span>
-                  <h2>{player?.name || session?.name}</h2>
-                  <p>
-                    {character?.profession} <span>·</span>{' '}
-                    {player?.team === 'A' ? state.teamAName : state.teamBName}
-                  </p>
-                </div>
-                <button
-                  className={`btn ${player?.ready ? 'btn-secondary' : 'btn-primary'}`}
-                  disabled={busy || !connected || !player}
-                  onClick={() => void action('player:set-ready', { ready: !player?.ready })}
-                >
-                  {player?.ready ? (
-                    <>
-                      <CheckCheck size={19} /> READY · Saya siap
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck size={19} /> Siap bertanding
-                    </>
-                  )}
-                </button>
-                <button
-                  className="text-button"
-                  disabled={busy}
-                  onClick={() => {
-                    setEditName(player?.name || '');
-                    setEditCharacter(player?.characterId || 'doctor-m');
-                    setEditing(true);
-                  }}
-                >
-                  Edit nama & karakter
-                </button>
-                <p className="muted lobby-wait">
-                  <Clock3 size={15} /> Menunggu host memulai pertandingan
-                </p>
-              </section>
-              <div className="lobby-teams">
-                <TeamRoster state={state} team="A" />
-                <div className="lobby-versus">VS</div>
-                <TeamRoster state={state} team="B" />
-                <div className="lobby-ready-count">
-                  <span>
-                    <CheckCheck size={18} />
-                    <b>{allReady}/6</b> hero siap bertanding
-                  </span>
-                  <div>
-                    <i style={{ width: `${(allReady / 6) * 100}%` }} />
-                  </div>
-                  <p>Game dimulai oleh host setelah enam pemain terhubung dan siap.</p>
+
+          {error && <div className="error-message" role="alert">{error}</div>}
+
+          {/* TWO TEAM PANELS WITH VS IN THE MIDDLE */}
+          <div className="teams-versus-container">
+            {/* TEAM A PANEL */}
+            <div className={`team-lobby-card team-a-lobby ${myTeamSide === 'A' ? 'is-my-team' : ''}`}>
+              <div className="team-lobby-header">
+                <span className="team-badge-tag tag-a">TEAM GREEN</span>
+                <h2>{state.teams.A.name}</h2>
+                <div className="controller-status">
+                  <span className={`status-dot ${state.teams.A.connected ? 'dot-green' : 'dot-off'}`} />
+                  <span>{state.teams.A.connected ? 'CONTROLLER CONNECTED' : 'MENUNGGU PENGENDALI'}</span>
                 </div>
               </div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="player-match-header">
-              <div>
-                <span className={`badge badge-${player?.team === 'B' ? 'blue' : 'green'}`}>
-                  {player?.team === 'B' ? state.teamBName : state.teamAName}
-                </span>
-                <h2>{player?.name || session?.name}</h2>
-              </div>
-              <button
-                className="sound-button"
-                onClick={toggleSound}
-                aria-label={muted ? 'Aktifkan suara' : 'Matikan suara'}
-              >
-                {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-              </button>
-            </div>
-            {state.paused && (
-              <div className="pause-panel">
-                <Pause size={24} />
-                <strong>Pertandingan dijeda</strong>
-                <p>Tarik napas dulu. Host akan melanjutkan pertandingan.</p>
-              </div>
-            )}
-            {state.phase === 'COUNTDOWN' ? (
-              <section className="countdown-panel card">
-                <p className="eyebrow">SEMUA HERO SUDAH SIAP</p>
-                <h1>{seconds || 'BATTLE!'}</h1>
-                <h2>Siapkan pengetahuanmu!</h2>
-                <p>Jawaban benar menjadi kekuatan untuk timmu.</p>
-              </section>
-            ) : (
-              <>
-                <section className="quiz-card card">
-                  <div className="quiz-meta">
-                    <span>
-                      PERTANYAAN {Math.min(state.questionIndex + 1, state.questionCount)}{' '}
-                      <span className="muted">/ {state.questionCount}</span>
-                    </span>
-                    <div
-                      className={`quiz-timer ${seconds <= 5 && state.phase === 'QUESTION_ACTIVE' ? 'urgent' : ''}`}
-                    >
-                      <Clock3 size={18} />
-                      {state.phase === 'QUESTION_ACTIVE'
-                        ? `${seconds}s`
-                        : reveal
-                          ? 'HASIL'
-                          : 'RONDE'}
-                    </div>
-                  </div>
-                  <div className="quiz-progress">
-                    <i
-                      style={{
-                        width: `${state.phase === 'QUESTION_ACTIVE' ? (seconds / (state.question?.duration || state.settings.duration || 20)) * 100 : 100}%`,
-                      }}
-                    />
-                  </div>
-                  {state.question?.imageUrl && (
-                    <img
-                      className="quiz-image"
-                      src={state.question.imageUrl}
-                      alt="Ilustrasi pertanyaan"
-                    />
-                  )}
-                  <h1>{state.question?.text || 'Menyiapkan pertanyaan berikutnya…'}</h1>
-                  <div className="answer-options">
-                    {state.question?.options.map((option, index) => {
-                      const correct = reveal && index === state.correctAnswer;
-                      const wrong = reveal && index === selected && !correct;
-                      return (
-                        <button
-                          key={`${questionId}-${index}`}
-                          className={`answer-option ${selected === index ? 'selected' : ''} ${correct ? 'correct' : ''} ${wrong ? 'wrong' : ''}`}
-                          disabled={
-                            state.phase !== 'QUESTION_ACTIVE' ||
-                            state.paused ||
-                            player?.answered ||
-                            selected !== undefined ||
-                            busy ||
-                            !connected ||
-                            !player ||
-                            seconds === 0
-                          }
-                          onClick={() => void answer(index)}
-                        >
-                          <span className="answer-letter">{String.fromCharCode(65 + index)}</span>
-                          <strong>{option}</strong>
-                          {correct ? (
-                            <Check size={20} />
-                          ) : selected === index ? (
-                            <CheckCheck size={20} />
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {state.phase === 'QUESTION_ACTIVE' &&
-                  (selected !== undefined || player?.answered) ? (
-                    <div className="answer-confirmation">
-                      <CheckCheck size={21} />
-                      <div>
-                        <strong>ANSWER SUBMITTED</strong>
-                        <p>Jawabanmu terkunci. Tunggu hasil dari server.</p>
+
+              {/* 3 HEROES LIST */}
+              <div className="lobby-heroes-list">
+                {state.teams.A.characters.map((ch, idx) => {
+                  const def = CHARACTERS.find((c) => c.id === ch.characterId) || CHARACTERS[0];
+                  return (
+                    <div key={idx} className="lobby-hero-item">
+                      <div className="lobby-hero-avatar" style={{ background: def.color }}>
+                        <span>{def.name[0]}</span>
                       </div>
+                      <div className="lobby-hero-info">
+                        <strong>{ch.name}</strong>
+                        <small>{def.profession}</small>
+                      </div>
+                      <span className="hero-slot-label">Slot 0{idx + 1}</span>
                     </div>
-                  ) : state.phase === 'QUESTION_ACTIVE' ? (
-                    <p className="answer-hint">
-                      Pilih satu jawaban terbaik. Jawaban yang dikirim tidak dapat diubah.
-                    </p>
-                  ) : reveal ? (
-                    <div className="answer-explanation">
-                      <strong>
-                        <Check size={17} /> Jawaban benar:{' '}
-                        {String.fromCharCode(65 + (state.correctAnswer || 0))}
-                      </strong>
-                      <p>{state.explanation || 'Bersiap untuk tarikan berikutnya!'}</p>
+                  );
+                })}
+              </div>
+
+              {/* Team A Ready Badge */}
+              <div className="team-lobby-footer">
+                <span className={`ready-pill ${state.teams.A.ready ? 'pill-ready' : 'pill-wait'}`}>
+                  {state.teams.A.ready ? <CheckCheck size={16} /> : <LoaderCircle size={16} />}
+                  <span>{state.teams.A.ready ? 'READY TO BATTLE' : 'NOT READY'}</span>
+                </span>
+                {myTeamSide === 'A' && (
+                  <button className="btn btn-secondary btn-small" onClick={openEditModal}>
+                    <Edit2 size={13} /> Edit Tim
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* BIG VS BADGE */}
+            <div className="versus-badge-divider">
+              <div className="vs-circle">
+                <Swords size={28} />
+                <span>VS</span>
+              </div>
+            </div>
+
+            {/* TEAM B PANEL */}
+            <div className={`team-lobby-card team-b-lobby ${myTeamSide === 'B' ? 'is-my-team' : ''}`}>
+              <div className="team-lobby-header">
+                <span className="team-badge-tag tag-b">TEAM BLUE</span>
+                <h2>{state.teams.B.name}</h2>
+                <div className="controller-status">
+                  <span className={`status-dot ${state.teams.B.connected ? 'dot-blue' : 'dot-off'}`} />
+                  <span>{state.teams.B.connected ? 'CONTROLLER CONNECTED' : 'MENUNGGU PENGENDALI'}</span>
+                </div>
+              </div>
+
+              {/* 3 HEROES LIST */}
+              <div className="lobby-heroes-list">
+                {state.teams.B.characters.map((ch, idx) => {
+                  const def = CHARACTERS.find((c) => c.id === ch.characterId) || CHARACTERS[0];
+                  return (
+                    <div key={idx} className="lobby-hero-item">
+                      <div className="lobby-hero-avatar" style={{ background: def.color }}>
+                        <span>{def.name[0]}</span>
+                      </div>
+                      <div className="lobby-hero-info">
+                        <strong>{ch.name}</strong>
+                        <small>{def.profession}</small>
+                      </div>
+                      <span className="hero-slot-label">Slot 0{idx + 1}</span>
                     </div>
-                  ) : (
-                    <p className="answer-hint">
-                      {state.phase === 'PULL_ANIMATION'
-                        ? 'Tim sedang menarik tali!'
-                        : state.phase === 'ROUND_RESULT'
-                          ? 'Satu tarikan lebih dekat ke kemenangan.'
-                          : 'Pertanyaan berikutnya segera dimulai.'}
-                    </p>
-                  )}
-                </section>
-                <section className="player-power card">
-                  <Balance state={state} />
-                  <div className="player-personal">
-                    <span>Kontribusimu</span>
-                    <strong>
-                      {player?.correctCount || 0} benar <i /> {player?.power || 0} power <i />{' '}
-                      {player?.score || 0} poin
-                    </strong>
-                  </div>
-                </section>
-              </>
-            )}
-          </>
-        )}
-        <div className="player-bottom-actions">
-          <Link href={`/display/${code}`} target="_blank">
-            Lihat arena <ArrowRight size={14} />
-          </Link>
-          {isLobby && (
-            <button onClick={toggleSound}>
-              {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}{' '}
-              {muted ? 'Aktifkan suara' : 'Matikan suara'}
-            </button>
-          )}
-          {isLobby && (
-            <button onClick={() => void leave()}>
-              <LogOut size={15} /> Keluar dari room
-            </button>
-          )}
-        </div>
-      </main>
-      {editing && (
-        <div className="modal-backdrop" onClick={() => setEditing(false)}>
-          <section className="modal player-edit-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Edit hero kamu</h2>
-            <label className="field">
-              Nama pemain
-              <input
-                className="input"
-                maxLength={30}
-                minLength={2}
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              Karakter
-              <select
-                className="select"
-                value={editCharacter}
-                onChange={(e) => setEditCharacter(e.target.value)}
-              >
-                {CHARACTERS.map((c) => (
-                  <option value={c.id} key={c.id}>
-                    {c.name} — {c.profession}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setEditing(false)}>
-                Batal
-              </button>
+                  );
+                })}
+              </div>
+
+              {/* Team B Ready Badge */}
+              <div className="team-lobby-footer">
+                <span className={`ready-pill ${state.teams.B.ready ? 'pill-ready' : 'pill-wait'}`}>
+                  {state.teams.B.ready ? <CheckCheck size={16} /> : <LoaderCircle size={16} />}
+                  <span>{state.teams.B.ready ? 'READY TO BATTLE' : 'NOT READY'}</span>
+                </span>
+                {myTeamSide === 'B' && (
+                  <button className="btn btn-secondary btn-small" onClick={openEditModal}>
+                    <Edit2 size={13} /> Edit Tim
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* LOBBY CONTROLLER ACTIONS */}
+          <div className="lobby-controller-bar card">
+            <div className="controller-meta">
+              <strong>Tim Anda: {myTeam?.name || `Tim ${myTeamSide}`}</strong>
+              <small>Status: {myTeam?.ready ? 'Sudah Siap' : 'Menunggu Konfirmasi Siap'}</small>
+            </div>
+
+            <div className="controller-button-group">
               <button
-                className="btn btn-primary"
-                disabled={busy || editName.trim().length < 2}
-                onClick={() => void updateProfile()}
+                className={`btn ${myTeam?.ready ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={() => void toggleReady()}
+                disabled={busy}
               >
-                Simpan perubahan
+                {myTeam?.ready ? 'Batalkan Siap' : 'SAYA SIAP (READY)'}
               </button>
             </div>
-          </section>
+          </div>
+
+          {bothTeamsReady ? (
+            <div className="admin-waiting-banner">
+              <div className="admin-waiting-pulse" />
+              <div>
+                <strong>Kedua Tim Sudah Siap!</strong>
+                <p>Menunggu Administrator memulai pertandingan dari Ruang Kontrol...</p>
+              </div>
+            </div>
+          ) : (
+            <p className="lobby-hint">
+              Pastikan kedua tim telah memilih pahlawan dan menekan tombol <b>SAYA SIAP (READY)</b>. Pertandingan dimulai oleh Admin.
+            </p>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // PLAY VIEW — FULL WIDTH ARENA FIRST, UI SECOND
+  // -------------------------------------------------------------
+  return (
+    <div className="player-page cinematic-play-page">
+      {/* TOP HUD: Minimal & Clean */}
+      <header className="play-top-hud">
+        <div className="hud-team hud-team-a">
+          <span className="team-dot" />
+          <div className="hud-team-text">
+            <strong>{state.teamAName}</strong>
+            <small>{state.teams.A.power} POWER</small>
+          </div>
         </div>
-      )}
+
+        <div className="hud-center">
+          <div className="hud-progress-pill">
+            <span className="hud-label">
+              {state.phase === 'QUESTION_ACTIVE'
+                ? `SOAL ${state.questionIndex + 1}/${state.questionCount}`
+                : state.phase === 'COUNTDOWN'
+                  ? 'PERSIAPAN'
+                  : state.phase === 'FINISHED'
+                    ? 'SELESAI'
+                    : 'HASIL RONDE'}
+            </span>
+            {state.phase === 'QUESTION_ACTIVE' && (
+              <span className="hud-timer">
+                <Clock3 size={14} />
+                <b>{seconds}s</b>
+              </span>
+            )}
+          </div>
+          <div className="hud-balance-bar">
+            <Balance state={state} />
+          </div>
+        </div>
+
+        <div className="hud-team hud-team-b">
+          <div className="hud-team-text align-right">
+            <strong>{state.teamBName}</strong>
+            <small>{state.teams.B.power} POWER</small>
+          </div>
+          <span className="team-dot dot-blue" />
+        </div>
+      </header>
+
+      {/* MAIN VIEWPORT: CINEMATIC 3D ARENA (ARENA FIRST!) */}
+      <section className="cinematic-arena-container">
+        <Arena state={state} theme={state.settings.arena} />
+
+        {/* Phase Overlays inside Arena */}
+        {state.phase === 'COUNTDOWN' && (
+          <div className="arena-countdown-overlay">
+            <span>BATTLE START</span>
+            <strong>{seconds || 'GO!'}</strong>
+          </div>
+        )}
+
+        {state.phase === 'PULL_ANIMATION' && (
+          <div className="arena-pull-banner">
+            {state.teamAPower === state.teamBPower ? (
+              <div className="pull-balanced">POWER BALANCED!</div>
+            ) : (
+              <div className="pull-winner">
+                {state.teamAPower > state.teamBPower ? state.teamAName : state.teamBName} MENARIK TALI!
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* DEDICATED QUESTION / ANSWER PANEL (SEPARATE CONTAINER, NO OVERLAP) */}
+      <section className="dedicated-question-section">
+        {state.phase === 'FINISHED' ? (
+          <div className="play-result-container">
+            <ResultCard state={state} />
+          </div>
+        ) : state.question ? (
+          <div className="active-question-card card">
+            <div className="question-header-row">
+              <div className="q-badge">
+                <span>SOAL 0{state.questionIndex + 1}</span>
+                <small>{state.question.points} Poin</small>
+              </div>
+
+              <div className="team-answer-status">
+                {myTeam?.answered ? (
+                  <span className="badge badge-green">
+                    <CheckCheck size={14} /> Jawaban Tim Anda Terkirim
+                  </span>
+                ) : (
+                  <span className="badge badge-amber">
+                    <Clock3 size={14} /> Pilih 1 Jawaban untuk Tim Anda
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <h2 className="question-text">{state.question.text}</h2>
+
+            {/* 4 LARGE TOUCH ANSWER BUTTONS */}
+            <div className="play-options-grid">
+              {state.question.options.map((opt, idx) => {
+                const isSelected = selectedAnswer === idx || (state.phase !== 'QUESTION_ACTIVE' && myTeam?.lastAnswer === idx);
+                const isCorrect = state.correctAnswer === idx;
+                const showReveal = state.correctAnswer !== undefined;
+
+                let btnClass = 'option-btn';
+                if (isSelected) btnClass += ' selected';
+                if (showReveal && isCorrect) btnClass += ' correct-reveal';
+                if (showReveal && isSelected && !isCorrect) btnClass += ' wrong-reveal';
+
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={myTeam?.answered || state.phase !== 'QUESTION_ACTIVE' || busy}
+                    className={btnClass}
+                    onClick={() => void submitTeamAnswer(idx)}
+                  >
+                    <span className="option-letter">{String.fromCharCode(65 + idx)}</span>
+                    <span className="option-body">{opt}</span>
+                    {showReveal && isCorrect && <CheckCheck size={18} className="reveal-icon" />}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* EXPLANATION ON REVEAL */}
+            {state.correctAnswer !== undefined && state.explanation && (
+              <div className="question-explanation-box">
+                <strong>Penjelasan:</strong> {state.explanation}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="waiting-next-question card">
+            <span className="spinner" />
+            <span>Menyiapkan ronde berikutnya…</span>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

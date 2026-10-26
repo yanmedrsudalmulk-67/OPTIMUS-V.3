@@ -27,12 +27,15 @@ function CameraRig({ state }: { state?: RoomState | null }) {
   useFrame(({ camera, clock }, delta) => {
     const movement = state?.settings.cameraMotion !== false;
     const pulling = state?.phase === 'PULL_ANIMATION' && movement;
-    const shake = pulling ? Math.sin(clock.elapsedTime * 14) * 0.018 : 0;
+    const shake = pulling ? Math.sin(clock.elapsedTime * 14) * 0.022 : 0;
     camera.position.x = THREE.MathUtils.damp(camera.position.x, shake, 5, delta);
-    const fit = Math.max(1, 1.65 / (size.width / Math.max(1, size.height)));
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, 12 * fit, 6, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, 4.5 * fit, 6, delta);
-    camera.lookAt(0, 1.45, -1);
+
+    const aspect = size.width / Math.max(1, size.height);
+    const fit = Math.max(0.9, 1.45 / aspect);
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, 10.8 * fit, 6, delta);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, 3.8 * fit, 6, delta);
+    camera.lookAt(0, 1.15, 0.2);
+
   });
   return null;
 }
@@ -272,7 +275,7 @@ export default function Arena({ state, preview = false, theme, quality, classNam
       style={{
         width: '100%',
         height: '100%',
-        minHeight: 320,
+        minHeight: 380,
         position: 'relative',
         overflow: 'hidden',
         background: 'linear-gradient(#dbe9e8,#e4eee2)',
@@ -283,7 +286,9 @@ export default function Arena({ state, preview = false, theme, quality, classNam
         <Canvas
           shadows={!low}
           dpr={low ? 1 : [1, 1.7]}
-          camera={{ position: [0, 4.5, 12], fov: 40, near: 0.1, far: 80 }}
+
+          camera={{ position: [0, 4.0, 11.2], fov: 38, near: 0.1, far: 80 }}
+
           gl={{ antialias: !low, powerPreference: low ? 'low-power' : 'high-performance' }}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
