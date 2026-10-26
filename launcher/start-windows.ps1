@@ -12,6 +12,10 @@ try {
     npm run admin:create
   }
 
+  if (Test-Path "$PSScriptRoot\..\scripts\buat-shortcut-desktop.ps1") {
+    & "$PSScriptRoot\..\scripts\buat-shortcut-desktop.ps1" | Out-Null
+  }
+
   Start-Process 'http://localhost:3005'
   if (Test-Path 'AKUN-ADMIN.txt') {
     Start-Process notepad.exe -ArgumentList 'AKUN-ADMIN.txt'

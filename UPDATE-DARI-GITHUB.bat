@@ -32,11 +32,12 @@ echo.
 echo [3/3] Memperbarui dependensi dan database lokal...
 call npm run db:generate >nul 2>&1
 call npm run db:migrate >nul 2>&1
+powershell.exe -ExecutionPolicy Bypass -File scripts\buat-shortcut-desktop.ps1 >nul 2>&1
 
 echo.
 echo ======================================================================
 echo   SUKSES! Aplikasi game berhasil diperbarui dari GitHub.
-echo   Data lokal (soal, skor, akun admin) tetap aman tersimpan.
+echo   Shortcut Desktop siap, data lokal (soal, skor, admin) tetap aman.
 echo ======================================================================
 echo.
 pause
