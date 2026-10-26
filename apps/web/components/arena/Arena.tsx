@@ -31,9 +31,9 @@ function CameraRig({ state }: { state?: RoomState | null }) {
     camera.position.x = THREE.MathUtils.damp(camera.position.x, shake, 5, delta);
 
     const aspect = size.width / Math.max(1, size.height);
-    const fit = Math.max(0.9, 1.45 / aspect);
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, 10.8 * fit, 6, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, 3.8 * fit, 6, delta);
+    const fit = Math.max(0.85, 1.35 / aspect);
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, 9.5 * fit, 6, delta);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, 3.4 * fit, 6, delta);
     camera.lookAt(0, 1.15, 0.2);
 
   });
@@ -287,7 +287,7 @@ export default function Arena({ state, preview = false, theme, quality, classNam
           shadows={!low}
           dpr={low ? 1 : [1, 1.7]}
 
-          camera={{ position: [0, 4.0, 11.2], fov: 38, near: 0.1, far: 80 }}
+          camera={{ position: [0, 3.5, 9.8], fov: 38, near: 0.1, far: 80 }}
 
           gl={{ antialias: !low, powerPreference: low ? 'low-power' : 'high-performance' }}
           onCreated={({ gl }) => {

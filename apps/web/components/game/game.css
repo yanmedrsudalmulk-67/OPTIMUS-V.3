@@ -1220,12 +1220,18 @@
   flex: 1;
   min-width: 0;
 }
-.display-title strong {
-  font-size: 13px;
-  color: #3d5a47;
+.display-title strong,
+.display-title .rsud-display-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #12382c;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
 }
 .display-title span {
-  font-size: 9px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #637e70;
   color: #91a38e;
   white-space: nowrap;
   overflow: hidden;
@@ -1380,8 +1386,9 @@
 .display-arena {
   position: relative;
   width: 100%;
-  height: clamp(290px, 42vw, 480px);
-  min-height: 290px;
+  flex: 1;
+  min-height: 500px;
+  height: calc(100vh - 190px);
   margin-top: -8px;
   background: radial-gradient(ellipse, #e5f0dd, transparent 70%);
 }
@@ -3186,4 +3193,108 @@
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(22, 163, 74, 0);
   }
+}
+
+
+/* RSUD AL-MULK FULL-SCREEN DISPLAY & QR MODAL */
+.display-lobby .display-arena {
+  flex: 1;
+  height: calc(100vh - 160px);
+  min-height: 560px;
+}
+.display-balance {
+  max-width: 760px;
+  width: 100%;
+  margin: -24px auto 14px;
+  padding: 0 30px;
+  z-index: 3;
+  position: relative;
+}
+.display-qr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e8f5ed;
+  border: 1.5px solid #bce2cb;
+  color: #13664d;
+  padding: 6px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.display-qr-btn:hover {
+  background: #d3ede0;
+  border-color: #8ed0a8;
+  color: #0b4937;
+}
+.display-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 24, 18, 0.65);
+  backdrop-filter: blur(5px);
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.display-qr-modal {
+  background: #ffffff;
+  padding: 28px 32px;
+  border-radius: 20px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.25);
+  border: 1px solid #d5e5dc;
+}
+.display-qr-modal h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #173f32;
+}
+.display-qr-modal p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #638274;
+}
+.display-qr-modal img {
+  margin: 0 auto 14px;
+  border-radius: 12px;
+  display: block;
+  border: 1px solid #e1ebe5;
+  padding: 8px;
+  background: #fff;
+}
+.display-qr-modal .modal-room-code {
+  font-size: 14px;
+  color: #1b4b3b;
+  margin-bottom: 16px;
+}
+.display-qr-modal .modal-room-code b {
+  letter-spacing: 2px;
+  font-size: 18px;
+  color: #106f52;
+}
+.modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: #eff5f2;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #4b6b5d;
+  transition: background 0.15s ease;
+}
+.modal-close-btn:hover {
+  background: #dfece5;
+  color: #113427;
 }

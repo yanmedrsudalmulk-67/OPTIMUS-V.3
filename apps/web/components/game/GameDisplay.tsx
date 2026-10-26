@@ -19,6 +19,7 @@ import {
   VolumeX,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react';
 import { CHARACTERS, type Quality } from '@shared/index';
 import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
@@ -46,6 +47,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
   const [fullscreen, setFullscreen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [uiError, setUiError] = useState('');
+  const [showQrModal, setShowQrModal] = useState(false);
   const displayRef = useRef<HTMLDivElement>(null);
   const phase = useRef('');
 
@@ -68,18 +70,22 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       if (state.phase === 'FINISHED') playSound('victory');
       else if (state.phase === 'COUNTDOWN') playSound('countdown');
       else if (state.phase === 'PULL_ANIMATION') playSound('pull');
-      else if (state.phase === 'QUESTION_ACTIVE' && phase.current === 'COUNTDOWN')
-        playSound('start');
+      else if (state.phase === 'ANSWER_REVEAL') playSound('reveal');
+      else if (state.phase === 'ROUND_RESULT') playSound('round');
       phase.current = state.phase;
     }
-  }, [state?.phase]);
+  }, [state]);
 
   const toggleFullscreen = async () => {
+    if (!displayRef.current) return;
     try {
-      if (document.fullscreenElement) await document.exitFullscreen();
-      else await displayRef.current?.requestFullscreen();
+      if (!document.fullscreenElement) {
+        await displayRef.current.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
     } catch {
-      setUiError('Layar penuh tidak tersedia pada browser ini.');
+      setUiError('Mode layar penuh tidak didukung peramban ini.');
     }
   };
 
@@ -89,14 +95,26 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      setUiError('Salin URL bergabung dari bilah alamat atau gunakan QR.');
+      setUiError('Gagal menyalin tautan.');
     }
   };
 
   if (!state) {
     return (
-      <div className="game-display">
-        <div className="game-loading">
+      <div className="game-display display-loading">
+        <header className="display-header">
+          <Link href="/" className="display-home" aria-label="Kembali ke beranda">
+            <HeartPulse size={24} />
+          </Link>
+          <div className="display-title">
+            <strong className="rsud-display-title">Game Tarik Tambang RSUD Al-Mulk</strong>
+            <span>Healthcare Heroes Quiz Battle · 2 Team Controllers</span>
+          </div>
+          <div className="display-room">
+            ROOM <b>{code}</b>
+          </div>
+        </header>
+        <div className="display-state-card">
           <span className="spinner" />
           <h2>{loading ? 'Menghubungkan ke arena…' : 'Arena belum tersedia'}</h2>
           <p>{error || 'Sinkronisasi dengan server pertandingan.'}</p>
@@ -118,7 +136,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
           <HeartPulse size={24} />
         </Link>
         <div className="display-title">
-          <strong>{state.title}</strong>
+          <strong className="rsud-display-title">Game Tarik Tambang RSUD Al-Mulk</strong>
           <span>{state.packageName} · 2 Team Controllers</span>
         </div>
         <div className={`display-connected ${connected ? '' : 'offline'}`}>
@@ -128,6 +146,15 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
         <div className="display-room">
           ROOM <b>{code}</b>
         </div>
+        <button
+          className="display-qr-btn"
+          aria-label="Tampilkan QR Code"
+          title="Tampilkan QR Code bergabung"
+          onClick={() => setShowQrModal(true)}
+        >
+          <QrCode size={16} />
+          <span>QR</span>
+        </button>
         <button
           aria-label={muted ? 'Aktifkan suara' : 'Matikan suara'}
           onClick={() => {
@@ -246,53 +273,8 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
         <Balance state={state} />
       </div>
 
-      {/* BOTTOM AREA: LOBBY TEAMS OR SEPARATE QUESTION PANEL */}
-      {lobby ? (
-        <section className="display-lobby-bottom">
-          <div className="display-team-roster team-a-box">
-            <h3>
-              <span className="team-dot" /> {state.teamAName}
-              <small>{state.teams.A.ready ? '✓ READY' : 'MENUNGGU READY'}</small>
-            </h3>
-            <div className="display-hero-chips">
-              {state.teams.A.characters.map((ch, idx) => (
-                <span key={idx} className="display-chip">
-                  {ch.name}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="display-join">
-            <div>
-              <QrCode size={18} />
-              <strong>2 HP Pengendali · Scan & Pilih 3 Hero</strong>
-            </div>
-            {qr && <img src={qr} alt={`QR bergabung ke room ${code}`} width="118" height="118" />}
-            <span>
-              atau buka di HP: <b>{code}</b>
-            </span>
-            <button onClick={() => void copy()}>
-              <Copy size={13} />
-              {copied ? 'Tautan disalin' : 'Salin tautan'}
-            </button>
-          </div>
-
-          <div className="display-team-roster team-b-box">
-            <h3>
-              <span className="team-dot dot-blue" /> {state.teamBName}
-              <small>{state.teams.B.ready ? '✓ READY' : 'MENUNGGU READY'}</small>
-            </h3>
-            <div className="display-hero-chips">
-              {state.teams.B.characters.map((ch, idx) => (
-                <span key={idx} className="display-chip chip-blue">
-                  {ch.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : state.phase === 'FINISHED' ? (
+      {/* BOTTOM AREA: SEPARATE QUESTION PANEL DURING PLAY (LOBBY BOTTOM BARCODE REMOVED) */}
+      {lobby ? null : state.phase === 'FINISHED' ? (
         <div className="display-results-overlay">
           <ResultCard state={state} />
         </div>
@@ -333,16 +315,41 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
         <div className="display-waiting">Menyiapkan pertanyaan berikutnya…</div>
       )}
 
-      <footer className="display-footer">
-        <span>
-          MEDICAL TUG OF WAR <i /> Healthcare Heroes Quiz Battle
-        </span>
-        <span>
-          {lobby
-            ? 'Pertandingan dimulai setelah kedua tim siap (2 pengendali tim).'
-            : 'Masing-masing tim mengirimkan satu jawaban dari HP pengendali.'}
-        </span>
-      </footer>
+      {!lobby && (
+        <footer className="display-footer">
+          <span>
+            MEDICAL TUG OF WAR <i /> Healthcare Heroes Quiz Battle
+          </span>
+          <span>
+            Masing-masing tim mengirimkan satu jawaban dari HP pengendali.
+          </span>
+        </footer>
+      )}
+
+      {/* POPUP MODAL QR CODE JIKA DIPERLUKAN */}
+      {showQrModal && (
+        <div className="display-modal-backdrop" onClick={() => setShowQrModal(false)}>
+          <div className="display-qr-modal card" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="modal-close-btn"
+              onClick={() => setShowQrModal(false)}
+              aria-label="Tutup"
+            >
+              <X size={18} />
+            </button>
+            <h3>Pindai untuk Bergabung</h3>
+            <p>2 HP Pengendali · Pilih 3 Hero</p>
+            {qr && <img src={qr} alt={`QR bergabung ke room ${code}`} width="200" height="200" />}
+            <div className="modal-room-code">
+              Kode Room: <b>{code}</b>
+            </div>
+            <button className="btn btn-secondary btn-small" onClick={() => void copy()}>
+              <Copy size={13} />
+              {copied ? 'Tautan disalin' : 'Salin tautan'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
