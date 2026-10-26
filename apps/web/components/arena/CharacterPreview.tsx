@@ -10,18 +10,23 @@ import WebGLBoundary from './WebGLBoundary';
 export default function CharacterPreview({
   characterId,
   team = 'A',
+  background,
+  className,
 }: {
   characterId: string;
   team?: Team;
+  background?: string;
+  className?: string;
 }) {
   return (
     <div
+      className={className}
       data-testid="character-preview"
       style={{
         width: '100%',
         height: '100%',
         minHeight: 220,
-        background: 'radial-gradient(ellipse at 45% 36%,#fff8ed,#e6e5db)',
+        background: background ?? 'radial-gradient(ellipse at 45% 36%,#fff8ed,#e6e5db)',
         borderRadius: 'inherit',
         position: 'relative',
         touchAction: 'pan-y',

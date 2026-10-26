@@ -3305,3 +3305,660 @@
   background: #dfece5;
   color: #113427;
 }
+
+
+/* ==========================================================================
+   KIDTOPIA-STYLE 3D CHARACTER SELECTION ("Hand-pick Your Character")
+   ========================================================================== */
+
+.kidtopia-viewport {
+  width: 100%;
+  max-width: 460px;
+  min-height: 860px;
+  margin: 18px auto;
+  border-radius: 40px;
+  background: linear-gradient(180deg, #1d3ddb 0%, #152fb5 42%, #0e208b 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 60px rgba(12, 28, 92, 0.45);
+  font-family: inherit;
+}
+
+@media (max-width: 520px) {
+  .kidtopia-viewport {
+    max-width: 100%;
+    margin: 0;
+    border-radius: 0;
+    min-height: 100vh;
+    box-shadow: none;
+  }
+}
+
+.kidtopia-bg-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.kidtopia-bg-glow.glow-1 {
+  width: 320px;
+  height: 320px;
+  top: -90px;
+  right: -90px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.09) 0%, transparent 70%);
+}
+.kidtopia-bg-glow.glow-2 {
+  width: 260px;
+  height: 260px;
+  top: 70px;
+  left: -80px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: radial-gradient(circle, rgba(80, 160, 255, 0.12) 0%, transparent 70%);
+}
+
+/* TOP STATUS BAR */
+.kidtopia-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px 10px;
+  z-index: 10;
+  position: relative;
+}
+.kidtopia-avatar-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.avatar-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.avatar-circle.avatar-green {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+}
+.avatar-circle.avatar-blue {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  color: #fff;
+}
+.avatar-chip-text strong {
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  display: block;
+}
+.avatar-chip-text small {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 9px;
+  display: block;
+}
+
+.kidtopia-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kidtopia-icon-pill,
+.kidtopia-close-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.kidtopia-icon-pill:hover,
+.kidtopia-close-pill:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+.kidtopia-coin-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.coin-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+}
+
+/* HERO TITLE & TEAM PICKER */
+.kidtopia-header-section {
+  padding: 8px 24px 20px;
+  text-align: center;
+  z-index: 5;
+  position: relative;
+}
+.kidtopia-title {
+  color: #ffffff;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin: 0 0 6px;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+}
+.kidtopia-subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  margin: 0 auto 16px;
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.kidtopia-team-toggle {
+  display: inline-flex;
+  background: rgba(10, 25, 75, 0.35);
+  backdrop-filter: blur(12px);
+  padding: 4px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  gap: 6px;
+}
+.team-toggle-btn {
+  padding: 7px 16px;
+  border-radius: 24px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: all 0.2s ease;
+}
+.toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.team-toggle-btn.active-team-green {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+.team-toggle-btn.active-team-blue {
+  background: #3b82f6;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+/* ORGANIC WHITE BOTTOM SHEET */
+.kidtopia-sheet {
+  background: #ffffff;
+  border-radius: 36px 36px 0 0;
+  padding: 24px 20px 28px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 10;
+}
+.kidtopia-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+.sheet-eyebrow {
+  font-size: 9px;
+  font-weight: 800;
+  color: #8fa0b5;
+  letter-spacing: 1.2px;
+  display: block;
+}
+.sheet-heading {
+  font-size: 21px;
+  font-weight: 800;
+  color: #142844;
+  margin: 2px 0 0;
+  letter-spacing: -0.4px;
+}
+.team-name-input-wrap {
+  width: 140px;
+}
+.kidtopia-team-input {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1.5px solid #dce4ed;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a3352;
+  background: #f7fafc;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.kidtopia-team-input:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+}
+
+/* 3 HERO SLOTS ROW */
+.kidtopia-slots-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.kidtopia-slot-pill {
+  background: #f4f7fa;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 7px 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.kidtopia-slot-pill:hover {
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+.kidtopia-slot-pill.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.18);
+}
+.slot-pill-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.slot-pill-badge {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+.slot-label {
+  font-size: 8px;
+  font-weight: 800;
+  color: #8b99ab;
+  letter-spacing: 0.5px;
+  display: block;
+}
+.slot-hero-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #142844;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 62px;
+}
+.slot-check-dot {
+  font-size: 9px;
+  font-weight: 700;
+  color: #a0aec0;
+  padding-left: 2px;
+}
+.slot-check-dot.active {
+  color: #2563eb;
+  font-weight: 900;
+}
+
+/* 3D CAROUSEL STAGE */
+.kidtopia-carousel-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 6px 0 14px;
+  position: relative;
+  touch-action: pan-y;
+}
+.kidtopia-card {
+  position: relative;
+  border-radius: 28px;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.kidtopia-card.peeking-card {
+  width: 58px;
+  height: 150px;
+  background: #f1ede7;
+  opacity: 0.5;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transform: scale(0.88);
+}
+.kidtopia-card.peeking-card:hover {
+  opacity: 0.8;
+  transform: scale(0.92);
+}
+.peeking-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+}
+.peeking-name {
+  font-size: 8px;
+  font-weight: 700;
+  color: #718096;
+  text-align: center;
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kidtopia-card.highlight-card {
+  width: 215px;
+  height: 245px;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #ffd9b3 0%, #ff9e57 100%);
+  box-shadow: 0 16px 36px rgba(255, 145, 60, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: visible;
+}
+.highlight-canvas-wrap {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  overflow: hidden;
+  position: relative;
+}
+.card-floating-badge {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 800;
+  color: #c25e1a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  color: #1e3a5f;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 15;
+  transition: all 0.15s ease;
+}
+.carousel-arrow:hover {
+  transform: translateY(-50%) scale(1.08);
+  background: #f8fafc;
+}
+.carousel-arrow.arrow-left {
+  left: -14px;
+}
+.carousel-arrow.arrow-right {
+  right: -14px;
+}
+
+/* HERO DETAILS BELOW CARD */
+.kidtopia-hero-details {
+  text-align: center;
+  margin-bottom: 12px;
+}
+.hero-name-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.hero-name-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.hero-name-display:hover {
+  background: #f1f5f9;
+}
+.hero-name-text {
+  font-size: 22px;
+  font-weight: 800;
+  color: #142844;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+.hero-edit-icon {
+  color: #94a3b8;
+  display: grid;
+  place-items: center;
+}
+.name-edit-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.name-edit-input {
+  font-size: 18px;
+  font-weight: 800;
+  color: #142844;
+  padding: 3px 8px;
+  border: 1.5px solid #3b82f6;
+  border-radius: 8px;
+  outline: none;
+  text-align: center;
+  max-width: 180px;
+}
+.name-edit-save {
+  background: #10b981;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.hero-profession-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  background: #f1f5f9;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+}
+.profession-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.hero-description-text {
+  font-size: 11px;
+  color: #718096;
+  line-height: 1.45;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+/* QUICK PROFESSION CHIPS */
+.kidtopia-quick-gallery {
+  margin: 10px 0 14px;
+}
+.quick-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #8fa0b5;
+  display: block;
+  margin-bottom: 6px;
+  text-align: left;
+}
+.quick-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-start;
+}
+.quick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 10px;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.quick-chip:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.quick-chip.active {
+  background: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #ffffff;
+}
+.chip-color-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* ERROR MESSAGE */
+.kidtopia-error-message {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+/* FLOATING ACTION PILL & CONFIRM BUTTON */
+.kidtopia-action-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.kidtopia-pill-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  background: #eff6ff;
+  border-radius: 20px;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  border: 1px solid #dbeafe;
+}
+.pill-star {
+  font-size: 11px;
+}
+.kidtopia-confirm-btn {
+  width: 100%;
+  height: 50px;
+  border-radius: 25px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+.kidtopia-confirm-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.45);
+}
+.kidtopia-confirm-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* MODAL OVERLAY FOR EDIT TIM IN LOBBY */
+.kidtopia-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 50, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}

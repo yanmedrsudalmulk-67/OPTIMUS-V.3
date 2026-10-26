@@ -30,6 +30,7 @@ import { emit } from '../../lib/socket';
 import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
 import { Balance, GameHeader, ResultCard } from './RoomParts';
 import { readSession, saveSession, sessionKey, useRoom } from './useRoom';
+import TeamCharacterPicker from './TeamCharacterPicker';
 import './game.css';
 
 const Arena = dynamic(() => import('../arena/Arena'), {
@@ -331,6 +332,42 @@ export default function PlayerGame({
             </p>
           )}
         </main>
+
+        {editingTeam && myTeam && (
+          <div className="kidtopia-modal-overlay">
+            <TeamCharacterPicker
+              roomCode={code}
+              roomTitle={state.title}
+              packageName={state.packageName}
+              initialTeam={myTeamSide}
+              initialTeamName={myTeam.name}
+              initialCharacters={myTeam.characters}
+              busy={busy}
+              connected={connected}
+              error={error}
+              isEditMode={true}
+              onCancel={() => setEditingTeam(false)}
+              onConfirm={async (data) => {
+                setBusy(true);
+                setError('');
+                try {
+                  await emit('team:update', {
+                    code,
+                    teamName: data.teamName,
+                    characters: data.characters,
+                    ready: false,
+                  });
+                  setEditingTeam(false);
+                  playSound('ready');
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Gagal memperbarui tim.');
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   }
