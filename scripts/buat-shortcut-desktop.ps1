@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'SilentlyContinue'
-$projectDir = Resolve-Path (Join-Path $PSScriptRoot '..')
-$targetBat = Join-Path $projectDir 'MULAI-WINDOWS.bat'
+$projectDir = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$targetBat = [string](Join-Path $projectDir 'MULAI-WINDOWS.bat')
 
 $wsh = New-Object -ComObject WScript.Shell
 
@@ -17,8 +17,8 @@ foreach ($desktop in $desktops) {
     if (Test-Path $desktop) {
         $shortcutPath = Join-Path $desktop 'Medical Tug of War.lnk'
         $shortcut = $wsh.CreateShortcut($shortcutPath)
-        $shortcut.TargetPath = $targetBat
-        $shortcut.WorkingDirectory = $projectDir
+        $shortcut.TargetPath = [string]$targetBat
+        $shortcut.WorkingDirectory = [string]$projectDir
         $shortcut.Description = 'Medical Tug of War - Game Tarik Tambang Edukasi Medis'
         # Windows shell icon (gamepad / flag / heart)
         if (Test-Path "$env:SystemRoot\System32\imageres.dll") {
