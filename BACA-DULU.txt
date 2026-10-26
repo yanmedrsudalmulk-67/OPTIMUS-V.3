@@ -1,0 +1,27 @@
+MEDICAL TUG OF WAR - PAKET LOKAL
+
+WINDOWS
+1. Ekstrak SEMUA isi ZIP dahulu (klik kanan > Extract All). Jangan menjalankan dari dalam ZIP.
+2. Pasang Docker Desktop dari https://www.docker.com/products/docker-desktop/.
+   Ikuti petunjuk Docker untuk mengaktifkan WSL 2 bila diminta. Buka Docker Desktop
+   dan tunggu sampai engine berjalan (Linux containers).
+3. Klik dua kali MULAI-WINDOWS.bat. Tidak perlu memasang Node.js atau PostgreSQL sendiri.
+4. Tunggu pemasangan pertama selesai. Internet dan beberapa GB ruang kosong diperlukan.
+   Browser membuka game otomatis dan Notepad menampilkan akun admin lokal.
+5. Untuk berhenti, klik HENTIKAN-WINDOWS.bat. Untuk bermain lagi, klik MULAI-WINDOWS.bat.
+
+MAC
+Dengan Docker Desktop aktif, jalankan MULAI-MAC.command.
+Jika izin executable hilang, jalankan: chmod +x MULAI-MAC.command
+Peluncur Windows/macOS belum diuji langsung pada OS tersebut.
+
+CATATAN
+- Ini paket source dengan peluncur otomatis, bukan EXE portabel/offline.
+- Pemasangan pertama mengunduh dependensi dan membangun aplikasi, sehingga ZIP kecil.
+- Akun baru dibuat otomatis di AKUN-ADMIN.txt. Jangan bagikan file tersebut atau launcher/local.env.
+- Soal dan riwayat disimpan di volume Docker. Jangan hapus volume jika ingin menyimpan data.
+- Paket ini membuka game pada komputer sendiri. Akses enam HP melalui LAN membutuhkan
+  konfigurasi alamat jaringan sesuai README.md; launcher ini hanya membuka akses lokal.
+- Jika port 3000 dipakai aplikasi lain, hentikan aplikasi tersebut lalu jalankan ulang.
+- Antigravity dapat membuka folder hasil ekstrak untuk mengedit source. Untuk perubahan
+  source, klik MULAI-WINDOWS.bat lagi agar aplikasi dibangun ulang.

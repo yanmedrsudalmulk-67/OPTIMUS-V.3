@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           String         @id @default(cuid())
+  username     String         @unique
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AdminSession[]
+}
+
+model AdminSession {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  adminId   String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([adminId])
+}
+
+model QuestionPackage {
+  id          String     @id @default(cuid())
+  name        String
+  description String     @default("")
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  questions   Question[]
+  matches     Match[]
+}
+
+model Question {
+  id            String          @id @default(cuid())
+  packageId     String
+  text          String
+  options       Json
+  correctAnswer Int
+  explanation   String          @default("")
+  imageUrl      String?
+  duration      Int             @default(20)
+  points        Int             @default(100)
+  active        Boolean         @default(true)
+  sortOrder     Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  package       QuestionPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  matchQuestions MatchQuestion[]
+
+  @@index([packageId, active, sortOrder])
+}
+
+model Character {
+  id              String        @id
+  name            String
+  profession      String
+  modelPath       String?
+  thumbnailPath   String?
+  animationConfig Json          @default("{}")
+  active          Boolean       @default(true)
+  players         MatchPlayer[]
+}
+
+model Match {
+  id           String           @id @default(cuid())
+  code         String           @unique
+  title        String
+  packageId    String?
+  packageName  String
+  teamAName    String           @default("Tim Emerald")
+  teamBName    String           @default("Tim Sapphire")
+  phase        String           @default("WAITING")
+  paused       Boolean          @default(false)
+  locked       Boolean          @default(false)
+  settings     Json
+  state        Json             @default("{}")
+  snapshots    Json             @default("[]")
+  ropePosition Float            @default(0)
+  winner       String?
+  createdAt    DateTime         @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  package      QuestionPackage? @relation(fields: [packageId], references: [id], onDelete: SetNull)
+  players      MatchPlayer[]
+  questions    MatchQuestion[]
+  answers      PlayerAnswer[]
+  rounds       MatchRound[]
+
+  @@index([phase, createdAt])
+  @@index([finishedAt])
+}
+
+model MatchPlayer {
+  id           String         @id @default(cuid())
+  matchId      String
+  name         String
+  team         String
+  characterId  String
+  sessionHash  String         @unique
+  connected    Boolean        @default(false)
+  ready        Boolean        @default(false)
+  correctCount Int            @default(0)
+  power        Float          @default(0)
+  score        Int            @default(0)
+  answered     Boolean        @default(false)
+  joinedAt     DateTime       @default(now())
+  match        Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  character    Character      @relation(fields: [characterId], references: [id])
+  answers      PlayerAnswer[]
+
+  @@index([matchId, team])
+}
+
+model MatchQuestion {
+  id               String         @id @default(cuid())
+  matchId          String
+  sourceQuestionId String?
+  snapshot         Json
+  questionOrder    Int
+  status           String         @default("PENDING")
+  startedAt        DateTime?
+  deadlineAt       DateTime?
+  match            Match          @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  sourceQuestion   Question?      @relation(fields: [sourceQuestionId], references: [id], onDelete: SetNull)
+  answers          PlayerAnswer[]
+  round            MatchRound?
+
+  @@unique([matchId, questionOrder])
+}
+
+model PlayerAnswer {
+  id               String        @id @default(cuid())
+  matchId          String
+  matchQuestionId  String
+  playerId         String
+  selectedAnswer   Int
+  isCorrect        Boolean
+  pointsAwarded    Int           @default(0)
+  powerAwarded     Float         @default(0)
+  responseTimeMs   Int
+  submittedAt      DateTime      @default(now())
+  match            Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchQuestion    MatchQuestion @relation(fields: [matchQuestionId], references: [id], onDelete: Cascade)
+  player           MatchPlayer   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, matchQuestionId])
+  @@index([matchId])
+}
+
+model MatchRound {
+  id              String        @id @default(cuid())
+  matchId         String
+  matchQuestionId String        @unique
+  teamAPower      Float
+  teamBPower      Float
+  ropeBefore      Float
+  ropeAfter       Float
+  createdAt       DateTime      @default(now())
+  match           Match         @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  matchQuestion   MatchQuestion @relation(fields: [matchQuestionId], references: [id], onDelete: Cascade)
+
+  @@index([matchId])
+}
+
+model GameSetting {
+  id        String   @id @default("default")
+  value     Json
+  updatedAt DateTime @updatedAt
+}

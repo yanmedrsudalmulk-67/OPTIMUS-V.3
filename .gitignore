@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env
+.env.local
+*.log
+.data/
+test-results/
+playwright-report/
+coverage/
+apps/realtime-server/uploads/
+*.tsbuildinfo
+
+.npm-cache/
+launcher/local.env
+AKUN-ADMIN.txt
