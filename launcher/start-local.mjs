@@ -4,7 +4,13 @@ import { readFileSync, existsSync, mkdirSync, writeFileSync, readdirSync } from 
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+import { acquireLock } from './process-lock.mjs';
 process.chdir(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
+acquireLock(process.cwd());
+if (existsSync('.data/update-pending.json'))
+  throw new Error(
+    'Update sebelumnya terputus. Jalankan UPDATE-GAME.bat untuk memulihkan source dahulu.',
+  );
 if (Number(process.versions.node.split('.')[0]) !== 24)
   throw new Error('Gunakan Node.js versi 24.');
 const npmCli =

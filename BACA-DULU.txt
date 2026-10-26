@@ -12,6 +12,16 @@ WINDOWS (64-bit)
    jika dipindah, jalankan MULAI-WINDOWS.bat lagi untuk memperbarui shortcut.
 7. Berhenti: tekan Ctrl+C di jendela game. Jangan jalankan dua salinan bersamaan.
 
+UPDATE GAME
+1. Tutup game dengan Ctrl+C, lalu klik UPDATE-GAME.bat di folder yang sama.
+2. Tunggu pesan berhasil, lalu jalankan kembali shortcut game.
+3. Source terbaru diambil dari GitHub branch codex/game-local-launcher.
+   Edit kode lokal akan diganti; source lama dan data disimpan sebagai backup
+   di .data/update-backups. Database, akun, dan uploads tidak ditimpa.
+4. Jika update terputus, jalankan UPDATE-GAME.bat lagi untuk pemulihan.
+5. Jika repo privat, updater dapat meminta token baca GitHub (input tersembunyi).
+   Tidak perlu token untuk repo publik; token tidak disimpan oleh updater.
+
 DATABASE
 Semua tabel kuis, admin, room, jawaban, skor, dan pengaturan ada di medical.db
 pada folder game. Jangan hapus file ini. Gambar unggahan tersimpan terpisah.

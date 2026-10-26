@@ -18,6 +18,21 @@ Frontend menggunakan **port 3005**; API/Socket.IO tetap **4001** secara internal
 
 `setup:local` membuat `.env` privat jika belum ada, menyiapkan SQLite, menghasilkan Prisma Client, menerapkan migrasi, memasukkan lima paket/25 soal/delapan karakter, serta membuat admin pertama. Pengulangan setup mempertahankan akun dan perubahan bank soal.
 
+### Memperbarui dari GitHub
+
+Tutup game dengan **Ctrl+C**, lalu klik **UPDATE-GAME.bat** pada folder game. Updater mengambil commit terbaru dari `yanmedrsudalmulk-67/OPTIMUS-V.3`, branch `codex/game-local-launcher`. Git tidak perlu dipasang. Setelah selesai, buka shortcut game; dependensi dan build diperbarui oleh peluncur bila diperlukan.
+
+Untuk instalasi lama yang belum memiliki tombol update: unduh **Pasang-Updater.zip**, ekstrak ke folder sementara, lalu salin `UPDATE-GAME.bat` dan folder `launcher` ke **folder game yang sudah ada**, sejajar dengan `package.json` dan `medical.db`. Gabungkan folder launcher. Paket kecil ini tidak memuat database atau akun.
+
+- Database lokal (termasuk lokasi `DATABASE_URL` kustom), `.env`, `AKUN-ADMIN.txt`, uploads, Node portabel, dan dependensi tidak diganti oleh updater.
+- **Kode yang diedit di Antigravity akan diganti versi GitHub.** Semua source yang akan diganti serta database, konfigurasi, akun, dan uploads dicadangkan lebih dahulu ke `.data/update-backups/TANGGAL-ID`. File tambahan lokal tidak dihapus.
+- Unduhan harus lengkap dan lolos hash Git sebelum source diubah. Updater menolak saat game berjalan. Game dan updater memakai lock bersama.
+- Kegagalan penulisan memulihkan source lama. Jika proses terputus mendadak, jalankan updater lagi untuk pemulihan sebelum memulai game.
+- Untuk memulihkan versi lama secara manual, tutup game dan salin isi `source` dari backup ke akar game. Backup database ada di `local-data/database`; nama/lokasi aslinya dicatat di `INFO.json`. Pulihkan database hanya jika diperlukan, dengan semua proses game berhenti. Simpan backup secara pribadi karena memuat data akun.
+- Repository publik tidak membutuhkan token. Untuk repository privat atau batas akses GitHub, updater Windows dapat meminta token secara tersembunyi dengan izin baca **Contents** pada repository ini. Token hanya digunakan dalam proses updater, tidak disimpan ke file. Variabel `GITHUB_TOKEN` / `GH_TOKEN` juga didukung. Jangan kirim token ke chat atau commit GitHub.
+
+Terminal lintas platform: `npm run update:game`. Perubahan pada laptop tidak diunggah otomatis ke GitHub; tombol ini hanya mengambil pembaruan.
+
 ### Masuk sebagai admin
 
 Buka `/admin/login`. Nama pengguna awal `admin`; kata sandi acak disimpan pada `ADMIN_PASSWORD` dalam `.env` yang diabaikan Git. Baca melalui editor lokal, atau tentukan kata sandi sendiri dengan prompt terminal:

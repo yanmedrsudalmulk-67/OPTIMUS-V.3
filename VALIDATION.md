@@ -20,3 +20,11 @@ Peluncur PowerShell, unduhan Node.js portabel, dan pembuatan shortcut Desktop be
 Pemasangan pertama membutuhkan internet. Database dan kredensial privat tidak masuk ZIP/GitHub. Instalasi baru membuat data contoh dan akun baru; data pengguna tersimpan di medical.db, gambar unggahan tetap pada folder uploads. SQLite dapat memakai file jurnal sementara saat transaksi berlangsung.
 
 Uji browser memakai Chromium software rendering. FPS perangkat fisik, LAN/HTTPS publik, beban besar, dan beberapa instance API belum diuji. Karakter adalah model prosedural; aset profesional dan fitur Super Pull belum disertakan.
+
+## Updater GitHub
+
+- `npm run test:updater`: 10 tes lulus. Memeriksa database SQLite tetap identik, kredensial/uploads tetap ada, backup source hasil edit lokal, rollback kegagalan tulis, pemulihan update terputus, perlindungan path/database kustom, penolakan symlink, lock proses, commit yang dipatok, verifikasi hash Git, serta kegagalan unduhan.
+- Perintah updater benar-benar menolak saat aplikasi aktif pada port 3005 dan saat lock aplikasi dipegang, tanpa mengganti source/data. Peluncur dengan lock baru berhasil membuka game.
+- Seluruh 95 file source diterapkan pada instalasi SQLite hasil ekstrak sebelumnya menggunakan payload lokal; medical.db, .env, dan AKUN-ADMIN.txt identik byte demi byte. Setup sesudah update berhasil dan mempertahankan 25 soal.
+- Pengujian unduhan memakai respons GitHub simulasi. Akses langsung API GitHub dari cloud ini dibatasi proxy (HTTP 403); alur download langsung dari laptop dan PowerShell Windows belum terverifikasi.
+- Updater tidak menjalankan migrasi atau mengganti database. Migrasi versi aplikasi dilakukan oleh setup saat game dibuka lagi, setelah backup updater tersedia.

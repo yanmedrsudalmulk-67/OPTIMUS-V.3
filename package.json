@@ -25,7 +25,9 @@
     "setup:local": "tsx scripts/setup-local.ts",
     "db:backup": "tsx scripts/backup.ts",
     "format": "prettier --write apps packages scripts tests *.ts *.json *.md",
-    "local": "node launcher/start-local.mjs"
+    "local": "node launcher/start-local.mjs",
+    "update:game": "node launcher/update-game.mjs",
+    "test:updater": "node --test tests/updater.node.mjs"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.3.0",
