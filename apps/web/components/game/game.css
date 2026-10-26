@@ -2933,7 +2933,7 @@
 
 .full-cinematic-arena {
   width: 100% !important;
-  height: clamp(400px, 58vh, 720px) !important;
+  height: clamp(380px, 50vh, 600px) !important;
 }
 
 .arena-countdown-overlay {
@@ -3197,10 +3197,17 @@
 
 
 /* RSUD AL-MULK FULL-SCREEN DISPLAY & QR MODAL */
-.display-lobby .display-arena {
+.game-display.display-lobby {
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+.display-lobby .display-arena,
+.display-lobby .display-arena.full-cinematic-arena {
   flex: 1;
-  height: calc(100vh - 160px);
-  min-height: 560px;
+  height: calc(100vh - 180px) !important;
+  min-height: 460px;
+  max-height: calc(100vh - 170px);
 }
 .display-balance {
   max-width: 760px;
