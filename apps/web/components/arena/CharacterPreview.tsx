@@ -40,23 +40,31 @@ export default function CharacterPreview({
           gl={{ antialias: true }}
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 1.1;
           }}
         >
           <hemisphereLight args={['#fff4e0', '#b5ada0', 1.8]} />
           <directionalLight
             position={[-3, 5, 4]}
-            intensity={2.8}
+            intensity={2.9}
             color="#ffedd0"
             castShadow
             shadow-mapSize={512}
           />
           <directionalLight position={[3, 3, -3]} intensity={1.8} color="#c5deed" />
+          {/* Comic Rim Lighting for dramatic heroic depth */}
+          <directionalLight
+            position={[0, 2, -3.5]}
+            intensity={2.4}
+            color={team === 'A' ? '#10b981' : '#38bdf8'}
+          />
+          <pointLight position={[0, 4, 3]} intensity={1.2} color="#ffffff" />
+
           <Suspense fallback={null}>
             <Character characterId={characterId} team={team} facing={-0.12} />
             <ContactShadows
               position={[0, 0.005, 0]}
-              opacity={0.26}
+              opacity={0.3}
               scale={4}
               blur={2.5}
               far={3}
@@ -82,11 +90,11 @@ export default function CharacterPreview({
           textAlign: 'center',
           pointerEvents: 'none',
           fontSize: 10,
-          color: '#739184',
+          color: '#8aa69b',
           letterSpacing: 0.4,
         }}
       >
-        Geser untuk memutar karakter
+        Geser untuk memutar karakter 3D
       </span>
     </div>
   );

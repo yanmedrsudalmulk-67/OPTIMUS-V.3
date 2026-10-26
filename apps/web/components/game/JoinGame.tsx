@@ -150,7 +150,17 @@ export default function JoinGame({ code: initialCode = '' }: { code?: string }) 
   }
 
   return (
-    <div className="player-page" style={{ background: '#0a174e', minHeight: '100vh', padding: '12px 10px 40px' }}>
+    <div
+      className="player-page"
+      style={{
+        background: 'radial-gradient(ellipse at 50% 20%, #112052 0%, #050a1d 100%)',
+        minHeight: '100vh',
+        padding: '20px 16px 40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
       <TeamCharacterPicker
         roomCode={code}
         roomTitle={state?.title}

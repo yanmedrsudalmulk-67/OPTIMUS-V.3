@@ -12,9 +12,13 @@ import {
   RotateCcw,
   ShieldCheck,
   Sparkles,
+  Swords,
   Volume2,
   VolumeX,
   X,
+  Zap,
+  Activity,
+  Award,
 } from 'lucide-react';
 import {
   CHARACTERS,
@@ -24,6 +28,91 @@ import {
 } from '../../../../packages/shared/src';
 import CharacterPreview from '../arena/CharacterPreview';
 import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
+
+export interface HeroStats {
+  pullPower: number;
+  accuracy: number;
+  stamina: number;
+  specialty: string;
+  comicTitle: string;
+  color: string;
+  badge: string;
+}
+
+export const HERO_STATS: Record<string, HeroStats> = {
+  'doctor-m': {
+    pullPower: 92,
+    accuracy: 97,
+    stamina: 89,
+    specialty: 'Clinical Diagnostics & Infection Control',
+    comicTitle: 'CHIEF PHYSICIAN',
+    color: '#00e5a3',
+    badge: 'SURGEON 01',
+  },
+  'doctor-f': {
+    pullPower: 90,
+    accuracy: 99,
+    stamina: 91,
+    specialty: 'Internal Medicine & Patient Safety',
+    comicTitle: 'MASTER DIAGNOSTICIAN',
+    color: '#38bdf8',
+    badge: 'MD EXPERT',
+  },
+  'nurse-m': {
+    pullPower: 96,
+    accuracy: 91,
+    stamina: 95,
+    specialty: 'Critical Care & Intensive Monitoring',
+    comicTitle: 'ICU VANGUARD',
+    color: '#10b981',
+    badge: 'CARE FORCE',
+  },
+  'nurse-f': {
+    pullPower: 91,
+    accuracy: 95,
+    stamina: 93,
+    specialty: 'Emergency Triage & Wound Protocol',
+    comicTitle: 'RAPID RESPONDER',
+    color: '#06b6d4',
+    badge: 'TRIAGE ELITE',
+  },
+  'midwife': {
+    pullPower: 88,
+    accuracy: 96,
+    stamina: 94,
+    specialty: 'Maternal-Neonatal Resilience Care',
+    comicTitle: 'MATERNAL GUARDIAN',
+    color: '#f43f5e',
+    badge: 'SANCTUARY',
+  },
+  'pharmacist': {
+    pullPower: 87,
+    accuracy: 98,
+    stamina: 90,
+    specialty: 'Therapeutic Formulations & Chemistry',
+    comicTitle: 'TACTICAL PHARMACIST',
+    color: '#f59e0b',
+    badge: 'RX FORMULA',
+  },
+  'analyst': {
+    pullPower: 86,
+    accuracy: 100,
+    stamina: 88,
+    specialty: 'Pathogen Analysis & Precision Diagnostics',
+    comicTitle: 'BIO-LAB SPEC-OPS',
+    color: '#a855f7',
+    badge: 'LAB INTEL',
+  },
+  'ambulance': {
+    pullPower: 98,
+    accuracy: 90,
+    stamina: 99,
+    specialty: 'Frontline Rapid Evacuation & Life Support',
+    comicTitle: 'PARAMEDIC JUGGERNAUT',
+    color: '#f97316',
+    badge: 'FIRST STRIKE',
+  },
+};
 
 export interface TeamCharacterPickerProps {
   initialTeam?: Team;
@@ -77,17 +166,18 @@ export default function TeamCharacterPicker({
   const [muted, updateMuted] = useState(isAudioMuted);
   const [isEditingName, setIsEditingName] = useState(false);
 
-  // Active character definition in the carousel
-  const currentSlotChar = characters[selectedSlot];
+  // Active character definition
+  const currentSlotChar = characters[selectedSlot] || characters[0];
   const initialIndex = Math.max(
     0,
     CHARACTERS.findIndex((c) => c.id === currentSlotChar.characterId),
   );
   const [carouselIndex, setCarouselIndex] = useState(initialIndex);
 
-  // Sync carousel position when slot changes
+  // Sync carousel position when active slot changes
   useEffect(() => {
     const slotChar = characters[selectedSlot];
+    if (!slotChar) return;
     const idx = CHARACTERS.findIndex((c) => c.id === slotChar.characterId);
     if (idx !== -1) {
       setCarouselIndex(idx);
@@ -95,12 +185,22 @@ export default function TeamCharacterPicker({
   }, [selectedSlot]);
 
   const activeDef: CharacterDefinition = CHARACTERS[carouselIndex] || CHARACTERS[0];
+  const activeStats: HeroStats = HERO_STATS[activeDef.id] || {
+    pullPower: 90,
+    accuracy: 95,
+    stamina: 90,
+    specialty: 'Healthcare Heroes',
+    comicTitle: 'HERO',
+    color: '#00e5a3',
+    badge: 'SPECIALIST',
+  };
+
   const prevIndex = (carouselIndex - 1 + CHARACTERS.length) % CHARACTERS.length;
   const nextIndex = (carouselIndex + 1) % CHARACTERS.length;
   const prevDef = CHARACTERS[prevIndex];
   const nextDef = CHARACTERS[nextIndex];
 
-  // Touch swipe support
+  // Touch swipe support for mobile
   const touchStartX = useRef(0);
 
   const handleTouchStart = (e: TouchEvent) => {
@@ -122,7 +222,6 @@ export default function TeamCharacterPicker({
     setCarouselIndex(nextIdx);
     const chosen = CHARACTERS[nextIdx];
 
-    // Automatically assign the newly browsed hero to the active slot
     setCharacters((prev) => {
       const copy = [...prev] as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
       copy[selectedSlot] = {
@@ -186,27 +285,35 @@ export default function TeamCharacterPicker({
   };
 
   return (
-    <div className="kidtopia-viewport">
-      {/* BACKGROUND ACCENTS (Cobalt Blue with subtle glowing rings) */}
-      <div className="kidtopia-bg-glow glow-1" />
-      <div className="kidtopia-bg-glow glow-2" />
+    <div className={`comic-select-container team-${team.toLowerCase()}`}>
+      {/* BACKGROUND GRAPHIC ACCENTS (Cyber-Comic Neon Angled Glows) */}
+      <div className="comic-bg-lines" />
+      <div className="comic-bg-slanted-panel" />
+      <div className="comic-ambient-glow" />
 
-      {/* TOP STATUS BAR */}
-      <header className="kidtopia-status-bar">
-        <div className="kidtopia-avatar-chip">
-          <div className={`avatar-circle ${team === 'A' ? 'avatar-green' : 'avatar-blue'}`}>
-            <HeartPulse size={16} />
+      {/* TOP HEADER BAR */}
+      <header className="comic-topbar">
+        <div className="comic-brand-group">
+          <div className={`comic-team-avatar ${team === 'A' ? 'avatar-green' : 'avatar-blue'}`}>
+            <HeartPulse size={20} />
           </div>
-          <div className="avatar-chip-text">
-            <strong>{team === 'A' ? 'TEAM GREEN' : 'TEAM BLUE'}</strong>
-            <small>Pengendali Tim</small>
+          <div>
+            <div className="comic-tagline">HEALTHCARE HEROES · 2 TEAM CONTROLLERS</div>
+            <h1 className="comic-main-title">
+              {team === 'A' ? 'TEAM GREEN CONTROLLER' : 'TEAM BLUE CONTROLLER'}
+            </h1>
           </div>
         </div>
 
-        <div className="kidtopia-top-actions">
+        <div className="comic-topbar-right">
+          <div className="comic-pill-room">
+            <span className="room-dot" />
+            <span>ROOM <b>{roomCode}</b></span>
+          </div>
+
           <button
             type="button"
-            className="kidtopia-icon-pill"
+            className="comic-icon-btn"
             aria-label={muted ? 'Aktifkan Suara' : 'Matikan Suara'}
             onClick={() => {
               updateMuted(!muted);
@@ -214,153 +321,38 @@ export default function TeamCharacterPicker({
               if (muted) playSound('ready');
             }}
           >
-            {muted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+            {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
           </button>
-
-          <div className="kidtopia-coin-pill">
-            <span className="coin-dot" />
-            <span>ROOM <b>{roomCode}</b></span>
-          </div>
 
           {isEditMode && onCancel && (
             <button
               type="button"
-              className="kidtopia-close-pill"
+              className="comic-close-btn"
               onClick={onCancel}
               aria-label="Tutup"
             >
-              <X size={16} />
+              <X size={18} />
             </button>
           )}
         </div>
       </header>
 
-      {/* HERO TITLE & TEAM PICKER */}
-      <div className="kidtopia-header-section">
-        <h1 className="kidtopia-title">Hand-pick Your Character</h1>
-        <p className="kidtopia-subtitle">
-          Pilih 3 hero medis terbaik untuk memperkuat barisan tarik tambang tim Anda.
-        </p>
-
-        {/* TEAM SELECTOR TABS */}
-        <div className="kidtopia-team-toggle">
-          <button
-            type="button"
-            className={`team-toggle-btn ${team === 'A' ? 'active-team-green' : ''}`}
-            onClick={() => handleTeamChange('A')}
-          >
-            <span className="toggle-dot dot-green" />
-            <span>TEAM GREEN</span>
-            {team === 'A' && <Check size={14} />}
-          </button>
-          <button
-            type="button"
-            className={`team-toggle-btn ${team === 'B' ? 'active-team-blue' : ''}`}
-            onClick={() => handleTeamChange('B')}
-          >
-            <span className="toggle-dot dot-blue" />
-            <span>TEAM BLUE</span>
-            {team === 'B' && <Check size={14} />}
-          </button>
-        </div>
-      </div>
-
-      {/* ORGANIC WHITE BOTTOM SHEET */}
-      <section className="kidtopia-sheet">
-        {/* EXPLORE HEADER & SLOTS ROW */}
-        <div className="kidtopia-sheet-header">
-          <div>
-            <span className="sheet-eyebrow">CHOOSE 3 HEROES</span>
-            <h2 className="sheet-heading">Explore</h2>
-          </div>
-          <div className="team-name-input-wrap">
-            <input
-              type="text"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Nama Tim..."
-              className="kidtopia-team-input"
-              maxLength={30}
-              required
-            />
-          </div>
-        </div>
-
-        {/* 3 HERO SLOTS ROW (CHOOSE 3 HEROES) */}
-        <div className="kidtopia-slots-row">
-          {characters.map((slotChar, idx) => {
-            const def = CHARACTERS.find((c) => c.id === slotChar.characterId) || CHARACTERS[0];
-            const isSelected = selectedSlot === idx;
-            return (
-              <button
-                type="button"
-                key={idx}
-                className={`kidtopia-slot-pill ${isSelected ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedSlot(idx);
-                  playSound('click');
-                }}
-              >
-                <div className="slot-pill-left">
-                  <div className="slot-pill-badge" style={{ background: def.color }}>
-                    {def.name.charAt(0)}
-                  </div>
-                  <div className="slot-pill-text">
-                    <span className="slot-label">SLOT 0{idx + 1}</span>
-                    <strong className="slot-hero-name">{slotChar.name}</strong>
-                  </div>
-                </div>
-                {isSelected ? (
-                  <span className="slot-check-dot active">✓</span>
-                ) : (
-                  <span className="slot-check-dot">0{idx + 1}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 3D CAROUSEL STAGE */}
-        <div
-          className="kidtopia-carousel-stage"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* LEFT PEEKING CARD */}
-          <div
-            className="kidtopia-card peeking-card peeking-left"
-            onClick={() => slideCarousel(-1)}
-            title={`Pilih ${prevDef.name}`}
-          >
-            <div className="peeking-avatar" style={{ background: prevDef.color }}>
-              <span>{prevDef.name.charAt(0)}</span>
+      {/* MAIN WIDESCREEN BATTLE LAYOUT (INSPIRED BY JACK UI IMAGE 2) */}
+      <div className="comic-widescreen-grid">
+        {/* ========================================================
+            LEFT COLUMN: FEATURED COMIC 3D HERO SHOWCASE
+            ======================================================== */}
+        <section className="comic-hero-stage">
+          {/* Angled Comic Backdrop */}
+          <div className="stage-slanted-card">
+            <div className="stage-top-badge">
+              <span className="badge-triangle">▲</span>
+              <span>{activeStats.badge} · {activeStats.comicTitle}</span>
+              <span className="badge-slot">SLOT 0{selectedSlot + 1}</span>
             </div>
-            <span className="peeking-name">{prevDef.profession}</span>
-          </div>
-
-          {/* CENTER HIGHLIGHT CARD (WARM AMBER GRADIENT + 3D CHARACTER) */}
-          <div className="kidtopia-card highlight-card">
-            {/* Carousel navigation arrows */}
-            <button
-              type="button"
-              className="carousel-arrow arrow-left"
-              aria-label="Karakter Sebelumnya"
-              onClick={() => slideCarousel(-1)}
-            >
-              <ChevronLeft size={22} />
-            </button>
-
-            <button
-              type="button"
-              className="carousel-arrow arrow-right"
-              aria-label="Karakter Berikutnya"
-              onClick={() => slideCarousel(1)}
-            >
-              <ChevronRight size={22} />
-            </button>
 
             {/* 3D Character Canvas */}
-            <div className="highlight-canvas-wrap">
+            <div className="stage-3d-wrap">
               <CharacterPreview
                 characterId={activeDef.id}
                 team={team}
@@ -368,120 +360,277 @@ export default function TeamCharacterPicker({
               />
             </div>
 
-            {/* Slot indicator tag inside card */}
-            <div className="card-floating-badge">
-              <span>SLOT 0{selectedSlot + 1}</span>
+            {/* Carousel Navigation Chevrons */}
+            <button
+              type="button"
+              className="stage-nav-arrow arrow-prev"
+              onClick={() => slideCarousel(-1)}
+              aria-label="Karakter Sebelumnya"
+            >
+              <ChevronLeft size={28} />
+            </button>
+            <button
+              type="button"
+              className="stage-nav-arrow arrow-next"
+              onClick={() => slideCarousel(1)}
+              aria-label="Karakter Berikutnya"
+            >
+              <ChevronRight size={28} />
+            </button>
+          </div>
+
+          {/* Hero Name & Attributes Box (Matching Image 2) */}
+          <div className="stage-hero-meta">
+            <div className="hero-title-row">
+              {isEditingName ? (
+                <div className="inline-name-editor">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={currentSlotChar.name}
+                    onChange={(e) => updateSlotHeroName(e.target.value)}
+                    onBlur={() => setIsEditingName(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setIsEditingName(false);
+                    }}
+                    className="inline-name-input"
+                    maxLength={25}
+                  />
+                  <button
+                    type="button"
+                    className="inline-name-save"
+                    onClick={() => setIsEditingName(false)}
+                  >
+                    <Check size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="hero-name-badge" onClick={() => setIsEditingName(true)}>
+                  <h2 className="hero-display-name">{currentSlotChar.name}</h2>
+                  <span className="hero-edit-btn" title="Edit nama hero">
+                    <Edit2 size={15} />
+                  </span>
+                </div>
+              )}
+              <span className="hero-role-chip" style={{ borderColor: activeDef.color }}>
+                {activeDef.profession}
+              </span>
+            </div>
+
+            <p className="hero-flavor-quote">"{activeDef.description}"</p>
+
+            {/* ATTRIBUTES PANEL (Matching Image 2 Attribute Bars) */}
+            <div className="comic-attributes-box">
+              <div className="attributes-header">
+                <Activity size={14} />
+                <span>ATTRIBUTES</span>
+              </div>
+
+              <div className="attribute-row">
+                <span className="attr-label">DAYA TARIK (PULL FORCE)</span>
+                <div className="attr-bar-track">
+                  <div
+                    className="attr-bar-fill fill-pull"
+                    style={{ width: `${activeStats.pullPower}%` }}
+                  />
+                </div>
+                <span className="attr-value">{activeStats.pullPower}</span>
+              </div>
+
+              <div className="attribute-row">
+                <span className="attr-label">AKURASI MEDIS (KNOWLEDGE)</span>
+                <div className="attr-bar-track">
+                  <div
+                    className="attr-bar-fill fill-acc"
+                    style={{ width: `${activeStats.accuracy}%` }}
+                  />
+                </div>
+                <span className="attr-value">{activeStats.accuracy}</span>
+              </div>
+
+              <div className="attribute-row">
+                <span className="attr-label">STAMINA & FOKUS</span>
+                <div className="attr-bar-track">
+                  <div
+                    className="attr-bar-fill fill-stam"
+                    style={{ width: `${activeStats.stamina}%` }}
+                  />
+                </div>
+                <span className="attr-value">{activeStats.stamina}</span>
+              </div>
             </div>
           </div>
+        </section>
 
-          {/* RIGHT PEEKING CARD */}
-          <div
-            className="kidtopia-card peeking-card peeking-right"
-            onClick={() => slideCarousel(1)}
-            title={`Pilih ${nextDef.name}`}
-          >
-            <div className="peeking-avatar" style={{ background: nextDef.color }}>
-              <span>{nextDef.name.charAt(0)}</span>
+        {/* ========================================================
+            RIGHT COLUMN: SQUAD ROSTER, TEAM SLOTS & ACTIONS
+            ======================================================== */}
+        <section className="comic-squad-panel">
+          {/* Header Bar: Team Toggle & Team Name */}
+          <div className="squad-panel-header">
+            <div className="squad-title-group">
+              <span className="squad-eyebrow">CHOOSE 3 HEROES · SQUAD READY</span>
+              <h2 className="squad-heading">
+                <span className="heading-glyph">▲</span> SQUAD SURVIVOR
+              </h2>
             </div>
-            <span className="peeking-name">{nextDef.profession}</span>
-          </div>
-        </div>
 
-        {/* HERO DETAILS BELOW CARD */}
-        <div className="kidtopia-hero-details">
-          <div className="hero-name-row">
-            {isEditingName ? (
-              <div className="name-edit-inline">
-                <input
-                  type="text"
-                  autoFocus
-                  value={currentSlotChar.name}
-                  onChange={(e) => updateSlotHeroName(e.target.value)}
-                  onBlur={() => setIsEditingName(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') setIsEditingName(false);
-                  }}
-                  className="name-edit-input"
-                  maxLength={25}
-                />
-                <button
-                  type="button"
-                  className="name-edit-save"
-                  onClick={() => setIsEditingName(false)}
-                >
-                  <Check size={14} />
-                </button>
-              </div>
-            ) : (
-              <div className="hero-name-display" onClick={() => setIsEditingName(true)}>
-                <h3 className="hero-name-text">{currentSlotChar.name}</h3>
-                <span className="hero-edit-icon" title="Edit nama pahlawan">
-                  <Edit2 size={13} />
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="hero-profession-badge">
-            <span className="profession-dot" style={{ background: activeDef.color }} />
-            <span>{activeDef.profession}</span>
-          </div>
-
-          <p className="hero-description-text">{activeDef.description}</p>
-        </div>
-
-        {/* QUICK PROFESSION CHIPS */}
-        <div className="kidtopia-quick-gallery">
-          <span className="quick-label">Galeri Profesi:</span>
-          <div className="quick-chips-row">
-            {CHARACTERS.map((c) => (
+            {/* Team Toggle Pill */}
+            <div className="squad-team-toggles">
               <button
                 type="button"
-                key={c.id}
-                className={`quick-chip ${c.id === activeDef.id ? 'active' : ''}`}
-                onClick={() => selectHeroDirectly(c.id)}
+                className={`team-pill-btn ${team === 'A' ? 'active-green' : ''}`}
+                onClick={() => handleTeamChange('A')}
               >
-                <span className="chip-color-dot" style={{ background: c.color }} />
-                <span>{c.profession}</span>
+                <span className="pill-dot dot-green" />
+                <span>TIM HIJAU</span>
+                {team === 'A' && <Check size={14} />}
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ERROR MESSAGE IF ANY */}
-        {error && <div className="kidtopia-error-message">{error}</div>}
-
-        {/* FLOATING ACTION PILL & CONFIRM BUTTON */}
-        <div className="kidtopia-action-section">
-          {/* Slot Pill Badge */}
-          <div className="kidtopia-pill-counter">
-            <span className="pill-star">⚡</span>
-            <span>Slot 0{selectedSlot + 1} Siap: <b>{currentSlotChar.name}</b></span>
+              <button
+                type="button"
+                className={`team-pill-btn ${team === 'B' ? 'active-blue' : ''}`}
+                onClick={() => handleTeamChange('B')}
+              >
+                <span className="pill-dot dot-blue" />
+                <span>TIM BIRU</span>
+                {team === 'B' && <Check size={14} />}
+              </button>
+            </div>
           </div>
 
-          <button
-            type="button"
-            className="kidtopia-confirm-btn"
-            disabled={
-              busy ||
-              !connected ||
-              !teamName.trim() ||
-              characters.some((c) => !c.name.trim())
-            }
-            onClick={handleSubmit}
-          >
-            {busy ? (
-              <span>Menyimpan Karakter…</span>
-            ) : (
-              <>
-                <Sparkles size={18} />
-                <span>{isEditMode ? 'SIMPAN PERUBAHAN TIM' : 'CONFIRM TEAM & READY'}</span>
-                <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </div>
-      </section>
+          {/* Team Name Input */}
+          <div className="team-name-row">
+            <label className="team-name-label">Nama Tim Anda:</label>
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              placeholder="Contoh: Infection Fighters"
+              className="comic-input team-name-input"
+              maxLength={30}
+              required
+            />
+          </div>
+
+          {/* SECTION 1: 3 SQUAD SLOTS (INTERACTIVE) */}
+          <div className="squad-slots-section">
+            <div className="slots-header-tag">
+              <span>SUSUNAN 3 HERO TIM ANDA (KLIK SLOT UNTUK MENGGANTI):</span>
+            </div>
+            <div className="comic-slots-grid">
+              {characters.map((slotChar, idx) => {
+                const def = CHARACTERS.find((c) => c.id === slotChar.characterId) || CHARACTERS[0];
+                const stats = HERO_STATS[def.id] || activeStats;
+                const isSelected = selectedSlot === idx;
+                return (
+                  <div
+                    key={idx}
+                    className={`comic-slot-card ${isSelected ? 'is-active-slot' : ''}`}
+                    onClick={() => {
+                      setSelectedSlot(idx);
+                      playSound('click');
+                    }}
+                  >
+                    <div className="slot-card-top">
+                      <span className="slot-num-badge">SLOT 0{idx + 1}</span>
+                      <span className={`slot-status-indicator ${isSelected ? 'active-dot' : ''}`}>
+                        {isSelected ? 'EDITING' : 'SIAP ✓'}
+                      </span>
+                    </div>
+
+                    <div className="slot-card-content">
+                      <div className="slot-hero-avatar" style={{ background: def.color }}>
+                        <span>{def.name.charAt(0)}</span>
+                      </div>
+                      <div className="slot-hero-text">
+                        <strong className="slot-hero-title">{slotChar.name}</strong>
+                        <small className="slot-hero-sub">{def.profession}</small>
+                      </div>
+                    </div>
+
+                    <div className="slot-power-tag">
+                      <Zap size={11} />
+                      <span>{stats.pullPower} POWER</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION 2: COMIC HERO ROSTER GALLERY (8 HEROES CARDS) */}
+          <div className="comic-roster-section">
+            <div className="roster-header">
+              <span>KATALOG PAHLAWAN MEDIS (KLIK UNTUK MEMASANG KE SLOT 0{selectedSlot + 1}):</span>
+            </div>
+
+            <div className="comic-roster-grid">
+              {CHARACTERS.map((c) => {
+                const stats = HERO_STATS[c.id] || activeStats;
+                const isAssigned = characters.some((slot) => slot.characterId === c.id);
+                const isCurrent = activeDef.id === c.id;
+
+                return (
+                  <button
+                    type="button"
+                    key={c.id}
+                    className={`comic-hero-card ${isCurrent ? 'is-selected' : ''} ${isAssigned ? 'is-in-team' : ''}`}
+                    onClick={() => selectHeroDirectly(c.id)}
+                  >
+                    <div className="roster-card-avatar" style={{ background: c.color }}>
+                      <span>{c.name.charAt(0)}</span>
+                      {isCurrent && <span className="roster-check-glow">✓</span>}
+                    </div>
+
+                    <div className="roster-card-info">
+                      <strong className="roster-hero-name">{c.name}</strong>
+                      <span className="roster-hero-prof">{c.profession}</span>
+                      <div className="roster-hero-stat">
+                        <Zap size={10} /> {stats.pullPower}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ERROR ALERT IF ANY */}
+          {error && <div className="comic-error-banner">{error}</div>}
+
+          {/* SECTION 3: BOTTOM CONFIRM ACTION */}
+          <div className="comic-action-footer">
+            <div className="action-meta-pill">
+              <span className="meta-icon">⚡</span>
+              <span>
+                Slot 0{selectedSlot + 1} Terpilih: <b>{currentSlotChar.name}</b> ({activeDef.profession})
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="comic-confirm-btn"
+              disabled={
+                busy ||
+                !connected ||
+                !teamName.trim() ||
+                characters.some((c) => !c.name.trim())
+              }
+              onClick={handleSubmit}
+            >
+              {busy ? (
+                <span>Menyimpan Konfigurasi Tim…</span>
+              ) : (
+                <>
+                  <Sparkles size={20} />
+                  <span>{isEditMode ? 'SIMPAN PERUBAHAN TIM' : 'CONFIRM SQUAD & READY TO BATTLE'}</span>
+                  <ArrowRight size={20} />
+                </>
+              )}
+            </button>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
