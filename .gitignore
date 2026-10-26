@@ -13,3 +13,10 @@ apps/realtime-server/uploads/
 .npm-cache/
 launcher/local.env
 AKUN-ADMIN.txt
+
+.runtime/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.env.backup

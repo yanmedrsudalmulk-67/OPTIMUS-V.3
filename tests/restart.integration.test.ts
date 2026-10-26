@@ -1,15 +1,15 @@
 import 'dotenv/config';
-import crypto from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { Client } from 'pg';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { io, type Socket } from 'socket.io-client';
 import { afterAll, describe, expect, test } from 'vitest';
 import type { Ack, JoinResult, RoomState } from '../packages/shared/src';
 const enabled = process.env.RUN_RESTART_INTEGRATION === '1' || process.env.RUN_RESTART === '1';
-const databaseName = 'medical_restart_' + crypto.randomBytes(6).toString('hex');
-let control: Client | undefined;
+let testFolder: string | undefined;
 let instance: ChildProcess | undefined;
-let created = false;
 let cookie = '';
 const sockets: Socket[] = [];
 const base = 'http://127.0.0.1:4002';
@@ -100,30 +100,23 @@ async function room(code: string, predicate: (s: RoomState) => boolean) {
   throw new Error('Isolated room state timed out');
 }
 
-describe.runIf(enabled)('real API process restart on isolated PostgreSQL database', () => {
+describe.runIf(enabled)('real API process restart on isolated SQLite file', () => {
   afterAll(async () => {
     sockets.forEach((s) => s.disconnect());
     await stop();
-    if (control) {
-      if (created) await control.query(`DROP DATABASE IF EXISTS "${databaseName}" WITH (FORCE)`);
-      await control.end();
-    }
+    if (testFolder) rmSync(testFolder, { recursive: true, force: true });
   });
   test('paused timer, accepted answer, player identity and finished history survive process restarts', async () => {
     if (!process.env.DATABASE_URL || !process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD)
       throw new Error('Development DATABASE_URL and administrator environment are required');
-    const databaseUrl = new URL(process.env.DATABASE_URL);
-    databaseUrl.pathname = '/' + databaseName;
+    testFolder = mkdtempSync(path.join(tmpdir(), 'medical-restart-'));
+    const databaseUrl = pathToFileURL(path.join(testFolder, 'medical.db'));
     testEnvironment = {
       ...process.env,
       DATABASE_URL: databaseUrl.toString(),
       API_PORT: '4002',
       COOKIE_SECURE: 'false',
     };
-    control = new Client({ connectionString: process.env.DATABASE_URL });
-    await control.connect();
-    await control.query(`CREATE DATABASE "${databaseName}"`);
-    created = true;
     await script('scripts/migrate.ts');
     await script('packages/database/seed.ts');
     await script('scripts/create-admin.ts');

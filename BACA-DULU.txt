@@ -1,27 +1,29 @@
-MEDICAL TUG OF WAR - PAKET LOKAL
+MEDICAL TUG OF WAR - SQLITE - PORT 3005
 
-WINDOWS
-1. Ekstrak SEMUA isi ZIP dahulu (klik kanan > Extract All). Jangan menjalankan dari dalam ZIP.
-2. Pasang Docker Desktop dari https://www.docker.com/products/docker-desktop/.
-   Ikuti petunjuk Docker untuk mengaktifkan WSL 2 bila diminta. Buka Docker Desktop
-   dan tunggu sampai engine berjalan (Linux containers).
-3. Klik dua kali MULAI-WINDOWS.bat. Tidak perlu memasang Node.js atau PostgreSQL sendiri.
-4. Tunggu pemasangan pertama selesai. Internet dan beberapa GB ruang kosong diperlukan.
-   Browser membuka game otomatis dan Notepad menampilkan akun admin lokal.
-5. Untuk berhenti, klik HENTIKAN-WINDOWS.bat. Untuk bermain lagi, klik MULAI-WINDOWS.bat.
+WINDOWS (64-bit)
+1. Extract All ZIP ke folder BARU yang tetap, misalnya Documents\Medical-Tug-SQLite.
+   Jangan campurkan dengan konfigurasi PostgreSQL dari versi sebelumnya.
+2. Klik dua kali MULAI-WINDOWS.bat. Jangan jalankan dari dalam ZIP.
+3. Tunggu pemasangan pertama. Internet diperlukan untuk mengunduh Node.js
+   portabel (jika Node 24 belum tersedia) dan dependensi. Tidak perlu Docker.
+4. Shortcut Medical Tug of War dibuat otomatis di Desktop komputer Anda.
+5. Browser terbuka setelah game siap. Akun login ada di AKUN-ADMIN.txt.
+6. Untuk berikutnya, klik shortcut Desktop. Jangan pindahkan folder game;
+   jika dipindah, jalankan MULAI-WINDOWS.bat lagi untuk memperbarui shortcut.
+7. Berhenti: tekan Ctrl+C di jendela game. Jangan jalankan dua salinan bersamaan.
 
-MAC
-Dengan Docker Desktop aktif, jalankan MULAI-MAC.command.
-Jika izin executable hilang, jalankan: chmod +x MULAI-MAC.command
-Peluncur Windows/macOS belum diuji langsung pada OS tersebut.
+DATABASE
+Semua tabel kuis, admin, room, jawaban, skor, dan pengaturan ada di medical.db
+pada folder game. Jangan hapus file ini. Gambar unggahan tersimpan terpisah.
+Saat memindahkan game, hentikan dahulu dan ikut salin medical.db, .env,
+AKUN-ADMIN.txt serta apps/realtime-server/uploads. Jangan bagikan akun privat.
+
+MAC / LINUX / ANTIGRAVITY
+Pasang Node.js 24. Jalankan: npm run local
+macOS juga dapat menjalankan MULAI-MAC.command.
 
 CATATAN
-- Ini paket source dengan peluncur otomatis, bukan EXE portabel/offline.
-- Pemasangan pertama mengunduh dependensi dan membangun aplikasi, sehingga ZIP kecil.
-- Akun baru dibuat otomatis di AKUN-ADMIN.txt. Jangan bagikan file tersebut atau launcher/local.env.
-- Soal dan riwayat disimpan di volume Docker. Jangan hapus volume jika ingin menyimpan data.
-- Paket ini membuka game pada komputer sendiri. Akses enam HP melalui LAN membutuhkan
-  konfigurasi alamat jaringan sesuai README.md; launcher ini hanya membuka akses lokal.
-- Jika port 3000 dipakai aplikasi lain, hentikan aplikasi tersebut lalu jalankan ulang.
-- Antigravity dapat membuka folder hasil ekstrak untuk mengedit source. Untuk perubahan
-  source, klik MULAI-WINDOWS.bat lagi agar aplikasi dibangun ulang.
+Port browser 3005; API internal 4001. Kedua port harus tersedia.
+Windows memakai Node x64. Pada Windows ARM dibutuhkan emulasi x64.
+Peluncur Windows dan shortcut belum diuji pada OS Windows dari cloud ini.
+Baca README.md untuk akses HP lewat LAN, backup, dan pengembangan.

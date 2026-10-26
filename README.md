@@ -1,22 +1,22 @@
-> **Paket lokal dengan peluncur:** baca `BACA-DULU.txt`. Setelah Docker Desktop aktif, ekstrak ZIP lalu klik `MULAI-WINDOWS.bat` (Windows) atau `MULAI-MAC.command` (macOS). Pemasangan pertama memerlukan internet. Kredensial dibuat di `AKUN-ADMIN.txt`; jangan bagikan file tersebut.
-
 # Medical Tug of War
 
 **Healthcare Heroes Quiz Battle** — permainan kuis tarik tambang 3D untuk dua tim tenaga kesehatan, masing-masing tiga pemain. Antarmuka utama menggunakan Bahasa Indonesia.
 
 ## Mulai di komputer lokal
 
-Prasyarat: **Node.js 24 LTS**, npm 11+, Docker dengan Compose, browser modern.
+**Windows:** ekstrak ZIP, lalu klik dua kali `MULAI-WINDOWS.bat`. Peluncur menyiapkan Node.js 24 portabel bila diperlukan, memasang dependensi, membuat SQLite dan shortcut **Medical Tug of War** di Desktop, lalu membuka browser. Internet diperlukan saat pemasangan pertama. Tidak membutuhkan Docker atau server database. Setelah itu gunakan shortcut Desktop; folder game harus tetap pada lokasi yang sama.
+
+**macOS/Linux atau terminal Antigravity:** pasang Node.js 24, lalu:
 
 ```sh
 npm ci
 npm run setup:local
-npm run dev
+npm run local
 ```
 
-Frontend menggunakan **port 3000**, API/Socket.IO **4001**, PostgreSQL **127.0.0.1:5432**. Next.js meneruskan `/api`, `/uploads`, dan `/socket.io` ke server terpisah, sehingga browser menggunakan satu origin. Tidak memerlukan layanan berbayar.
+Frontend menggunakan **port 3005**; API/Socket.IO tetap **4001** secara internal. Seluruh tabel kuis, admin, sesi, room, jawaban, skor, dan pengaturan disimpan di satu file **`medical.db` pada akar folder game**. Next.js meneruskan `/api`, `/uploads`, dan `/socket.io` ke server terpisah, sehingga browser menggunakan satu origin. Tidak memerlukan layanan berbayar.
 
-`setup:local` membuat `.env` privat jika belum ada, menyiapkan PostgreSQL, menghasilkan Prisma Client, menerapkan migrasi, memasukkan lima paket/25 soal/delapan karakter, serta membuat admin pertama. Pengulangan setup mempertahankan akun dan perubahan bank soal.
+`setup:local` membuat `.env` privat jika belum ada, menyiapkan SQLite, menghasilkan Prisma Client, menerapkan migrasi, memasukkan lima paket/25 soal/delapan karakter, serta membuat admin pertama. Pengulangan setup mempertahankan akun dan perubahan bank soal.
 
 ### Masuk sebagai admin
 
@@ -33,17 +33,11 @@ Perintah tersebut merotasi kata sandi dan mencabut sesi lama. Untuk admin baru, 
 
 ### Database
 
-Lihat `.env.example` untuk variabel. Untuk PostgreSQL eksternal, isi `DATABASE_URL` lalu jalankan `npm run db:setup`; Compose hanya diperlukan untuk database lokal.
+`DATABASE_URL=file:./medical.db` menunjuk satu file lokal relatif terhadap akar proyek. Prisma memakai adapter SQLite/libSQL lokal; tidak ada koneksi Turso/server eksternal. File dibuat otomatis oleh setup. Gambar unggahan tetap berupa file di `apps/realtime-server/uploads`.
 
-```sh
-docker compose up -d postgres
-npm run db:generate
-npm run db:migrate
-npm run db:seed
-npm run db:validate
-```
+Gunakan `npm run db:migrate` untuk menjalankan SQL SQLite dalam transaksi dengan pemeriksaan checksum. Jangan gunakan migrasi PostgreSQL lama pada file SQLite. Default JSON pada SQL hasil Prisma diff dikutip sebagai teks SQLite. SQLite dapat membuat jurnal sementara selama transaksi; setelah transaksi selesai data tetap pada `medical.db`.
 
-Prisma memakai query compiler JavaScript dan adapter PostgreSQL resmi; runtime tidak membutuhkan unduhan engine native. SQL dalam `packages/database/prisma/migrations` sesuai dengan schema Prisma. Runner migrasi memakai transaksi, advisory lock, dan SHA-256 untuk menolak perubahan migrasi yang telah diterapkan. Gunakan **`npm run db:migrate`**; `prisma migrate deploy` pada Prisma 6 mempunyai ketidakcocokan deserialisasi tipe katalog `name` melalui adapter migrasi WASM. Validasi schema, client generation, dan schema-to-SQL diff tetap tersedia melalui Prisma.
+Akun tersedia di `AKUN-ADMIN.txt`. File database dan kredensial tidak disertakan pada GitHub/ZIP; instalasi baru membuat akun dan soal contoh sendiri. Untuk memindahkan data lokal antar folder/komputer, hentikan game dahulu lalu salin `medical.db`, `.env`, dan folder uploads. Jangan menimpa file database lama dengan database kosong.
 
 ## Memainkan pertandingan
 
@@ -52,7 +46,7 @@ Prisma memakai query compiler JavaScript dan adapter PostgreSQL resmi; runtime t
 3. Pada kontrol host, atur **Alamat server yang dapat diakses HP** ke IP LAN/domain yang benar. Bagikan QR atau room code enam karakter.
 4. Enam browser/perangkat membuka `/join/KODE`, mengisi nama, memilih tim/karakter, lalu **Saya siap bertanding**. Maksimal tiga pemain per tim. Gunakan browser/konteks privat terpisah untuk identitas independen.
 5. Buka `/display/KODE` pada layar proyektor. Host menekan **START BATTLE** setelah enam pemain terhubung dan READY.
-6. Pemain menjawab melalui HP. Jawaban benar menjadi power; server menghitung tarikan dan pemenang. Ronde, jawaban, kontribusi, serta hasil tersimpan di PostgreSQL.
+6. Pemain menjawab melalui HP. Jawaban benar menjadi power; server menghitung tarikan dan pemenang. Ronde, jawaban, kontribusi, serta hasil tersimpan di SQLite.
 
 Host dapat mengunci lobby, memindahkan/mengeluarkan pemain, pause/resume, melanjutkan fase, mengakhiri, dan reset. Reset/akhiri meminta konfirmasi. Restart server memulihkan pertandingan aktif dalam kondisi **pause**; token pemain memulihkan slot lama dan host dapat melanjutkan.
 
@@ -61,11 +55,11 @@ Host dapat mengunci lobby, memindahkan/mengeluarkan pemain, pause/resume, melanj
 Contoh `.env`, ganti dengan IP LAN komputer yang dapat dijangkau peserta:
 
 ```dotenv
-WEB_ORIGIN=http://192.168.1.10:3000
-PUBLIC_APP_URL=http://192.168.1.10:3000
+WEB_ORIGIN=http://localhost:3005,http://127.0.0.1:3005,http://192.168.1.10:3005
+PUBLIC_APP_URL=http://192.168.1.10:3005
 ```
 
-Restart frontend/server setelah perubahan. Izinkan port 3000 pada firewall LAN bila diperlukan. HP dan komputer harus berada pada jaringan yang saling terhubung. `localhost` pada HP merujuk HP itu sendiri dan tidak cocok untuk undangan. Halaman host dapat mengubah alamat QR langsung. PostgreSQL tidak perlu dibuka untuk perangkat peserta.
+Restart frontend/server setelah perubahan. Izinkan port 3005 pada firewall LAN bila diperlukan. HP dan komputer harus berada pada jaringan yang saling terhubung. `localhost` pada HP merujuk HP itu sendiri dan tidak cocok untuk undangan. Halaman host dapat mengubah alamat QR langsung. File database tidak perlu diakses perangkat peserta.
 
 ## Fitur
 
@@ -92,10 +86,10 @@ packages/shared/src/          Domain, karakter, pengaturan bersama
 packages/database/            Prisma schema, SQL migrations, seed, client
 packages/game-engine/src/     Scoring dan kemenangan deterministik
 scripts/                      Setup, migrasi, admin, backup
-tests/                        Unit, integrasi PostgreSQL, restart, browser E2E
+tests/                        Unit, integrasi SQLite, restart, browser E2E
 ```
 
-Next.js 16, React 19, TypeScript, Three.js/R3F/Drei, Lucide, CSS responsif, Express, Socket.IO, PostgreSQL 16, Prisma 6 dengan adapter pg, Zod, ExcelJS, Vitest, dan Playwright. UI memakai komponen CSS lokal.
+Next.js 16, React 19, TypeScript, Three.js/R3F/Drei, Lucide, CSS responsif, Express, Socket.IO, SQLite lokal, Prisma 6 dengan adapter libSQL, Zod, ExcelJS, Vitest, dan Playwright. UI memakai komponen CSS lokal.
 
 ## Pengujian dan build
 
@@ -113,12 +107,12 @@ Lint memeriksa TypeScript seluruh proyek. E2E membutuhkan frontend/API aktif dan
 
 ## VPS
 
-1. Pasang Node.js 24, Docker/Compose, serta reverse proxy TLS.
+1. Pasang Node.js 24 serta reverse proxy TLS.
 2. Jalankan `npm ci`, konfigurasi `.env`, kemudian `npm run setup:local`.
 3. Isi `WEB_ORIGIN` / `PUBLIC_APP_URL` dengan domain HTTPS, set `COOKIE_SECURE=true`. Jangan mengekspos database/password melalui `NEXT_PUBLIC_*`.
 4. Jalankan `npm run build` dan `npm start` melalui process manager/systemd. Satu instance API didukung saat ini.
-5. Proxy trafik ke 3000 dengan dukungan upgrade WebSocket dan timeout Socket.IO; tutup akses publik ke 4001/5432. Jika realtime memakai origin lain, set `NEXT_PUBLIC_REALTIME_URL` sebelum build dan izinkan origin frontend di API.
-6. Gunakan HTTPS/WSS, persist volume PostgreSQL/folder upload, dan buat backup berkala. Jangan mempublikasikan server development.
+5. Proxy trafik ke 3005 dengan dukungan upgrade WebSocket dan timeout Socket.IO; tutup akses publik ke 4001. Jika realtime memakai origin lain, set `NEXT_PUBLIC_REALTIME_URL` sebelum build dan izinkan origin frontend di API.
+6. Gunakan HTTPS/WSS, persist file medical.db/folder upload, dan buat backup berkala. Jangan mempublikasikan server development.
 
 ## Backup
 
@@ -126,13 +120,9 @@ Lint memeriksa TypeScript seluruh proyek. E2E membutuhkan frontend/API aktif dan
 npm run db:backup
 ```
 
-Backup berada di `.data/database-snapshot.sql`, berizin privat dan diabaikan Git. File memuat bank soal, jawaban, sesi/hash admin, dan hasil; simpan secara aman. Cadangkan juga `apps/realtime-server/uploads` untuk gambar. `setup:local` memulihkan snapshot ketika database kosong; database yang sudah berisi tabel tidak ditimpa. Pemulihan manual ke database kosong:
+Backup konsisten dibuat melalui API backup SQLite pada `.data/medical-TANGGAL.db`. File memuat data privat, sesi/hash admin, bank soal, dan hasil. Cadangkan juga `.env` dan `apps/realtime-server/uploads`. Untuk memulihkan, hentikan game, simpan salinan database saat ini, lalu salin backup menjadi `medical.db` sebelum memulai kembali.
 
-```sh
-docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U medical -d medical < .data/database-snapshot.sql
-```
-
-Sesuaikan user/database jika berbeda. Database eksternal dicadangkan menggunakan `pg_dump` pada layanan tersebut.
+Peluncur Windows menggunakan PowerShell dan WScript untuk membuat shortcut pada Desktop pengguna (termasuk Desktop yang diarahkan ke OneDrive). Lingkungan cloud tidak dapat membuat shortcut langsung pada komputer pengguna. Peluncur belum diuji langsung pada Windows; backend dan alur game diuji di Linux.
 
 ## Batas dan peningkatan
 

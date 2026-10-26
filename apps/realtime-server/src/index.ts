@@ -15,7 +15,7 @@ import { GameService } from './services/game';
 import { registerSockets } from './sockets';
 import { codeSchema, errorMessage } from './validation';
 const port = Number(process.env.API_PORT || 4001);
-const origins = (process.env.WEB_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000')
+const origins = (process.env.WEB_ORIGIN || 'http://localhost:3005,http://127.0.0.1:3005')
   .split(',')
   .map((v) => v.trim());
 const allowed = (origin?: string) => !origin || origins.includes(origin);
