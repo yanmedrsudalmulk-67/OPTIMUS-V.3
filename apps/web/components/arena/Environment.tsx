@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from 'react';
 import Crowd from './Crowd';
+import HospitalBuilding from './HospitalBuilding';
 import * as THREE from 'three';
 import type { Quality } from '../../../../packages/shared/src';
 
@@ -95,103 +96,6 @@ function Flag({ position, team }: { position: [number, number, number]; team: 'A
   );
 }
 
-function Sign({
-  text,
-  subtitle,
-  position,
-  width = 3.4,
-}: {
-  text: string;
-  subtitle?: string;
-  position: [number, number, number];
-  width?: number;
-}) {
-  const texture = useMemo(() => {
-    if (typeof document === 'undefined') return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.fillStyle = '#fff9e9';
-    ctx.fillRect(0, 0, 1024, 256);
-    ctx.fillStyle = '#176c62';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = 'bold 86px sans-serif';
-    ctx.fillText(text, 512, subtitle ? 100 : 132, 960);
-    if (subtitle) {
-      ctx.font = 'bold 37px sans-serif';
-      ctx.fillStyle = '#6c8e85';
-      ctx.fillText(subtitle, 512, 190, 950);
-    }
-    const map = new THREE.CanvasTexture(canvas);
-    map.colorSpace = THREE.SRGBColorSpace;
-    return map;
-  }, [text, subtitle]);
-  useEffect(() => () => texture?.dispose(), [texture]);
-  return (
-    <group position={position}>
-      <Box position={[0, 0, -0.03]} size={[width + 0.12, width / 4 + 0.1, 0.15]} color="#548f82" />
-      <mesh position={[0, 0, 0.052]}>
-        <planeGeometry args={[width, width / 4]} />
-        <meshBasicMaterial
-          map={texture}
-          color={texture ? '#ffffff' : '#fff9e9'}
-          toneMapped={false}
-        />
-      </mesh>
-    </group>
-  );
-}
-
-function Hospital() {
-  return (
-    <group position={[0, 0, -7.1]}>
-      <Box position={[0, 1.9, 0]} size={[9.1, 3.8, 1.9]} color="#f5eedd" />
-      <Box position={[0, 3.82, 0]} size={[9.35, 0.22, 2.14]} color="#8fbeb3" />
-      <Box position={[0, 0.2, 0.1]} size={[9.5, 0.4, 2.16]} color="#c0cec3" />
-      <Box position={[0, 2.25, 0.65]} size={[2.6, 4.5, 1.16]} color="#fff8e9" />
-      <Box position={[0, 4.53, 0.65]} size={[2.9, 0.18, 1.42]} color="#6aab9c" />
-      <Box position={[0, 4.98, 0.67]} size={[0.85, 0.85, 0.2]} color="#258b76" />
-      <Box position={[0, 4.98, 0.79]} size={[0.19, 0.6, 0.04]} color="#fff8e5" />
-      <Box position={[0, 4.98, 0.79]} size={[0.6, 0.19, 0.04]} color="#fff8e5" />
-      <Sign
-        text="RUMAH SAKIT"
-        subtitle="HEALTHCARE HEROES"
-        position={[0, 3.86, 1.27]}
-        width={3.35}
-      />
-      <Box position={[0, 1.07, 1.27]} size={[1.55, 1.72, 0.09]} color="#79afb1" />
-      <Box position={[0, 1.07, 1.33]} size={[0.045, 1.72, 0.04]} color="#fff8e8" />
-      {[-0.17, 0.17].map((x) => (
-        <Box key={x} position={[x, 1.02, 1.37]} size={[0.035, 0.35, 0.03]} color="#ebc475" />
-      ))}
-      <Box position={[0, 2.11, 1.5]} size={[2.55, 0.21, 1.03]} color="#459d89" />
-      <Box position={[0, 2.34, 1.28]} size={[1.75, 0.11, 0.05]} color="#e9b767" />
-      {[-3.73, -2.62, 2.62, 3.73].map((x) => (
-        <group key={x}>
-          {[1.2, 2.66].map((y) => (
-            <group key={y}>
-              <Box position={[x, y, 0.976]} size={[0.8, 0.95, 0.07]} color="#6c9fa6" />
-              <Box
-                position={[x + 0.1, y + 0.14, 1.02]}
-                size={[0.55, 0.58, 0.015]}
-                color="#b3d3cd"
-                shadow={false}
-              />
-              <Box position={[x, y + 0.04, 1.036]} size={[0.045, 0.91, 0.03]} color="#f5f3dd" />
-              <Box position={[x, y - 0.1, 1.036]} size={[0.75, 0.045, 0.03]} color="#f5f3dd" />
-              <Box position={[x, y - 0.52, 1.07]} size={[0.97, 0.11, 0.2]} color="#d7d6b9" />
-            </group>
-          ))}
-        </group>
-      ))}
-      <Box position={[0, 0.025, 2]} size={[2.8, 0.05, 2.8]} color="#e4dfca" />
-    </group>
-  );
-}
-
 function Festival() {
   const cordGeometry = useMemo(
     () =>
@@ -273,15 +177,15 @@ function Festival() {
 
 function Ambulance() {
   return (
-    <group position={[6.1, 0, -4.7]} rotation={[0, -0.48, 0]} scale={0.85}>
+    <group position={[7.0, 0, -5.0]} rotation={[0, -0.48, 0]} scale={0.85}>
       <Box position={[0, 0.83, 0]} size={[2.3, 1.1, 1.17]} color="#f6f4e6" />
       <Box position={[1.15, 0.57, 0]} size={[0.45, 0.65, 1.13]} color="#f2f0e3" />
       <Box position={[0.75, 1.07, 0.6]} size={[0.63, 0.47, 0.025]} color="#7aaab1" />
       <Box position={[1.15, 0.98, 0]} size={[0.03, 0.52, 1.02]} color="#84aeb2" />
-      <Box position={[-0.1, 0.56, 0.602]} size={[2, 0.14, 0.018]} color="#259a83" />
-      <Box position={[-0.5, 1, 0.603]} size={[0.12, 0.43, 0.02]} color="#26967f" />
-      <Box position={[-0.5, 1, 0.604]} size={[0.43, 0.12, 0.022]} color="#26967f" />
-      <Box position={[0.35, 1.43, 0]} size={[0.65, 0.13, 0.32]} color="#416fce" />
+      <Box position={[-0.1, 0.56, 0.602]} size={[2, 0.14, 0.018]} color="#dc7b34" />
+      <Box position={[-0.5, 1, 0.603]} size={[0.12, 0.43, 0.02]} color="#2871a5" />
+      <Box position={[-0.5, 1, 0.604]} size={[0.43, 0.12, 0.022]} color="#2871a5" />
+      <Box position={[0.35, 1.43, 0]} size={[0.65, 0.13, 0.32]} color="#ce3e31" />
       <Box position={[1.4, 0.53, 0.4]} size={[0.04, 0.17, 0.22]} color="#f6d982" />
       {[-0.65, 0.86].flatMap((x) =>
         [-0.59, 0.59].map((z) => (
@@ -392,12 +296,16 @@ export default function Environment({
         </>
       ) : (
         <>
-          <Hospital />
+          <HospitalBuilding low={quality === 'LOW'} />
+          <mesh position={[0, -0.006, -5.7]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+            <planeGeometry args={[15, 5.5]} />
+            <meshStandardMaterial color="#a49c8c" roughness={0.66} metalness={0.08} />
+          </mesh>
           <Festival />
           <Ambulance />
-          <Tree position={[-6.6, 0, -5.3]} scale={1.4} />
-          <Tree position={[8.3, 0, -2.4]} scale={1.15} />
-          <Tree position={[-8.2, 0, -0.3]} scale={1.05} />
+          <Tree position={[-9.1, 0, -4.3]} scale={0.95} />
+          <Tree position={[9.3, 0, -1.8]} scale={0.95} />
+          <Tree position={[-9.4, 0, -0.3]} scale={0.9} />
           <Tree position={[-7.2, 0, 3.8]} scale={0.65} />
           <Tree position={[7.7, 0, 3.4]} scale={0.62} />
         </>

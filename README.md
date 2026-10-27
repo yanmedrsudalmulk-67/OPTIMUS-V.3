@@ -92,7 +92,7 @@ Restart frontend/server setelah perubahan. Izinkan port 3000 pada firewall LAN b
 - Scoring standar: benar 10 power, salah/kosong 0. `delta = (powerB - powerA) × multiplier`; posisi negatif menguntungkan A. Batas default ±100; jika soal habis, posisi menentukan pemenang/seri.
 - Bonus kecepatan/combo deterministik opsional (default mati), sudden death dengan cadangan soal terbatas dan hasil seri jika cadangan habis.
 - Arena 3D: enam karakter tenaga kesehatan dengan wajah/mata ekspresif, rambut berlapis, jas dan kacamata; delapan profesi, animasi sendi/ekspresi, tali bertekstur, label, dua tema, kualitas grafis, debu/konfeti, fallback WebGL.
-- Arena rumah sakit dengan papan nama, dekorasi pertandingan, dan penonton anak-anak yang melambai/bertepuk tangan. Mode LOW mengurangi jumlah penonton.
+- Arena rumah sakit mengacu pada gedung RSUD AL-MULK: menara kaca biru, fasad putih/oranye, kisi dekoratif, kanopi IGD dan papan nama merah, dengan langit sore. Penonton anak-anak melambai/bertepuk tangan; mode LOW mengurangi jumlah penonton dan resolusi tekstur gedung.
 - Musik pertandingan instrumental orisinal 128 BPM (melodi, bass, akor, drum) dengan efek sorak/tepuk tangan sintetis saat mulai, menarik, dan menang. Aktifkan ikon speaker pada preview; pertandingan baru mengaktifkan opsi musik, pilihan pertandingan lama tetap dihormati.
 - HP portrait, dashboard responsif, display fullscreen, audio/musik sintetis orisinal dengan mute dan volume; browser membutuhkan interaksi sebelum audio dimulai.
 

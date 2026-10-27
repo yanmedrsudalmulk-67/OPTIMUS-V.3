@@ -60,3 +60,11 @@ Data pertandingan uji dibersihkan setelah verifikasi; lima paket, 25 soal contoh
 - Generator konfigurasi diuji dua kali dan tidak mengganti password yang sudah dibuat.
 - Peluncur PowerShell/Windows dan macOS belum diuji pada OS aslinya. Docker Desktop dan internet diperlukan untuk instalasi pertama; paket ini bukan EXE offline.
 
+## Gedung RSUD AL-MULK — 27 Oktober 2026
+
+- Hospital Battle memakai model 3D yang mengacu pada arsitektur referensi: menara kaca biru di kiri, fasad putih dengan papan nama merah di tengah, panel oranye dan kisi putih di kanan, jendela klinik, kanopi serta tulisan IGD/IGD 24 JAM. Langit dan cahaya sore melengkapi arena; pohon ditata agar gedung terlihat.
+- Tekstur kaca, panel, kisi, papan nama dan langit dibuat secara lokal, tanpa unduhan aset tambahan. Tekstur dibersihkan saat komponen dilepas; mode LOW menurunkan resolusi tekstur gedung.
+- Sebelum sinkronisasi, production build dan tes Playwright navigasi arena lulus. Perubahan kemudian digabungkan ke GitHub terbaru (a28978e), mempertahankan kamera lebar, pemilihan karakter dan kontrol tim. `npx next build apps/web` beserta pemeriksaan TypeScript frontend lulus pada hasil gabungan; desktop 1440 px, ponsel 390 px dan pergantian tema diperiksa ulang tanpa page error atau overflow horizontal.
+- `npm run build` lengkap pada versi gabungan terhenti saat Prisma mencoba mengunduh engine native: server unduhan mengembalikan HTTP 403 dari lingkungan cloud. Backend versi gabungan tidak dijalankan ulang; database lokal tidak dimigrasikan. Hasil frontend tidak membuktikan startup/database Windows.
+- `Hospital-RSUD-AL-MULK.zip` merupakan patch tampilan untuk game yang sudah terpasang: empat file komponen arena dan petunjuk pemasangan. ZIP diverifikasi isinya sesuai source. Paket ini tidak mengganti launcher, konfigurasi maupun database instalasi lama.
+- Perubahan hanya pada lingkungan visual; database, scoring, audio dan mekanisme update tidak berubah. Gedung merupakan adaptasi kartun 3D, bukan render fotorealistik.

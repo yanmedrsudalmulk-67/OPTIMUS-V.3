@@ -12,6 +12,7 @@ import {
 } from '../../../../packages/shared/src';
 import Character, { type CharacterMotion } from './Character';
 import Environment from './Environment';
+import HospitalSky from './HospitalSky';
 import WebGLBoundary from './WebGLBoundary';
 
 export interface ArenaProps {
@@ -35,7 +36,6 @@ function CameraRig({ state }: { state?: RoomState | null }) {
     camera.position.z = THREE.MathUtils.damp(camera.position.z, 13.6 * fit, 6, delta);
     camera.position.y = THREE.MathUtils.damp(camera.position.y, 4.9 * fit, 6, delta);
     camera.lookAt(0, 1.45, -0.8);
-
   });
   return null;
 }
@@ -278,7 +278,10 @@ export default function Arena({ state, preview = false, theme, quality, classNam
         minHeight: 380,
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(#dbe9e8,#e4eee2)',
+        background:
+          arenaTheme === 'hospital'
+            ? 'linear-gradient(#869bb0,#f5d3a4)'
+            : 'linear-gradient(#dbe9e8,#e4eee2)',
         borderRadius: 'inherit',
       }}
     >
@@ -296,13 +299,20 @@ export default function Arena({ state, preview = false, theme, quality, classNam
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
           }}
         >
-          <color attach="background" args={[arenaTheme === 'hospital' ? '#dae9e7' : '#d8e6eb']} />
-          <fog attach="fog" args={['#dae9e7', 26, 48]} />
-          <hemisphereLight args={['#fff3da', '#87a7a0', 2.0]} />
+          {arenaTheme === 'hospital' ? (
+            <HospitalSky />
+          ) : (
+            <color attach="background" args={['#d8e6eb']} />
+          )}
+          <fog attach="fog" args={[arenaTheme === 'hospital' ? '#edd0b0' : '#dae9e7', 26, 48]} />
+          <hemisphereLight
+            args={[arenaTheme === 'hospital' ? '#ffe6c7' : '#fff3da', '#87a7a0', 2.0]}
+          />
           <ambientLight intensity={0.45} />
           <directionalLight position={[1, 4, 10]} intensity={0.55} color="#fff0da" />
           <directionalLight
-            position={[-6, 12, 6]}
+            position={arenaTheme === 'hospital' ? [8, 10, 6] : [-6, 12, 6]}
+            color={arenaTheme === 'hospital' ? '#ffdfac' : '#ffffff'}
             intensity={2.7}
             castShadow={!low}
             shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
