@@ -27,6 +27,10 @@ Model dalam game telah diperhalus dengan bentuk wajah dan mata yang lebih sederh
 
 `design/Doctor-Hero.blend` adalah contoh dokter yang diekspor dari geometri game dan dapat diedit di Blender 4.3 atau lebih baru. File ini berisi satu pose statis tanpa armature/animasi; mengubahnya tidak otomatis mengubah game. `design/BACA-MODEL-BLENDER.txt` menjelaskan integrasi GLB dan rig, dan `Blender-Hero-Dokter.zip` menyediakan file beserta pratinjau. Penyesuaian gaya ini merupakan pendekatan terhadap referensi, bukan model sculpt identik dengan gambar.
 
+Versi beranimasi yang baru adalah `design/Doctor-Hero-Rigged.blend`, dibuat langsung di Blender. **Dr. Arga (`doctor-m`)** sekarang menggunakan `/models/doctor-hero.glb` di preview dan arena. Rig berisi 23 bone dan sembilan clip (`idle`, `ready`, `rope-ready`, `pulling`, `struggling`, `sliding`, `falling`, `victory`, `defeat`); sembilan hero lain masih memakai renderer prosedural. Galeri publik menampilkan Dr. Arga pertama kali agar model ini mudah dicoba.
+
+Source pembuat model tersedia di `scripts/blender/create_doctor_hero.py`. File Blender, GLB, video gerakan dan petunjuk disediakan dalam `Blender-Dokter-Beranimasi.zip`. Panduan action dan ekspor ada di `design/BACA-DOKTER-BERANIMASI.txt`. Edit Blender membutuhkan ekspor GLB sebelum tampak di game. Model dan animasi adalah adaptasi orisinal terhadap referensi, belum merupakan salinan identik.
+
 ## Data lokal dan pemasangan
 
 Perubahan ini tidak mengubah schema database atau memasukkan database contoh ke instalasi pengguna. Startup API menambahkan definisi hero yang belum ada menggunakan upsert dengan pembaruan kosong; metadata karakter yang sudah tersimpan tetap dipertahankan. Bank soal, akun, dan riwayat tidak dihapus.

@@ -122,7 +122,7 @@ function PortraitCard({
 }
 
 export default function CharacterGalleryView({
-  selectedId = 'nurse-f',
+  selectedId = 'doctor-m',
   onConfirm,
   onClose,
   team: initialTeam = 'A',

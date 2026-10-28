@@ -89,3 +89,12 @@ Data pertandingan uji dibersihkan setelah verifikasi; lima paket, 25 soal contoh
 
 - Halaman utama memakai palet navy, hijau–biru, tombol kuning dan judul Manrope miring yang selaras dengan galeri karakter. Pilihan arena memakai status aksesibel, menu ponsel tertutup tidak masuk urutan fokus, dan jumlah hero mengikuti registry.
 - Production build frontend/TypeScript dan tes browser navigasi arena/room lulus. Pemeriksaan Chromium desktop dan ponsel 390/320 px memverifikasi tampilan, pergantian tema, suara, menu, tidak ada page error serta tidak ada overflow horizontal. Pengujian memakai Chromium software rendering di cloud.
+
+## Dokter Blender beranimasi — 29 Oktober 2026
+
+- Satu hero, Dr. Arga (`doctor-m`), kini memakai GLB yang dibuat langsung di Blender dari mesh orisinal. File `.blend` mempunyai 23 bone dan sembilan action: idle, ready, rope-ready, pulling, struggling, sliding, falling, victory, defeat. Sembilan hero lain memakai model prosedural sebelumnya.
+- GLB sekitar 2,29 MB, 60.048 triangle dan 68 mesh. File Blender dibuka ulang dan divalidasi; generator reproducible tersedia di `scripts/blender/create_doctor_hero.py`. Video 6 detik pada `design/Doctor-Hero-Animation.mp4` dirender dari GLB menggunakan Three AnimationMixer, bukan ilustrasi bergerak.
+- Loader memakai skeleton, mixer dan salinan material per instance, crossfade dan material TeamAccent. Pose reduced motion tetap dievaluasi. Cache geometri bersama tidak dihapus saat satu instance dilepas.
+- `npm test`: **69 lulus**, lima tes integrasi opsional tidak diaktifkan. Tiga tes aset memverifikasi rig/clip/skala, gerakan joint dan independensi clone, serta genggaman pada loop ready/pull dalam toleransi 0,03 unit. Validasi Blender menemukan drift grip kurang dari 0,005 unit.
+- `next build --webpack` serta TypeScript berhasil. Tiga skenario Playwright lulus (2,4 menit) pada build production baru dan database QA terpisah: galeri/pagination/mobile, pertandingan lengkap dua pengendali sampai hasil, dan navigasi beranda. Galeri dan arena diperiksa tanpa page error. Thumbnail dokter dibuat ulang dari GLB yang sama.
+- Model adalah versi pertama yang mengacu pada referensi, bukan salinan 100%. FPS perangkat fisik dan Windows asli belum diuji. Memodifikasi file Blender memerlukan ekspor GLB sebelum perubahan masuk ke game.

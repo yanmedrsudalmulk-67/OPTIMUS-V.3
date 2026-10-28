@@ -27,7 +27,7 @@ export interface CharacterDefinition {
   description: string;
   thumbnailPath: string;
   attributes: CharacterAttributes;
-  preview: { kind: 'procedural'; facing: number };
+  preview: { kind: 'procedural' | 'gltf'; facing: number };
   modelPath?: string;
   animationConfig: {
     idle: string;
@@ -46,7 +46,7 @@ function defineCharacter(
     ...hero,
     accent: hero.color,
     thumbnailPath: `/heroes/${hero.id}.webp`,
-    preview: { kind: 'procedural', facing: -0.12 },
+    preview: { kind: hero.modelPath ? 'gltf' : 'procedural', facing: -0.12 },
     animationConfig: { idle: 'idle', selected: 'ready', victory: 'victory', scale: 1 },
   };
 }
@@ -54,6 +54,7 @@ function defineCharacter(
 export const CHARACTERS: CharacterDefinition[] = [
   defineCharacter({
     id: 'doctor-m',
+    modelPath: '/models/doctor-hero.glb',
     name: 'Dr. Arga',
     title: 'DOCTOR',
     profession: 'Dokter Pria',

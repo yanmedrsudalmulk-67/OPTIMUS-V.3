@@ -250,9 +250,30 @@ function Segment({
   );
 }
 
+/** Dispatch before mounting a renderer, so GLB heroes do not allocate or update
+ * the procedural rig that is used by the remaining professions. */
+export default function Character(props: CharacterProps) {
+  const definition = CHARACTERS.find((hero) => hero.id === props.characterId) || CHARACTERS[0];
+  if (!definition.modelPath) return <ProceduralCharacter {...props} />;
+  return (
+    <group position={props.position || [0, 0, 0]} rotation={[0, props.facing || 0, 0]}>
+      <AnimatedGLTF
+        key={definition.modelPath}
+        url={definition.modelPath}
+        motion={props.motion}
+        scale={(props.scale ?? 1) * definition.animationConfig.scale}
+        animate={props.animate}
+        team={props.team}
+        holdRope={props.holdRope}
+        seed={props.seed}
+      />
+    </group>
+  );
+}
+
 /** Articulated, original procedural model. The stable grip targets are independent
  * of the animated chest so the hands remain on the rope during a pull. */
-export default function Character({
+function ProceduralCharacter({
   characterId,
   team = 'A',
   motion = 'idle',
@@ -439,19 +460,6 @@ export default function Character({
       sweat.current.scale.setScalar(0.8 + (t % 1) * 0.3);
     }
   });
-
-  if (definition.modelPath) {
-    return (
-      <group position={position} rotation={[0, facing, 0]}>
-        <AnimatedGLTF
-          url={definition.modelPath}
-          motion={motion}
-          scale={scale * definition.animationConfig.scale}
-          animate={animate}
-        />
-      </group>
-    );
-  }
 
   return (
     <group ref={root} position={position} rotation={[0, facing, 0]} scale={scale}>

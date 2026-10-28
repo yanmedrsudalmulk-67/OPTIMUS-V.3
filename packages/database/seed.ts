@@ -338,7 +338,7 @@ async function main() {
           thumbnailPath: character.thumbnailPath,
           modelPath: character.modelPath ?? null,
           animationConfig: {
-            procedural: true,
+            procedural: !character.modelPath,
             ...character.animationConfig,
             attributes: { ...character.attributes },
             description: character.description,

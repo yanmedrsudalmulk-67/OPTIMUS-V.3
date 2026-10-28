@@ -11,10 +11,10 @@ test('gallery selects stable hero profiles, paginates ten professions and works 
   await expect(page.getByRole('heading', { name: 'CHARACTER GALLERY', exact: true })).toBeVisible();
   await expect(page.locator('.cg-hero-card')).toHaveCount(6);
   await expect(page.locator('canvas')).toBeVisible();
-  const nurse = CHARACTERS.find((c) => c.id === 'nurse-f')!;
+  const featured = CHARACTERS.find((c) => c.id === 'doctor-m')!;
   await expect(page.getByRole('progressbar', { name: 'Care', exact: true })).toHaveAttribute(
     'aria-valuenow',
-    String(nurse.attributes.care),
+    String(featured.attributes.care),
   );
   const pharmacist = CHARACTERS.find((c) => c.id === 'pharmacist')!;
   await page
