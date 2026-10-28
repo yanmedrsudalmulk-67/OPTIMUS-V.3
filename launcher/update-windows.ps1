@@ -12,6 +12,11 @@ try {
   Write-Host '======================================================================' -ForegroundColor Cyan
   Write-Host ''
 
+  # Tutup proses server game jika sedang aktif agar query_engine DLL tidak terkunci
+  Get-NetTCPConnection -LocalPort 3005, 4001 -ErrorAction SilentlyContinue | ForEach-Object {
+    Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
+  }
+
   if ((Test-Path '.git') -and (Get-Command git -ErrorAction SilentlyContinue)) {
     Write-Host '[1/3] Mengambil pembaruan terbaru dari GitHub...' -ForegroundColor Yellow
     git fetch origin codex/game-local-launcher
@@ -23,7 +28,7 @@ try {
     git pull origin codex/game-local-launcher
     if ($LASTEXITCODE -ne 0) {
       Write-Host 'Menyinkronkan perubahan lokal...' -ForegroundColor Gray
-      git stash | Out-Null
+      git stash -u | Out-Null
       git pull origin codex/game-local-launcher
       git stash pop 2>&1 | Out-Null
     }

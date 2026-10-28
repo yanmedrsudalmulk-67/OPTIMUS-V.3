@@ -10,6 +10,11 @@ echo   Branch: codex/game-local-launcher
 echo ======================================================================
 echo.
 
+echo Menghentikan sementara proses game jika sedang berjalan...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":3005\>"') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":4001\>"') do taskkill /F /PID %%a >nul 2>&1
+timeout /t 1 /nobreak >nul
+
 echo [1/3] Mengambil pembaharuan terbaru dari GitHub...
 git fetch origin codex/game-local-launcher
 if errorlevel 1 (
@@ -23,7 +28,7 @@ echo [2/3] Menerapkan perubahan ke komputer lokal...
 git pull origin codex/game-local-launcher
 if errorlevel 1 (
     echo [PERINGATAN] Ada file lokal yang bentrok. Mencoba menyinkronkan...
-    git stash
+    git stash -u
     git pull origin codex/game-local-launcher
     git stash pop >nul 2>&1
 )

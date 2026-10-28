@@ -6,7 +6,7 @@
     "dev": "concurrently -k -n api,web \"npm run dev:server\" \"npm run dev:web\"",
     "dev:server": "tsx watch apps/realtime-server/src/index.ts",
     "dev:web": "next dev apps/web -p 3005 --hostname 0.0.0.0",
-    "build": "prisma generate --schema packages/database/prisma/schema.prisma && next build apps/web",
+    "build": "prisma generate --schema packages/database/prisma/schema.prisma && next build apps/web --webpack",
     "start": "concurrently -k -n api,web \"tsx apps/realtime-server/src/index.ts\" \"next start apps/web -p 3005 --hostname 0.0.0.0\"",
     "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
     "db:migrate": "prisma db push --schema packages/database/prisma/schema.prisma",
