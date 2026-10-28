@@ -66,7 +66,14 @@ export function useRoom(rawCode: string, asPlayer = false) {
       setConnected(true);
       try {
         if (saved) {
-          const result = await emit<JoinResult>('room:join', { code, ...saved });
+          // A saved session proves identity; the server owns the current roster.
+          // Replaying its old display snapshot would undo confirmed edits on reload.
+          const result = await emit<JoinResult>('room:join', {
+            code,
+            team: saved.team,
+            token: saved.token,
+            ...(saved.teamId ? { teamId: saved.teamId } : {}),
+          });
           if (mounted) {
             receive(result.state);
             setError('');

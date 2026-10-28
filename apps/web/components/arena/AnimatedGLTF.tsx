@@ -13,10 +13,12 @@ export default function AnimatedGLTF({
   url,
   motion = 'idle',
   scale = 1,
+  animate = true,
 }: {
   url: string;
   motion?: CharacterMotion;
   scale?: number;
+  animate?: boolean;
 }) {
   const { scene, animations } = useGLTF(url);
   const model = useMemo(() => clone(scene), [scene]);
@@ -38,6 +40,8 @@ export default function AnimatedGLTF({
     },
     [mixer, model],
   );
-  useFrame((_, delta) => mixer.update(delta));
+  useFrame((_, delta) => {
+    if (animate) mixer.update(delta);
+  });
   return <primitive object={model} scale={scale} />;
 }

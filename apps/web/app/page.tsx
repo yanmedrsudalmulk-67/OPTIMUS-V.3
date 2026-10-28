@@ -97,7 +97,7 @@ export default function HomePage() {
             <BookOpen size={18} />
             Bank soal
           </Link>
-          <Link href="/admin/characters">
+          <Link href="/characters">
             <Users size={18} />
             Galeri karakter
           </Link>
@@ -238,7 +238,7 @@ export default function HomePage() {
                     Fantasy Battlefield
                   </button>
                 </div>
-                <Link href="/admin/characters">
+                <Link href="/characters">
                   Jelajahi hero <ArrowRight size={15} />
                 </Link>
               </div>
@@ -293,7 +293,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <strong>Lebih seru bersama.</strong>
-                  <p>Siapkan 6 pemain, smartphone, dan satu layar besar.</p>
+                  <p>Siapkan dua perangkat pengendali tim dan satu layar besar.</p>
                 </div>
               </div>
             </aside>
@@ -354,7 +354,7 @@ export default function HomePage() {
             </div>
             <div className="home-professions">
               {CHARACTERS.slice(0, 5).map((c) => (
-                <Link href="/admin/characters" className="home-profession" key={c.id}>
+                <Link href="/characters" className="home-profession" key={c.id}>
                   <span style={{ background: `${c.color}20`, color: c.color }}>
                     {c.id.startsWith('doctor') ? (
                       <Heart size={20} />
@@ -367,7 +367,7 @@ export default function HomePage() {
                   <small>{c.profession}</small>
                 </Link>
               ))}
-              <Link className="home-all-heroes" href="/admin/characters">
+              <Link className="home-all-heroes" href="/characters">
                 <ArrowUpRight size={22} />
                 <small>Semua hero</small>
               </Link>

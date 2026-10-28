@@ -2,6 +2,8 @@
 
 # Medical Tug of War
 
+Pembaruan galeri dan pemilihan dua tim: lihat [CHARACTER-DESIGN.md](CHARACTER-DESIGN.md). Galeri publik ada di `/characters`; sepuluh hero menggunakan registry bersama, preview 3D, dan pemilihan dengan konfirmasi.
+
 **Healthcare Heroes Quiz Battle** — permainan kuis tarik tambang 3D untuk dua tim tenaga kesehatan, masing-masing tiga pemain. Antarmuka utama menggunakan Bahasa Indonesia.
 
 ## Mulai di komputer lokal
@@ -65,9 +67,9 @@ Prisma memakai query compiler JavaScript dan adapter PostgreSQL resmi; runtime t
 1. Login admin. Kelola paket dan pertanyaan di **Bank soal** / **Paket soal**.
 2. Pilih **Pertandingan baru**, isi nama/tim, paket, jumlah soal, durasi, dan arena. Soal serta pengaturan disalin menjadi snapshot.
 3. Pada kontrol host, atur **Alamat server yang dapat diakses HP** ke IP LAN/domain yang benar. Bagikan QR atau room code enam karakter.
-4. Enam browser/perangkat membuka `/join/KODE`, mengisi nama, memilih tim/karakter, lalu **Saya siap bertanding**. Maksimal tiga pemain per tim. Gunakan browser/konteks privat terpisah untuk identitas independen.
-5. Buka `/display/KODE` pada layar proyektor. Host menekan **START BATTLE** setelah enam pemain terhubung dan READY.
-6. Pemain menjawab melalui HP. Jawaban benar menjadi power; server menghitung tarikan dan pemenang. Ronde, jawaban, kontribusi, serta hasil tersimpan di PostgreSQL.
+4. Dua browser/perangkat membuka `/join/KODE`, masing-masing memilih Team Green atau Team Blue. Setiap pengendali mengatur tiga slot hero, mengedit nama, lalu mengonfirmasi tim dan Ready. Komposisi lawan ditampilkan dalam mode baca saja.
+5. Buka `/display/KODE` pada layar proyektor. Host menekan **START BATTLE** setelah kedua pengendali terhubung dan READY.
+6. Setiap pengendali menjawab sekali untuk seluruh tim. Jawaban benar menjadi power; server menghitung tarikan dan pemenang. Nama tetap dapat diubah saat pertandingan; pergantian hero terkunci setelah mulai.
 
 Host dapat mengunci lobby, memindahkan/mengeluarkan pemain, pause/resume, melanjutkan fase, mengakhiri, dan reset. Reset/akhiri meminta konfirmasi. Restart server memulihkan pertandingan aktif dalam kondisi **pause**; token pemain memulihkan slot lama dan host dapat melanjutkan.
 
@@ -91,7 +93,7 @@ Restart frontend/server setelah perubahan. Izinkan port 3000 pada firewall LAN b
 - Socket.IO server-authoritative: deadline server, satu jawaban final per pemain/soal, transaksi/unique constraint, snapshot, penolakan aksi ganda/terlambat. Kunci jawaban tidak dikirim sebelum reveal.
 - Scoring standar: benar 10 power, salah/kosong 0. `delta = (powerB - powerA) × multiplier`; posisi negatif menguntungkan A. Batas default ±100; jika soal habis, posisi menentukan pemenang/seri.
 - Bonus kecepatan/combo deterministik opsional (default mati), sudden death dengan cadangan soal terbatas dan hasil seri jika cadangan habis.
-- Arena 3D: enam karakter tenaga kesehatan dengan wajah/mata ekspresif, rambut berlapis, jas dan kacamata; delapan profesi, animasi sendi/ekspresi, tali bertekstur, label, dua tema, kualitas grafis, debu/konfeti, fallback WebGL.
+- Arena 3D: enam slot hero tenaga kesehatan dari sepuluh pilihan karakter, termasuk dokter bedah dan radiografer; animasi sendi/ekspresi, tali bertekstur, label, dua tema, kualitas grafis, debu/konfeti, fallback WebGL.
 - Arena rumah sakit mengacu pada gedung RSUD AL-MULK: menara kaca biru, fasad putih/oranye, kisi dekoratif, kanopi IGD dan papan nama merah, dengan langit sore. Penonton anak-anak melambai/bertepuk tangan; mode LOW mengurangi jumlah penonton dan resolusi tekstur gedung.
 - Musik pertandingan instrumental orisinal 128 BPM (melodi, bass, akor, drum) dengan efek sorak/tepuk tangan sintetis saat mulai, menarik, dan menang. Aktifkan ikon speaker pada preview; pertandingan baru mengaktifkan opsi musik, pilihan pertandingan lama tetap dihormati.
 - HP portrait, dashboard responsif, display fullscreen, audio/musik sintetis orisinal dengan mute dan volume; browser membutuhkan interaksi sebelum audio dimulai.

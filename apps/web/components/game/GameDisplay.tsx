@@ -26,6 +26,7 @@ import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
 import { Balance, ResultCard } from './RoomParts';
 import { useRoom } from './useRoom';
 import './game.css';
+import './team-selection.css';
 
 const Arena = dynamic(() => import('../arena/Arena'), {
   ssr: false,
@@ -273,6 +274,33 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
         <Balance state={state} />
       </div>
 
+      {lobby && (
+        <section className="ts-readonly-roster" aria-label="Komposisi kedua tim">
+          {(['A', 'B'] as const).map((side) => (
+            <div
+              key={side}
+              className={`ts-roster-team ts-${side.toLowerCase()}`}
+              aria-label={state.teams[side].name}
+            >
+              {state.teams[side].characters.map((slot) => {
+                const hero =
+                  CHARACTERS.find((character) => character.id === slot.characterId) ||
+                  CHARACTERS[0];
+                return (
+                  <div key={slot.slot}>
+                    <img src={hero.thumbnailPath} alt="" />
+                    <span>
+                      <strong title={slot.name}>{slot.name}</strong>
+                      <small>{hero.profession}</small>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </section>
+      )}
+
       {/* BOTTOM AREA: SEPARATE QUESTION PANEL DURING PLAY (LOBBY BOTTOM BARCODE REMOVED) */}
       {lobby ? null : state.phase === 'FINISHED' ? (
         <div className="display-results-overlay">
@@ -320,9 +348,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
           <span>
             MEDICAL TUG OF WAR <i /> Healthcare Heroes Quiz Battle
           </span>
-          <span>
-            Masing-masing tim mengirimkan satu jawaban dari HP pengendali.
-          </span>
+          <span>Masing-masing tim mengirimkan satu jawaban dari HP pengendali.</span>
         </footer>
       )}
 

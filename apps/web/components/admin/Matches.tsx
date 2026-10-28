@@ -519,7 +519,7 @@ export function HostMatch({ id }: { id: string }) {
               <div className="section-card-title">
                 <span className="eyebrow">PERTANYAAN {room.questionIndex + 1}</span>
                 <span className="badge">
-                  {room.players.filter((p) => p.answered).length}/6 menjawab
+                  {Object.values(room.teams).filter((team) => team.answered).length}/2 tim menjawab
                 </span>
               </div>
               {room.question.imageUrl && (

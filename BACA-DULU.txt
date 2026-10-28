@@ -23,6 +23,10 @@ PENYIMPANAN DATA LOKAL:
   TIDAK AKAN HILANG saat melakukan update dari GitHub karena sudah dilindungi di .gitignore.
 
 ARENA DAN MUSIK
+Galeri baru: buka menu Galeri karakter atau http://localhost:3005/characters.
+Team Selection memakai dua perangkat pengendali, tiga hero untuk setiap tim.
+Ganti hero perlu konfirmasi; nama tim/pemain dapat diedit juga saat pertandingan.
+Baca CHARACTER-DESIGN.md untuk panduan galeri dan patch desain.
 Pilih Hospital Battle untuk gedung bergaya RSUD AL-MULK: kaca biru, fasad
 putih-oranye, kisi dekoratif, papan nama RSUD AL-MULK/IGD dan suasana sore.
 Penonton anak-anak tetap bersorak dan bertepuk tangan di tepi arena.

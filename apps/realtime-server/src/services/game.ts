@@ -15,7 +15,12 @@ import {
   type RoundResult,
 } from '../../../../packages/shared/src';
 export { defaultTeamCharacters };
-import { settings as parseSettings, matchSchema, joinSchema, teamJoinSchema } from '../validation';
+import {
+  settings as parseSettings,
+  matchSchema,
+  joinSchema,
+  teamUpdateSchema,
+} from '../validation';
 import { hashToken } from '../auth';
 
 interface Answer {
@@ -41,7 +46,6 @@ const revealed = new Set([
 ]);
 const lobby = (s: RoomState) => s.phase === 'WAITING' || s.phase === 'READY';
 
-
 export class GameService {
   private rooms = new Map<string, Internal>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -50,7 +54,37 @@ export class GameService {
 
   constructor(private io: Server) {}
 
+  hasTeamConnection(code: string, team: Team, socketId: string) {
+    return this.teamSockets.get(`${code}_${team}`)?.has(socketId) ?? false;
+  }
+
   async initialize() {
+    // A source-only update can introduce heroes without running the full quiz seed.
+    // Empty updates preserve installed metadata, including user-supplied GLB assets.
+    await prisma.$transaction(
+      CHARACTERS.map((character) =>
+        prisma.character.upsert({
+          where: { id: character.id },
+          update: {},
+          create: {
+            id: character.id,
+            name: character.name,
+            profession: character.profession,
+            modelPath: character.modelPath ?? null,
+            thumbnailPath: character.thumbnailPath,
+            animationConfig: json({
+              procedural: !character.modelPath,
+              ...character.animationConfig,
+              attributes: character.attributes,
+              description: character.description,
+              title: character.title,
+              color: character.color,
+              accessory: character.accessory,
+            }),
+          },
+        }),
+      ),
+    );
     const rows = await prisma.match.findMany({
       include: {
         answers: true,
@@ -110,8 +144,10 @@ export class GameService {
 
       room.state.teams.A.connected = false;
       room.state.teams.B.connected = false;
-      room.state.teams.A.answered = !!room.answers[room.state.question?.id || '']?.[room.state.teams.A.id];
-      room.state.teams.B.answered = !!room.answers[room.state.question?.id || '']?.[room.state.teams.B.id];
+      room.state.teams.A.answered =
+        !!room.answers[room.state.question?.id || '']?.[room.state.teams.A.id];
+      room.state.teams.B.answered =
+        !!room.answers[room.state.question?.id || '']?.[room.state.teams.B.id];
 
       this.syncPlayers(room);
       this.rooms.set(row.code, room);
@@ -255,6 +291,33 @@ export class GameService {
       ...extra,
     ]);
     this.broadcast(room);
+  }
+
+  private teamPresentationWrites(room: Internal, team: Team) {
+    const controller = room.state.teams[team];
+    return [
+      prisma.matchTeam.updateMany({
+        where: { matchId: room.state.id, teamSide: team },
+        data: { teamName: controller.name, readyStatus: controller.ready },
+      }),
+      ...controller.characters.map((character) =>
+        prisma.matchTeamCharacter.upsert({
+          where: {
+            matchTeamId_slotNumber: { matchTeamId: controller.id, slotNumber: character.slot },
+          },
+          create: {
+            matchTeamId: controller.id,
+            slotNumber: character.slot,
+            characterId: character.characterId,
+            characterDisplayName: character.name,
+          },
+          update: {
+            characterId: character.characterId,
+            characterDisplayName: character.name,
+          },
+        }),
+      ),
+    ];
   }
 
   async create(input: unknown) {
@@ -423,9 +486,9 @@ export class GameService {
   }
 
   async join(input: unknown, socketId: string) {
-    const raw = input as any;
-    const team: Team = raw.team === 'B' ? 'B' : 'A';
-    const code: string = String(raw.code || '').trim().toUpperCase();
+    const raw = joinSchema.parse(input);
+    const team = raw.team;
+    const code = raw.code;
 
     return this.run(code, async () => {
       const room = this.get(code);
@@ -442,12 +505,10 @@ export class GameService {
       if (token) {
         const hashed = hashToken(token);
         const matchTeam = await prisma.matchTeam.findFirst({
-          where: { matchId: room.state.id, controllerSessionId: hashed },
+          where: { matchId: room.state.id, teamSide: team, controllerSessionId: hashed },
         });
-        if (!matchTeam && teamObj.id !== raw.playerId && teamObj.id !== raw.teamId) {
-          // Token mismatch or session expired
-          token = undefined;
-        }
+        if (!matchTeam || matchTeam.id !== teamObj.id)
+          throw new Error('Sesi pengendali tim tidak valid');
       }
 
       if (!token) {
@@ -455,14 +516,18 @@ export class GameService {
           throw new Error('Pertandingan sudah berlangsung atau lobby dikunci');
         }
         if (teamObj.connected && connections.size > 0) {
-          throw new Error(`Tim ${team === 'A' ? 'A (Hijau)' : 'B (Biru)'} sudah memiliki pengendali yang terhubung`);
+          throw new Error(
+            `Tim ${team === 'A' ? 'A (Hijau)' : 'B (Biru)'} sudah memiliki pengendali yang terhubung`,
+          );
         }
         token = crypto.randomBytes(32).toString('hex');
       }
 
-      // Update team properties
+      // A token resumes identity only. Old localStorage snapshots must not undo
+      // confirmed roster/name edits, in the lobby or during an active match.
+      const editingLobby = lobby(room.state) && !raw.token;
       teamObj.connected = true;
-      if (raw.teamName && typeof raw.teamName === 'string') {
+      if (editingLobby && raw.teamName) {
         const trimmed = raw.teamName.trim().slice(0, 40);
         if (trimmed) {
           teamObj.name = trimmed;
@@ -471,14 +536,18 @@ export class GameService {
         }
       }
 
-      if (Array.isArray(raw.characters) && raw.characters.length === 3) {
-        teamObj.characters = raw.characters.map((c: any, index: number) => ({
-          slot: index,
-          characterId: CHARACTERS.some((ch) => ch.id === c.characterId) ? c.characterId : 'doctor-m',
-          name: (c.name || '').trim().slice(0, 30) || `Hero ${team}${index + 1}`,
-        })) as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
-      } else if (raw.characterId && CHARACTERS.some((ch) => ch.id === raw.characterId)) {
+      if (editingLobby && raw.characters) {
+        if (raw.characters.some((c) => c.characterId !== teamObj.characters[c.slot].characterId)) {
+          teamObj.ready = false;
+        }
+        teamObj.characters = raw.characters as [
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+        ];
+      } else if (editingLobby && raw.characterId) {
         // Single character selection backwards compatibility: assign to slot 0
+        if (raw.characterId !== teamObj.characters[0].characterId) teamObj.ready = false;
         teamObj.characters[0] = {
           slot: 0,
           characterId: raw.characterId,
@@ -486,7 +555,6 @@ export class GameService {
         };
       }
 
-      connections.add(socketId);
       this.syncPlayers(room);
       this.updateLobby(room);
 
@@ -495,6 +563,7 @@ export class GameService {
         prisma.matchTeam.upsert({
           where: { matchId_teamSide: { matchId: room.state.id, teamSide: team } },
           create: {
+            id: teamObj.id,
             matchId: room.state.id,
             teamSide: team,
             teamName: teamObj.name,
@@ -509,7 +578,9 @@ export class GameService {
             readyStatus: teamObj.ready,
           },
         }),
+        ...this.teamPresentationWrites(room, team),
       ]);
+      connections.add(socketId);
 
       return {
         token,
@@ -563,6 +634,7 @@ export class GameService {
     await this.run(code, async () => {
       const room = this.get(code);
       const team: Team = room.state.teams.A.id === teamId ? 'A' : 'B';
+      if (room.state.teams[team].id !== teamId) return;
       const teamKey = `${code}_${team}`;
       const connections = this.teamSockets.get(teamKey);
 
@@ -631,7 +703,7 @@ export class GameService {
 
       this.syncPlayers(r);
       this.updateLobby(r);
-      await this.persist(r);
+      await this.persist(r, this.teamPresentationWrites(r, team));
       return this.serialize(code);
     });
   }
@@ -639,44 +711,47 @@ export class GameService {
   async updateTeam(
     code: string,
     team: Team,
-    payload: { teamName?: string; characters?: TeamCharacterSlot[]; ready?: boolean },
+    payload: {
+      teamName?: string;
+      characters?: TeamCharacterSlot[];
+      characterNames?: { slot: number; name: string }[];
+      ready?: boolean;
+    },
   ) {
+    const update = teamUpdateSchema.parse(payload);
     return this.run(code, async () => {
       const r = this.get(code);
-      if (!lobby(r.state)) throw new Error('Pertandingan sudah dimulai');
-
       const teamObj = r.state.teams[team];
-      if (payload.teamName && typeof payload.teamName === 'string') {
-        const trimmed = payload.teamName.trim().slice(0, 40);
-        if (trimmed) {
-          teamObj.name = trimmed;
-          if (team === 'A') r.state.teamAName = trimmed;
-          else r.state.teamBName = trimmed;
-        }
+      const characterChanged =
+        update.characters?.some((c) => c.characterId !== teamObj.characters[c.slot].characterId) ??
+        false;
+      if (!lobby(r.state) && (characterChanged || update.ready !== undefined)) {
+        throw new Error('Karakter dan status Ready dikunci setelah pertandingan dimulai');
       }
-
-      if (Array.isArray(payload.characters) && payload.characters.length === 3) {
-        teamObj.characters = payload.characters.map((c, idx) => ({
-          slot: idx,
-          characterId: CHARACTERS.some((ch) => ch.id === c.characterId) ? c.characterId : 'doctor-m',
-          name: (c.name || '').trim().slice(0, 30) || `Hero ${team}${idx + 1}`,
-        })) as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+      if (update.teamName !== undefined) {
+        teamObj.name = update.teamName;
+        if (team === 'A') r.state.teamAName = update.teamName;
+        else r.state.teamBName = update.teamName;
       }
-
-      if (payload.ready !== undefined) {
-        teamObj.ready = Boolean(payload.ready);
-      } else {
+      if (update.characters) {
+        teamObj.characters = update.characters as [
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+        ];
+      }
+      for (const character of update.characterNames ?? []) {
+        teamObj.characters[character.slot].name = character.name;
+      }
+      if (characterChanged) {
         teamObj.ready = false;
+      } else if (update.ready !== undefined) {
+        teamObj.ready = update.ready;
       }
 
       this.syncPlayers(r);
       this.updateLobby(r);
-      await this.persist(r, [
-        prisma.matchTeam.updateMany({
-          where: { matchId: r.state.id, teamSide: team },
-          data: { teamName: teamObj.name, readyStatus: teamObj.ready },
-        }),
-      ]);
+      await this.persist(r, this.teamPresentationWrites(r, team));
       return this.serialize(code);
     });
   }
@@ -684,22 +759,27 @@ export class GameService {
   async leave(code: string, teamOrPlayerId: string) {
     return this.run(code, async () => {
       const r = this.get(code);
-      if (!lobby(r.state)) throw new Error('Slot tidak dapat dilepas saat pertandingan berlangsung');
+      if (!lobby(r.state))
+        throw new Error('Slot tidak dapat dilepas saat pertandingan berlangsung');
 
       const team: Team =
         teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
       r.state.teams[team].connected = false;
       r.state.teams[team].ready = false;
 
-      this.teamSockets.delete(`${code}_${team}`);
       this.syncPlayers(r);
       this.updateLobby(r);
       await this.persist(r, [
         prisma.matchTeam.updateMany({
           where: { matchId: r.state.id, teamSide: team },
-          data: { connectedStatus: false, readyStatus: false },
+          data: {
+            connectedStatus: false,
+            readyStatus: false,
+            controllerSessionId: crypto.randomBytes(32).toString('hex'),
+          },
         }),
       ]);
+      this.teamSockets.delete(`${code}_${team}`);
       return this.serialize(code);
     });
   }
@@ -779,8 +859,7 @@ export class GameService {
     return this.run(code, async () => {
       const room = this.get(code);
       const s = room.state;
-      const team: Team =
-        teamOrPlayerId === 'B' || s.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      const team: Team = teamOrPlayerId === 'B' || s.teams.B.id === teamOrPlayerId ? 'B' : 'A';
       const teamObj = s.teams[team];
 
       if (
@@ -1004,6 +1083,8 @@ export class GameService {
     return this.run(code, async () => {
       const r = this.get(code);
       const s = r.state;
+
+      if (!lobby(s)) throw new Error('Pertandingan sudah dimulai');
 
       const tA = s.teams.A;
       const tB = s.teams.B;

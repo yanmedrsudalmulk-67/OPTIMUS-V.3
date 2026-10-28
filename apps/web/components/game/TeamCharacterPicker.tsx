@@ -1,123 +1,45 @@
 'use client';
 
-import { useState, useRef, useEffect, type TouchEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
+  Activity,
   ArrowRight,
   Check,
   CheckCheck,
   ChevronLeft,
   ChevronRight,
   Edit2,
-  HeartPulse,
-  RotateCcw,
+  LockKeyhole,
   ShieldCheck,
   Sparkles,
   Swords,
-  Volume2,
-  VolumeX,
+  Users,
+  Wifi,
+  WifiOff,
   X,
-  Zap,
-  Activity,
-  Award,
 } from 'lucide-react';
 import {
   CHARACTERS,
-  type CharacterDefinition,
+  defaultTeamCharacters,
+  type RoomState,
   type Team,
   type TeamCharacterSlot,
 } from '../../../../packages/shared/src';
-import CharacterPreview from '../arena/CharacterPreview';
-import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
+import CharacterGalleryView from '../characters/CharacterGalleryView';
+import { playSound } from '../../lib/audio';
+import './team-selection.css';
 
-export interface HeroStats {
-  pullPower: number;
-  accuracy: number;
-  stamina: number;
-  specialty: string;
-  comicTitle: string;
-  color: string;
-  badge: string;
+type Slots = [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+export interface TeamUpdate {
+  teamName?: string;
+  characters?: Slots;
+  characterNames?: { slot: number; name: string }[];
 }
-
-export const HERO_STATS: Record<string, HeroStats> = {
-  'doctor-m': {
-    pullPower: 92,
-    accuracy: 97,
-    stamina: 89,
-    specialty: 'Clinical Diagnostics & Infection Control',
-    comicTitle: 'CHIEF PHYSICIAN',
-    color: '#00e5a3',
-    badge: 'SURGEON 01',
-  },
-  'doctor-f': {
-    pullPower: 90,
-    accuracy: 99,
-    stamina: 91,
-    specialty: 'Internal Medicine & Patient Safety',
-    comicTitle: 'MASTER DIAGNOSTICIAN',
-    color: '#38bdf8',
-    badge: 'MD EXPERT',
-  },
-  'nurse-m': {
-    pullPower: 96,
-    accuracy: 91,
-    stamina: 95,
-    specialty: 'Critical Care & Intensive Monitoring',
-    comicTitle: 'ICU VANGUARD',
-    color: '#10b981',
-    badge: 'CARE FORCE',
-  },
-  'nurse-f': {
-    pullPower: 91,
-    accuracy: 95,
-    stamina: 93,
-    specialty: 'Emergency Triage & Wound Protocol',
-    comicTitle: 'RAPID RESPONDER',
-    color: '#06b6d4',
-    badge: 'TRIAGE ELITE',
-  },
-  'midwife': {
-    pullPower: 88,
-    accuracy: 96,
-    stamina: 94,
-    specialty: 'Maternal-Neonatal Resilience Care',
-    comicTitle: 'MATERNAL GUARDIAN',
-    color: '#f43f5e',
-    badge: 'SANCTUARY',
-  },
-  'pharmacist': {
-    pullPower: 87,
-    accuracy: 98,
-    stamina: 90,
-    specialty: 'Therapeutic Formulations & Chemistry',
-    comicTitle: 'TACTICAL PHARMACIST',
-    color: '#f59e0b',
-    badge: 'RX FORMULA',
-  },
-  'analyst': {
-    pullPower: 86,
-    accuracy: 100,
-    stamina: 88,
-    specialty: 'Pathogen Analysis & Precision Diagnostics',
-    comicTitle: 'BIO-LAB SPEC-OPS',
-    color: '#a855f7',
-    badge: 'LAB INTEL',
-  },
-  'ambulance': {
-    pullPower: 98,
-    accuracy: 90,
-    stamina: 99,
-    specialty: 'Frontline Rapid Evacuation & Life Support',
-    comicTitle: 'PARAMEDIC JUGGERNAUT',
-    color: '#f97316',
-    badge: 'FIRST STRIKE',
-  },
-};
-
 export interface TeamCharacterPickerProps {
   initialTeam?: Team;
   initialTeamName?: string;
-  initialCharacters?: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+  initialCharacters?: Slots;
+  teams?: RoomState['teams'];
   roomCode: string;
   roomTitle?: string;
   packageName?: string;
@@ -125,18 +47,148 @@ export interface TeamCharacterPickerProps {
   connected?: boolean;
   error?: string;
   isEditMode?: boolean;
-  onConfirm: (data: {
-    team: Team;
-    teamName: string;
-    characters: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
-  }) => Promise<void> | void;
+  lockCharacters?: boolean;
+  ready?: boolean;
+  onTeamChange?: (team: Team) => void;
+  onUpdate?: (patch: TeamUpdate) => Promise<void>;
+  onReady?: () => Promise<void> | void;
+  onConfirm: (data: { team: Team; teamName: string; characters: Slots }) => Promise<void> | void;
   onCancel?: () => void;
+}
+
+function NameEditor({
+  value,
+  label,
+  maxLength,
+  disabled,
+  onSave,
+  children,
+}: {
+  value: string;
+  label: string;
+  maxLength: number;
+  disabled?: boolean;
+  onSave: (value: string) => Promise<void> | void;
+  children?: ReactNode;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  if (!editing)
+    return (
+      <div className="ts-name-row">
+        <strong title={value}>{value}</strong>
+        {!disabled && (
+          <button
+            type="button"
+            className="ts-icon-button"
+            aria-label={label}
+            onClick={() => {
+              setDraft(value);
+              setMessage('');
+              setEditing(true);
+            }}
+          >
+            <Edit2 size={14} />
+          </button>
+        )}
+        {children}
+      </div>
+    );
+  return (
+    <form
+      className="ts-name-editor"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!draft.trim()) {
+          setMessage('Nama wajib diisi.');
+          return;
+        }
+        setSaving(true);
+        setMessage('');
+        try {
+          await onSave(draft.trim());
+          setEditing(false);
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : 'Nama belum tersimpan.');
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <label>
+        <span className="ts-sr-only">{label}</span>
+        <input
+          autoFocus
+          aria-label={label}
+          value={draft}
+          maxLength={maxLength}
+          disabled={saving || disabled}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !saving) {
+              e.stopPropagation();
+              setEditing(false);
+            }
+          }}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+      </label>
+      <div className="ts-edit-actions">
+        <button type="submit" disabled={saving || disabled || !draft.trim()}>
+          {saving ? 'Menyimpan…' : 'Simpan'}
+        </button>
+        <button type="button" disabled={saving} onClick={() => setEditing(false)}>
+          Batal
+        </button>
+      </div>
+      {message && <small role="alert">{message}</small>}
+    </form>
+  );
+}
+
+export function TeamSelectionDialog({
+  children,
+  onClose,
+  label,
+}: {
+  children: ReactNode;
+  onClose: () => void;
+  label: string;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const node = ref.current;
+    const focused = document.activeElement as HTMLElement | null;
+    node?.showModal();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      node?.close();
+      document.body.style.overflow = previous;
+      focused?.focus();
+    };
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="ts-dialog"
+      aria-label={label}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+    >
+      {children}
+    </dialog>
+  );
 }
 
 export default function TeamCharacterPicker({
   initialTeam = 'A',
   initialTeamName,
   initialCharacters,
+  teams,
   roomCode,
   roomTitle,
   packageName,
@@ -144,493 +196,465 @@ export default function TeamCharacterPicker({
   connected = true,
   error,
   isEditMode = false,
+  lockCharacters = false,
+  ready = false,
+  onTeamChange,
+  onUpdate,
+  onReady,
   onConfirm,
   onCancel,
 }: TeamCharacterPickerProps) {
   const [team, setTeam] = useState<Team>(initialTeam);
-  const [teamName, setTeamName] = useState(
-    initialTeamName || (initialTeam === 'A' ? 'Tim Hijau' : 'Tim Biru'),
+  const [teamName, setTeamName] = useState(initialTeamName || 'Tim Hijau');
+  const [characters, setCharacters] = useState<Slots>(
+    initialCharacters || defaultTeamCharacters(initialTeam),
   );
+  const [activeSlot, setActiveSlot] = useState(0);
+  const [candidate, setCandidate] = useState<string | null>(null);
+  const [gallery, setGallery] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [localError, setLocalError] = useState('');
+  const strip = useRef<HTMLDivElement>(null);
+  const pending = busy || saving;
+  const ownCharacters = onUpdate && teams ? teams[team].characters : characters;
+  const editable = isEditMode || !teams?.[team].connected;
+  const ownName = onUpdate && teams ? teams[team].name : teamName;
+  const active = ownCharacters[activeSlot];
+  const activeDef =
+    CHARACTERS.find((c) => c.id === (candidate || active.characterId)) || CHARACTERS[0];
 
-  const [characters, setCharacters] = useState<
-    [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]
-  >(
-    initialCharacters || [
-      { slot: 0, characterId: initialTeam === 'A' ? 'doctor-m' : 'doctor-f', name: initialTeam === 'A' ? 'Dr. Arga' : 'Dr. Maya' },
-      { slot: 1, characterId: initialTeam === 'A' ? 'nurse-f' : 'analyst', name: initialTeam === 'A' ? 'Ners Alya' : 'Analis Raka' },
-      { slot: 2, characterId: initialTeam === 'A' ? 'ambulance' : 'pharmacist', name: initialTeam === 'A' ? 'Medik Juno' : 'Apt. Dimas' },
-    ],
-  );
-
-  const [selectedSlot, setSelectedSlot] = useState<number>(0);
-  const [muted, updateMuted] = useState(isAudioMuted);
-  const [isEditingName, setIsEditingName] = useState(false);
-
-  // Active character definition
-  const currentSlotChar = characters[selectedSlot] || characters[0];
-  const initialIndex = Math.max(
-    0,
-    CHARACTERS.findIndex((c) => c.id === currentSlotChar.characterId),
-  );
-  const [carouselIndex, setCarouselIndex] = useState(initialIndex);
-
-  // Sync carousel position when active slot changes
   useEffect(() => {
-    const slotChar = characters[selectedSlot];
-    if (!slotChar) return;
-    const idx = CHARACTERS.findIndex((c) => c.id === slotChar.characterId);
-    if (idx !== -1) {
-      setCarouselIndex(idx);
+    setTeam(initialTeam);
+    setTeamName(initialTeamName || (initialTeam === 'A' ? 'Tim Hijau' : 'Tim Biru'));
+    const defaults = defaultTeamCharacters(initialTeam);
+    let nextCharacters = initialCharacters || defaults;
+    const untouched = nextCharacters.every((slot, index) => {
+      const original = defaults[index];
+      return (
+        original &&
+        slot.slot === original.slot &&
+        slot.characterId === original.characterId &&
+        slot.name === original.name
+      );
+    });
+    if (!onUpdate && !isEditMode && !teams?.[initialTeam].connected && untouched) {
+      try {
+        const preferred = localStorage.getItem('medical:preferredHero');
+        if (preferred && CHARACTERS.some((hero) => hero.id === preferred)) {
+          nextCharacters = nextCharacters.map((slot) =>
+            slot.slot === 0 ? { ...slot, characterId: preferred } : slot,
+          ) as Slots;
+        }
+      } catch {
+        // Storage restrictions leave the room's original roster intact.
+      }
     }
-  }, [selectedSlot]);
-
-  const activeDef: CharacterDefinition = CHARACTERS[carouselIndex] || CHARACTERS[0];
-  const activeStats: HeroStats = HERO_STATS[activeDef.id] || {
-    pullPower: 90,
-    accuracy: 95,
-    stamina: 90,
-    specialty: 'Healthcare Heroes',
-    comicTitle: 'HERO',
-    color: '#00e5a3',
-    badge: 'SPECIALIST',
-  };
-
-  const prevIndex = (carouselIndex - 1 + CHARACTERS.length) % CHARACTERS.length;
-  const nextIndex = (carouselIndex + 1) % CHARACTERS.length;
-  const prevDef = CHARACTERS[prevIndex];
-  const nextDef = CHARACTERS[nextIndex];
-
-  // Touch swipe support for mobile
-  const touchStartX = useRef(0);
-
-  const handleTouchStart = (e: TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: TouchEvent) => {
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-    if (deltaX > 45) {
-      slideCarousel(-1);
-    } else if (deltaX < -45) {
-      slideCarousel(1);
+    setCharacters(nextCharacters);
+    setCandidate(null);
+    // Drafts belong to this team; incoming opponent updates must not erase them.
+  }, [initialTeam, roomCode]);
+  useEffect(() => {
+    if (lockCharacters) {
+      setGallery(false);
+      setCandidate(null);
     }
-  };
+  }, [lockCharacters]);
 
-  const slideCarousel = (direction: number) => {
-    playSound('select');
-    const nextIdx = (carouselIndex + direction + CHARACTERS.length) % CHARACTERS.length;
-    setCarouselIndex(nextIdx);
-    const chosen = CHARACTERS[nextIdx];
-
-    setCharacters((prev) => {
-      const copy = [...prev] as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
-      copy[selectedSlot] = {
-        slot: selectedSlot,
-        characterId: chosen.id,
-        name: chosen.name,
-      };
-      return copy;
-    });
-    setIsEditingName(false);
-  };
-
-  const selectHeroDirectly = (charId: string) => {
-    const idx = CHARACTERS.findIndex((c) => c.id === charId);
-    if (idx === -1) return;
-    playSound('select');
-    setCarouselIndex(idx);
-    const chosen = CHARACTERS[idx];
-
-    setCharacters((prev) => {
-      const copy = [...prev] as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
-      copy[selectedSlot] = {
-        slot: selectedSlot,
-        characterId: chosen.id,
-        name: chosen.name,
-      };
-      return copy;
-    });
-    setIsEditingName(false);
-  };
-
-  const updateSlotHeroName = (newName: string) => {
-    setCharacters((prev) => {
-      const copy = [...prev] as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
-      copy[selectedSlot] = {
-        ...copy[selectedSlot],
-        name: newName,
-      };
-      return copy;
-    });
-  };
-
-  const handleTeamChange = (newTeam: Team) => {
-    if (newTeam === team) return;
-    playSound('click');
-    setTeam(newTeam);
-    if (!initialTeamName) {
-      setTeamName(newTeam === 'A' ? 'Tim Hijau' : 'Tim Biru');
+  const run = async (action: () => Promise<void> | void) => {
+    setLocalError('');
+    setSaving(true);
+    try {
+      await action();
+    } catch (e) {
+      setLocalError(e instanceof Error ? e.message : 'Perubahan belum tersimpan.');
+      throw e;
+    } finally {
+      setSaving(false);
     }
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (busy || !connected) return;
-    playSound('ready');
-    void onConfirm({
-      team,
-      teamName: teamName.trim() || (team === 'A' ? 'Tim Hijau' : 'Tim Biru'),
-      characters,
+  const changeTeam = (side: Team) => {
+    if (isEditMode || pending || side === team || teams?.[side].connected) return;
+    setTeam(side);
+    setActiveSlot(0);
+    setCandidate(null);
+    setTeamName(teams?.[side].name || (side === 'A' ? 'Tim Hijau' : 'Tim Biru'));
+    setCharacters(teams?.[side].characters || defaultTeamCharacters(side));
+    onTeamChange?.(side);
+  };
+  const saveName = async (name: string) => {
+    if (onUpdate) await run(() => onUpdate({ teamName: name }));
+    else setTeamName(name);
+  };
+  const saveSlotName = async (slot: number, name: string) => {
+    if (onUpdate) await run(() => onUpdate({ characterNames: [{ slot, name }] }));
+    else
+      setCharacters(
+        (previous) => previous.map((ch) => (ch.slot === slot ? { ...ch, name } : ch)) as Slots,
+      );
+  };
+  const applyCharacter = async (id: string) => {
+    if (lockCharacters) throw new Error('Karakter dikunci setelah pertandingan dimulai.');
+    if (pending) throw new Error('Tunggu perubahan sebelumnya selesai disimpan.');
+    if (!editable || !connected) throw new Error('Pengendali tim belum siap.');
+    const updated = ownCharacters.map((ch) =>
+      ch.slot === activeSlot ? { ...ch, characterId: id } : ch,
+    ) as Slots;
+    await run(async () => {
+      if (onUpdate) await onUpdate({ characters: updated });
+      else setCharacters(updated);
+      setCandidate(null);
+      setGallery(false);
+      playSound('select');
     });
   };
+  const complete =
+    ownCharacters.length === 3 &&
+    ownCharacters.every(
+      (ch) => ch.name.trim() && CHARACTERS.some((def) => def.id === ch.characterId),
+    );
 
   return (
-    <div className={`comic-select-container team-${team.toLowerCase()}`}>
-      {/* BACKGROUND GRAPHIC ACCENTS (Cyber-Comic Neon Angled Glows) */}
-      <div className="comic-bg-lines" />
-      <div className="comic-bg-slanted-panel" />
-      <div className="comic-ambient-glow" />
-
-      {/* TOP HEADER BAR */}
-      <header className="comic-topbar">
-        <div className="comic-brand-group">
-          <div className={`comic-team-avatar ${team === 'A' ? 'avatar-green' : 'avatar-blue'}`}>
-            <HeartPulse size={20} />
-          </div>
-          <div>
-            <div className="comic-tagline">HEALTHCARE HEROES · 2 TEAM CONTROLLERS</div>
-            <h1 className="comic-main-title">
-              {team === 'A' ? 'TEAM GREEN CONTROLLER' : 'TEAM BLUE CONTROLLER'}
-            </h1>
-          </div>
-        </div>
-
-        <div className="comic-topbar-right">
-          <div className="comic-pill-room">
-            <span className="room-dot" />
-            <span>ROOM <b>{roomCode}</b></span>
-          </div>
-
-          <button
-            type="button"
-            className="comic-icon-btn"
-            aria-label={muted ? 'Aktifkan Suara' : 'Matikan Suara'}
-            onClick={() => {
-              updateMuted(!muted);
-              setMuted(!muted);
-              if (muted) playSound('ready');
-            }}
-          >
-            {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
-          </button>
-
-          {isEditMode && onCancel && (
+    <section
+      className={`team-selection ${lockCharacters ? 'ts-names-only' : ''}`}
+      aria-label="Pemilihan tim"
+    >
+      <header className="ts-topbar">
+        <a href="/" className="ts-brand">
+          <Activity size={34} />
+          <span>
+            MEDICAL<strong>TUG OF WAR</strong>
+            <small>Healthcare Heroes Quiz Battle</small>
+          </span>
+        </a>
+        <div className="ts-room-meta">
+          <span>
+            {connected ? <Wifi size={14} /> : <WifiOff size={14} />}
+            {connected ? 'LIVE ROOM' : 'MENGHUBUNGKAN'}
+          </span>
+          <b>{roomCode}</b>
+          {onCancel && (
             <button
               type="button"
-              className="comic-close-btn"
+              className="ts-icon-button"
+              aria-label="Tutup pemilihan tim"
               onClick={onCancel}
-              aria-label="Tutup"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           )}
         </div>
       </header>
-
-      {/* MAIN WIDESCREEN BATTLE LAYOUT (INSPIRED BY JACK UI IMAGE 2) */}
-      <div className="comic-widescreen-grid">
-        {/* ========================================================
-            LEFT COLUMN: FEATURED COMIC 3D HERO SHOWCASE
-            ======================================================== */}
-        <section className="comic-hero-stage">
-          {/* Angled Comic Backdrop */}
-          <div className="stage-slanted-card">
-            <div className="stage-top-badge">
-              <span className="badge-triangle">▲</span>
-              <span>{activeStats.badge} · {activeStats.comicTitle}</span>
-              <span className="badge-slot">SLOT 0{selectedSlot + 1}</span>
-            </div>
-
-            {/* 3D Character Canvas */}
-            <div className="stage-3d-wrap">
-              <CharacterPreview
-                characterId={activeDef.id}
-                team={team}
-                background="transparent"
-              />
-            </div>
-
-            {/* Carousel Navigation Chevrons */}
+      <div className="ts-heading">
+        <span className="ts-eyebrow">BUILD YOUR HEALTHCARE SQUAD</span>
+        <h1>
+          {lockCharacters ? (
+            <>
+              TEAM <em>IDENTITY</em>
+            </>
+          ) : (
+            <>
+              TEAM <em>SELECTION</em>
+            </>
+          )}
+        </h1>
+        <p>
+          {lockCharacters
+            ? 'Perbarui nama tim dan hero selama pertandingan.'
+            : 'Pilih 3 Hero untuk Setiap Tim'}
+          <span>{roomTitle || packageName}</span>
+        </p>
+      </div>
+      {!isEditMode && (
+        <div className="ts-controller-choice" aria-label="Pilih tim pengendali">
+          {(['A', 'B'] as Team[]).map((side) => (
             <button
+              key={side}
               type="button"
-              className="stage-nav-arrow arrow-prev"
-              onClick={() => slideCarousel(-1)}
-              aria-label="Karakter Sebelumnya"
+              className={`ts-choose-team ts-${side.toLowerCase()} ${team === side ? 'selected' : ''}`}
+              disabled={pending || Boolean(teams?.[side].connected)}
+              aria-pressed={team === side}
+              onClick={() => changeTeam(side)}
             >
-              <ChevronLeft size={28} />
+              <Users size={16} />
+              {teams?.[side].connected ? 'Sudah ada pengendali · ' : 'Kendalikan · '}TEAM{' '}
+              {side === 'A' ? 'GREEN' : 'BLUE'}
             </button>
-            <button
-              type="button"
-              className="stage-nav-arrow arrow-next"
-              onClick={() => slideCarousel(1)}
-              aria-label="Karakter Berikutnya"
+          ))}
+        </div>
+      )}
+      {(error || localError) && (
+        <div className="ts-error" role="alert">
+          {localError || error}
+        </div>
+      )}
+      <div className="ts-versus-layout">
+        {(['A', 'B'] as Team[]).map((side) => {
+          const mine = team === side;
+          const canEdit = mine && editable;
+          const slots = mine
+            ? ownCharacters
+            : teams?.[side].characters || defaultTeamCharacters(side);
+          const name = mine
+            ? ownName
+            : teams?.[side].name || (side === 'A' ? 'Tim Hijau' : 'Tim Biru');
+          const isReady = mine ? ready : Boolean(teams?.[side].ready);
+          return (
+            <section
+              key={side}
+              className={`ts-team-panel ts-${side.toLowerCase()} ${mine ? 'is-own-team' : 'is-opponent'} ${isReady ? 'is-ready' : ''}`}
+              aria-label={`TEAM ${side === 'A' ? 'GREEN' : 'BLUE'}`}
             >
-              <ChevronRight size={28} />
-            </button>
-          </div>
-
-          {/* Hero Name & Attributes Box (Matching Image 2) */}
-          <div className="stage-hero-meta">
-            <div className="hero-title-row">
-              {isEditingName ? (
-                <div className="inline-name-editor">
-                  <input
-                    type="text"
-                    autoFocus
-                    value={currentSlotChar.name}
-                    onChange={(e) => updateSlotHeroName(e.target.value)}
-                    onBlur={() => setIsEditingName(false)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') setIsEditingName(false);
-                    }}
-                    className="inline-name-input"
-                    maxLength={25}
-                  />
-                  <button
-                    type="button"
-                    className="inline-name-save"
-                    onClick={() => setIsEditingName(false)}
-                  >
-                    <Check size={16} />
-                  </button>
-                </div>
-              ) : (
-                <div className="hero-name-badge" onClick={() => setIsEditingName(true)}>
-                  <h2 className="hero-display-name">{currentSlotChar.name}</h2>
-                  <span className="hero-edit-btn" title="Edit nama hero">
-                    <Edit2 size={15} />
+              <header className="ts-team-heading">
+                <div>
+                  <span className="ts-team-kicker">
+                    <ShieldCheck size={14} />
+                    TEAM {side === 'A' ? 'GREEN' : 'BLUE'}
                   </span>
-                </div>
-              )}
-              <span className="hero-role-chip" style={{ borderColor: activeDef.color }}>
-                {activeDef.profession}
-              </span>
-            </div>
-
-            <p className="hero-flavor-quote">"{activeDef.description}"</p>
-
-            {/* ATTRIBUTES PANEL (Matching Image 2 Attribute Bars) */}
-            <div className="comic-attributes-box">
-              <div className="attributes-header">
-                <Activity size={14} />
-                <span>ATTRIBUTES</span>
-              </div>
-
-              <div className="attribute-row">
-                <span className="attr-label">DAYA TARIK (PULL FORCE)</span>
-                <div className="attr-bar-track">
-                  <div
-                    className="attr-bar-fill fill-pull"
-                    style={{ width: `${activeStats.pullPower}%` }}
+                  <NameEditor
+                    key={`${side}-name`}
+                    value={name}
+                    label={`Edit nama tim ${side === 'A' ? 'Green' : 'Blue'}`}
+                    maxLength={40}
+                    disabled={!canEdit || pending || !connected}
+                    onSave={saveName}
                   />
                 </div>
-                <span className="attr-value">{activeStats.pullPower}</span>
+                <span className={`ts-ownership ${mine ? 'owned' : ''}`}>
+                  {mine ? (
+                    <>
+                      <Check size={12} />
+                      TIM ANDA
+                    </>
+                  ) : (
+                    <>
+                      <LockKeyhole size={12} />
+                      TIM LAWAN
+                    </>
+                  )}
+                </span>
+              </header>
+              <div className="ts-slots">
+                {slots.map((slot, i) => {
+                  const previewId =
+                    mine && activeSlot === slot.slot && candidate ? candidate : slot.characterId;
+                  const def = CHARACTERS.find((c) => c.id === previewId) || CHARACTERS[0];
+                  const selected = mine && activeSlot === slot.slot;
+                  return (
+                    <article
+                      key={slot.slot}
+                      className={`ts-hero-slot ${selected ? 'is-active' : ''} ${mine && selected && candidate ? 'has-draft' : ''}`}
+                      style={{ '--hero-color': def.accent || def.color } as CSSProperties}
+                    >
+                      <button
+                        type="button"
+                        className="ts-portrait-button"
+                        disabled={!canEdit || lockCharacters || pending}
+                        aria-label={`Aktifkan slot ${i + 1} ${side === 'A' ? 'Green' : 'Blue'}`}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setActiveSlot(slot.slot);
+                          setCandidate(null);
+                        }}
+                      >
+                        <span className="ts-slot-number">0{i + 1}</span>
+                        <img src={def.thumbnailPath} alt={def.name} draggable={false} />
+                        <span className="ts-portrait-halo" />
+                        <span className="ts-profession">{def.profession}</span>
+                        {isReady && <CheckCheck className="ts-slot-ready" size={18} />}
+                      </button>
+                      <div className="ts-slot-info">
+                        <NameEditor
+                          key={`${side}-${slot.slot}`}
+                          value={slot.name}
+                          label={`Edit nama pemain slot ${i + 1} ${side === 'A' ? 'Green' : 'Blue'}`}
+                          maxLength={30}
+                          disabled={!canEdit || pending || !connected}
+                          onSave={(value) => saveSlotName(slot.slot, value)}
+                        />
+                        <span className="ts-character-origin">{def.name}</span>
+                        {canEdit && !lockCharacters ? (
+                          <button
+                            type="button"
+                            className="ts-change-character"
+                            disabled={pending || !connected}
+                            aria-label={`Ganti karakter slot ${i + 1}`}
+                            onClick={() => {
+                              setActiveSlot(slot.slot);
+                              setCandidate(null);
+                              setGallery(true);
+                            }}
+                          >
+                            GANTI KARAKTER <ChevronRight size={13} />
+                          </button>
+                        ) : (
+                          <span className="ts-slot-lock">
+                            <LockKeyhole size={11} />
+                            {lockCharacters ? 'Hero terkunci' : 'Dikelola tim lawan'}
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
-
-              <div className="attribute-row">
-                <span className="attr-label">AKURASI MEDIS (KNOWLEDGE)</span>
-                <div className="attr-bar-track">
-                  <div
-                    className="attr-bar-fill fill-acc"
-                    style={{ width: `${activeStats.accuracy}%` }}
-                  />
-                </div>
-                <span className="attr-value">{activeStats.accuracy}</span>
-              </div>
-
-              <div className="attribute-row">
-                <span className="attr-label">STAMINA & FOKUS</span>
-                <div className="attr-bar-track">
-                  <div
-                    className="attr-bar-fill fill-stam"
-                    style={{ width: `${activeStats.stamina}%` }}
-                  />
-                </div>
-                <span className="attr-value">{activeStats.stamina}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ========================================================
-            RIGHT COLUMN: SQUAD ROSTER, TEAM SLOTS & ACTIONS
-            ======================================================== */}
-        <section className="comic-squad-panel">
-          {/* Header Bar: Team Toggle & Team Name */}
-          <div className="squad-panel-header">
-            <div className="squad-title-group">
-              <span className="squad-eyebrow">CHOOSE 3 HEROES · SQUAD READY</span>
-              <h2 className="squad-heading">
-                <span className="heading-glyph">▲</span> SQUAD SURVIVOR
+              <footer className="ts-team-footer">
+                <span className={isReady ? 'ready' : ''}>
+                  {isReady ? <CheckCheck size={15} /> : <Users size={15} />}
+                  {isReady ? 'READY TO BATTLE' : 'MENYIAPKAN TIM'}
+                </span>
+                <small>
+                  {mine
+                    ? '1 pengendali · 3 hero'
+                    : teams?.[side].connected
+                      ? 'Pengendali terhubung'
+                      : 'Menunggu pengendali'}
+                </small>
+              </footer>
+            </section>
+          );
+        })}
+        <div className="ts-vs" aria-hidden="true">
+          <Swords size={20} />
+          <b>VS</b>
+        </div>
+      </div>
+      {!lockCharacters && (
+        <section className="ts-collection" aria-label="Pilihan hero">
+          <div className="ts-collection-heading">
+            <div>
+              <span className="ts-eyebrow">YOUR NEXT HERO</span>
+              <h2>
+                Pilih hero untuk <span>slot 0{activeSlot + 1}</span>
               </h2>
             </div>
-
-            {/* Team Toggle Pill */}
-            <div className="squad-team-toggles">
+            <div className="ts-carousel-nav">
+              <span>{CHARACTERS.length} HERO</span>
               <button
                 type="button"
-                className={`team-pill-btn ${team === 'A' ? 'active-green' : ''}`}
-                onClick={() => handleTeamChange('A')}
+                className="ts-icon-button"
+                aria-label="Hero sebelumnya"
+                onClick={() => strip.current?.scrollBy({ left: -400, behavior: 'smooth' })}
               >
-                <span className="pill-dot dot-green" />
-                <span>TIM HIJAU</span>
-                {team === 'A' && <Check size={14} />}
+                <ChevronLeft size={18} />
               </button>
               <button
                 type="button"
-                className={`team-pill-btn ${team === 'B' ? 'active-blue' : ''}`}
-                onClick={() => handleTeamChange('B')}
+                className="ts-icon-button"
+                aria-label="Hero berikutnya"
+                onClick={() => strip.current?.scrollBy({ left: 400, behavior: 'smooth' })}
               >
-                <span className="pill-dot dot-blue" />
-                <span>TIM BIRU</span>
-                {team === 'B' && <Check size={14} />}
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
-
-          {/* Team Name Input */}
-          <div className="team-name-row">
-            <label className="team-name-label">Nama Tim Anda:</label>
-            <input
-              type="text"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Contoh: Infection Fighters"
-              className="comic-input team-name-input"
-              maxLength={30}
-              required
-            />
+          <div className="ts-character-strip" ref={strip}>
+            {CHARACTERS.map((def) => (
+              <button
+                key={def.id}
+                type="button"
+                disabled={!editable || pending || !connected}
+                className={`ts-mini-card ${activeDef.id === def.id ? 'selected' : ''}`}
+                aria-label={`Pratinjau ${def.name}`}
+                aria-pressed={activeDef.id === def.id}
+                onClick={() => {
+                  setCandidate(def.id);
+                  playSound('select');
+                }}
+                style={{ '--hero-color': def.accent || def.color } as CSSProperties}
+              >
+                <img src={def.thumbnailPath} alt="" draggable={false} />
+                <span>
+                  <strong>{def.name}</strong>
+                  <small>{def.profession}</small>
+                </span>
+                {activeDef.id === def.id && <Check size={13} />}
+              </button>
+            ))}
           </div>
-
-          {/* SECTION 1: 3 SQUAD SLOTS (INTERACTIVE) */}
-          <div className="squad-slots-section">
-            <div className="slots-header-tag">
-              <span>SUSUNAN 3 HERO TIM ANDA (KLIK SLOT UNTUK MENGGANTI):</span>
-            </div>
-            <div className="comic-slots-grid">
-              {characters.map((slotChar, idx) => {
-                const def = CHARACTERS.find((c) => c.id === slotChar.characterId) || CHARACTERS[0];
-                const stats = HERO_STATS[def.id] || activeStats;
-                const isSelected = selectedSlot === idx;
-                return (
-                  <div
-                    key={idx}
-                    className={`comic-slot-card ${isSelected ? 'is-active-slot' : ''}`}
-                    onClick={() => {
-                      setSelectedSlot(idx);
-                      playSound('click');
-                    }}
-                  >
-                    <div className="slot-card-top">
-                      <span className="slot-num-badge">SLOT 0{idx + 1}</span>
-                      <span className={`slot-status-indicator ${isSelected ? 'active-dot' : ''}`}>
-                        {isSelected ? 'EDITING' : 'SIAP ✓'}
-                      </span>
-                    </div>
-
-                    <div className="slot-card-content">
-                      <div className="slot-hero-avatar" style={{ background: def.color }}>
-                        <span>{def.name.charAt(0)}</span>
-                      </div>
-                      <div className="slot-hero-text">
-                        <strong className="slot-hero-title">{slotChar.name}</strong>
-                        <small className="slot-hero-sub">{def.profession}</small>
-                      </div>
-                    </div>
-
-                    <div className="slot-power-tag">
-                      <Zap size={11} />
-                      <span>{stats.pullPower} POWER</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* SECTION 2: COMIC HERO ROSTER GALLERY (8 HEROES CARDS) */}
-          <div className="comic-roster-section">
-            <div className="roster-header">
-              <span>KATALOG PAHLAWAN MEDIS (KLIK UNTUK MEMASANG KE SLOT 0{selectedSlot + 1}):</span>
-            </div>
-
-            <div className="comic-roster-grid">
-              {CHARACTERS.map((c) => {
-                const stats = HERO_STATS[c.id] || activeStats;
-                const isAssigned = characters.some((slot) => slot.characterId === c.id);
-                const isCurrent = activeDef.id === c.id;
-
-                return (
-                  <button
-                    type="button"
-                    key={c.id}
-                    className={`comic-hero-card ${isCurrent ? 'is-selected' : ''} ${isAssigned ? 'is-in-team' : ''}`}
-                    onClick={() => selectHeroDirectly(c.id)}
-                  >
-                    <div className="roster-card-avatar" style={{ background: c.color }}>
-                      <span>{c.name.charAt(0)}</span>
-                      {isCurrent && <span className="roster-check-glow">✓</span>}
-                    </div>
-
-                    <div className="roster-card-info">
-                      <strong className="roster-hero-name">{c.name}</strong>
-                      <span className="roster-hero-prof">{c.profession}</span>
-                      <div className="roster-hero-stat">
-                        <Zap size={10} /> {stats.pullPower}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* ERROR ALERT IF ANY */}
-          {error && <div className="comic-error-banner">{error}</div>}
-
-          {/* SECTION 3: BOTTOM CONFIRM ACTION */}
-          <div className="comic-action-footer">
-            <div className="action-meta-pill">
-              <span className="meta-icon">⚡</span>
+          {candidate && (
+            <div className="ts-draft-confirm" role="status">
               <span>
-                Slot 0{selectedSlot + 1} Terpilih: <b>{currentSlotChar.name}</b> ({activeDef.profession})
+                <Sparkles size={16} />
+                <strong>{activeDef.name}</strong> untuk slot 0{activeSlot + 1}
+                <small>Nama pemain tetap {active.name}.</small>
               </span>
+              <div>
+                <button
+                  type="button"
+                  className="ts-subtle"
+                  disabled={pending}
+                  onClick={() => setCandidate(null)}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="ts-gold-button"
+                  disabled={pending || !connected}
+                  onClick={() => {
+                    void applyCharacter(candidate).catch(() => {});
+                  }}
+                >
+                  KONFIRMASI HERO <Check size={15} />
+                </button>
+              </div>
             </div>
-
-            <button
-              type="button"
-              className="comic-confirm-btn"
-              disabled={
-                busy ||
-                !connected ||
-                !teamName.trim() ||
-                characters.some((c) => !c.name.trim())
-              }
-              onClick={handleSubmit}
-            >
-              {busy ? (
-                <span>Menyimpan Konfigurasi Tim…</span>
-              ) : (
-                <>
-                  <Sparkles size={20} />
-                  <span>{isEditMode ? 'SIMPAN PERUBAHAN TIM' : 'CONFIRM SQUAD & READY TO BATTLE'}</span>
-                  <ArrowRight size={20} />
-                </>
-              )}
-            </button>
-          </div>
+          )}
         </section>
-      </div>
-    </div>
+      )}
+      <footer className="ts-bottom-bar">
+        <p>
+          <ShieldCheck size={18} />
+          <span>
+            {lockCharacters
+              ? 'Nama tersinkron tanpa mengubah skor atau jawaban.'
+              : ready
+                ? 'Tim siap. Pertandingan akan dimulai oleh admin.'
+                : 'Dua pengendali. Enam hero. Satu tujuan.'}
+            <small>
+              {lockCharacters
+                ? 'Komposisi hero terkunci sampai pertandingan berakhir.'
+                : 'Setiap tim menjawab satu pertanyaan bersama.'}
+            </small>
+          </span>
+        </p>
+        {!lockCharacters && (
+          <button
+            type="button"
+            className={`ts-gold-button ts-ready-button ${ready ? 'is-confirmed' : ''}`}
+            disabled={!editable || !complete || pending || !connected || Boolean(candidate)}
+            onClick={() => {
+              void run(async () => {
+                if (onReady) await onReady();
+                else await onConfirm({ team, teamName: ownName, characters: ownCharacters });
+              }).catch(() => {});
+            }}
+          >
+            {pending
+              ? 'MENYIMPAN…'
+              : onReady
+                ? ready
+                  ? 'BATALKAN READY'
+                  : 'TIM SAYA SIAP'
+                : 'KONFIRMASI TIM & READY'}
+            {ready ? <CheckCheck size={18} /> : <ArrowRight size={18} />}
+          </button>
+        )}
+        {lockCharacters && onCancel && (
+          <button type="button" className="ts-gold-button" onClick={onCancel}>
+            KEMBALI KE GAME <ArrowRight size={17} />
+          </button>
+        )}
+      </footer>
+      {gallery && (
+        <CharacterGalleryView
+          selectedId={active.characterId}
+          team={team}
+          title={`Pilih hero · Slot ${activeSlot + 1}`}
+          onClose={() => setGallery(false)}
+          onConfirm={applyCharacter}
+        />
+      )}
+    </section>
   );
 }

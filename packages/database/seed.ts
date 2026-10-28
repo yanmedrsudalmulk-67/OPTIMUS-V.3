@@ -335,8 +335,14 @@ async function main() {
           id: character.id,
           name: character.name,
           profession: character.profession,
+          thumbnailPath: character.thumbnailPath,
+          modelPath: character.modelPath ?? null,
           animationConfig: {
             procedural: true,
+            ...character.animationConfig,
+            attributes: { ...character.attributes },
+            description: character.description,
+            title: character.title,
             color: character.color,
             accessory: character.accessory,
             gltfClips: {
@@ -360,7 +366,7 @@ async function main() {
     });
   });
   console.log(
-    'Seed selesai: 5 paket, 25 soal contoh, 8 karakter, dan pengaturan default. Data yang sudah diedit dipertahankan.',
+    `Seed selesai: 5 paket, 25 soal contoh, ${CHARACTERS.length} karakter, dan pengaturan default. Data yang sudah diedit dipertahankan.`,
   );
   console.log(
     'Soal contoh bersifat edukatif; tinjau kembali sebelum digunakan dalam kompetisi resmi.',

@@ -5,6 +5,7 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { CHARACTERS, type Team } from '../../../../packages/shared/src';
+import AnimatedGLTF from './AnimatedGLTF';
 
 export type CharacterMotion =
   'idle' | 'ready' | 'pulling' | 'struggling' | 'sliding' | 'falling' | 'victory' | 'defeat';
@@ -17,6 +18,7 @@ export interface CharacterProps {
   scale?: number;
   seed?: number;
   holdRope?: boolean;
+  animate?: boolean;
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -259,25 +261,34 @@ export default function Character({
   scale = 1,
   seed = 0,
   holdRope = false,
+  animate = true,
 }: CharacterProps) {
   const index = Math.max(
     0,
     CHARACTERS.findIndex((c) => c.id === characterId),
   );
   const definition = CHARACTERS[index];
-  const skin = skinTones[index];
-  const female = ['doctor-f', 'nurse-f', 'midwife'].includes(characterId);
+  const skin = skinTones[index % skinTones.length];
+  const female = ['doctor-f', 'nurse-f', 'midwife', 'surgeon'].includes(characterId);
   const doctor =
     characterId.startsWith('doctor') || characterId === 'pharmacist' || characterId === 'analyst';
   const ambulance = characterId === 'ambulance';
+  const surgeon = characterId === 'surgeon';
+  const radiographer = characterId === 'radiographer';
   const teamColor = team === 'A' ? '#168f78' : '#4377d8';
-  const uniform = ambulance
-    ? '#183b48'
-    : doctor
-      ? '#f7f0df'
-      : characterId === 'midwife'
-        ? '#f3e8e9'
-        : '#e9f0ea';
+  const uniform = surgeon
+    ? '#267e83'
+    : radiographer
+      ? '#cbdde8'
+      : ambulance
+        ? '#a43c39'
+        : doctor
+          ? '#f7f0df'
+          : characterId === 'midwife'
+            ? '#f3e8e9'
+            : characterId === 'nurse-f'
+              ? '#3687bb'
+              : '#e9f0ea';
   const hair = index % 3 === 0 ? '#493224' : index % 3 === 1 ? '#352824' : '#62402a';
   const root = useRef<THREE.Group>(null),
     chest = useRef<THREE.Group>(null),
@@ -329,7 +340,7 @@ export default function Character({
 
   useFrame(({ clock }, delta) => {
     const dt = Math.min(delta, 0.05);
-    const t = clock.elapsedTime + seed * 2.4;
+    const t = (animate ? clock.elapsedTime : 1) + seed * 2.4;
     const pulling = motion === 'pulling' || motion === 'struggling' || motion === 'sliding';
     const victory = motion === 'victory';
     const falling = motion === 'falling' || motion === 'defeat';
@@ -395,6 +406,10 @@ export default function Character({
       } else if (victory) {
         arm.hand.set(sign * 0.53, 2.07 + Math.sin(t * 5) * 0.08, 0.13);
         arm.elbow.set(sign * 0.67, 1.73, 0.1);
+      } else if (motion === 'ready') {
+        // A confident hand-on-hip pose for selection; rope grips stay unchanged.
+        arm.hand.set(sign * 0.36, 1.12 + breathe, 0.19);
+        arm.elbow.set(sign * 0.64, 1.32 + breathe, 0.03);
       } else {
         arm.hand.set(sign * 0.47, 1.02 + breathe, 0.13);
         arm.elbow.set(sign * 0.52, 1.25, 0.02);
@@ -408,6 +423,19 @@ export default function Character({
       sweat.current.scale.setScalar(0.8 + (t % 1) * 0.3);
     }
   });
+
+  if (definition.modelPath) {
+    return (
+      <group position={position} rotation={[0, facing, 0]}>
+        <AnimatedGLTF
+          url={definition.modelPath}
+          motion={motion}
+          scale={scale * definition.animationConfig.scale}
+          animate={animate}
+        />
+      </group>
+    );
+  }
 
   return (
     <group ref={root} position={position} rotation={[0, facing, 0]} scale={scale}>
@@ -528,11 +556,46 @@ export default function Character({
             </group>
           </>
         )}
+        {surgeon && (
+          <>
+            <mesh position={[0, 0.71, 0.239]} rotation={[0, 0, Math.PI / 4]}>
+              <boxGeometry args={[0.16, 0.16, 0.023]} />
+              <meshStandardMaterial color="#174e5b" />
+            </mesh>
+            <group position={[0.22, 0.57, 0.25]}>
+              <Cross color="#c5eae2" size={0.09} />
+            </group>
+          </>
+        )}
+        {radiographer && (
+          <>
+            <mesh position={[0, 0.39, 0.25]} scale={[0.3, 0.4, 0.07]} castShadow>
+              <sphereGeometry args={[1, 24, 16]} />
+              <meshStandardMaterial color="#365a87" roughness={0.78} />
+            </mesh>
+            <mesh position={[0.19, 0.65, 0.317]}>
+              <boxGeometry args={[0.09, 0.14, 0.03]} />
+              <meshStandardMaterial color="#f4e3aa" roughness={0.5} />
+            </mesh>
+            <mesh position={[0.19, 0.68, 0.335]}>
+              <boxGeometry args={[0.057, 0.047, 0.013]} />
+              <meshStandardMaterial color="#1f4053" />
+            </mesh>
+            <mesh position={[0, 0.22, 0.326]}>
+              <boxGeometry args={[0.46, 0.035, 0.015]} />
+              <meshStandardMaterial color="#6fa5d6" />
+            </mesh>
+          </>
+        )}
         <mesh position={[0, 0.87, 0]}>
           <cylinderGeometry args={[0.12, 0.15, 0.19, 12]} />
           <meshStandardMaterial color={skin} />
         </mesh>
         <group ref={head} position={[0, 1.22, 0.015]}>
+          <mesh scale={[1.035, 1.025, 0.918]}>
+            <sphereGeometry args={[0.45, 32, 24]} />
+            <meshBasicMaterial color="#354250" side={THREE.BackSide} />
+          </mesh>
           <mesh scale={[1.02, 1.01, 0.9]} castShadow>
             <sphereGeometry args={[0.45, 32, 24]} />
             <meshPhysicalMaterial
@@ -654,6 +717,21 @@ export default function Character({
                 </mesh>
               ))}
             </>
+          ) : surgeon ? (
+            <>
+              <mesh position={[0, 0.17, -0.025]} scale={[1.04, 0.76, 0.96]} castShadow>
+                <sphereGeometry args={[0.46, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.64]} />
+                <meshStandardMaterial color="#4fb6b0" roughness={0.8} />
+              </mesh>
+              <mesh position={[0, 0.265, 0.34]} rotation={[0.2, 0, 0]}>
+                <boxGeometry args={[0.5, 0.065, 0.055]} />
+                <meshStandardMaterial color="#b9ece0" roughness={0.8} />
+              </mesh>
+              <mesh position={[0.34, 0.08, -0.25]} scale={[0.11, 0.19, 0.15]}>
+                <sphereGeometry args={[1, 14, 10]} />
+                <meshStandardMaterial color="#4fb6b0" />
+              </mesh>
+            </>
           ) : (
             <>
               <mesh position={[0, 0.1, -0.045]} scale={[1.04, 1, 0.96]} castShadow>
@@ -751,11 +829,11 @@ export default function Character({
       ))}
       <mesh ref={handL} castShadow scale={[1, 0.85, 1]}>
         <sphereGeometry args={[0.135, 20, 14]} />
-        <meshStandardMaterial color={characterId === 'analyst' ? '#b3d6e1' : skin} />
+        <meshStandardMaterial color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin} />
       </mesh>
       <mesh ref={handR} castShadow scale={[1, 0.85, 1]}>
         <sphereGeometry args={[0.135, 20, 14]} />
-        <meshStandardMaterial color={characterId === 'analyst' ? '#b3d6e1' : skin} />
+        <meshStandardMaterial color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin} />
       </mesh>
       <mesh ref={sweat} position={[0.48, 1.95, 0.27]} rotation={[0, 0, -0.3]}>
         <coneGeometry args={[0.065, 0.16, 8]} />

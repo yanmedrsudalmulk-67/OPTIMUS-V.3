@@ -22,7 +22,6 @@ Tanggal: **26 Oktober 2026**. Semua hasil berikut dijalankan pada cloud machine 
 
 ## Alur yang terbukti
 
-
 - Enam konteks browser HP independen bergabung melalui UI, memilih karakter/tim, READY, dan menerima soal yang sama. Reload memulihkan ID pemain yang sama.
 - Host memulai pertandingan setelah enam slot siap, melakukan pause/resume, dan server menolak jawaban ketika dijeda, ganda, atau melewati deadline.
 - Tim A menjawab tiga benar sedangkan Tim B salah: power 30 vs 0, posisi akhir **−45**, pemenang A. Browser pemain menampilkan hasil dan display merender arena WebGL nyata. Tidak ada `pageerror` pada pengujian pertandingan tersebut.
@@ -68,3 +67,14 @@ Data pertandingan uji dibersihkan setelah verifikasi; lima paket, 25 soal contoh
 - `npm run build` lengkap pada versi gabungan terhenti saat Prisma mencoba mengunduh engine native: server unduhan mengembalikan HTTP 403 dari lingkungan cloud. Backend versi gabungan tidak dijalankan ulang; database lokal tidak dimigrasikan. Hasil frontend tidak membuktikan startup/database Windows.
 - `Hospital-RSUD-AL-MULK.zip` merupakan patch tampilan untuk game yang sudah terpasang: empat file komponen arena dan petunjuk pemasangan. ZIP diverifikasi isinya sesuai source. Paket ini tidak mengganti launcher, konfigurasi maupun database instalasi lama.
 - Perubahan hanya pada lingkungan visual; database, scoring, audio dan mekanisme update tidak berubah. Gedung merupakan adaptasi kartun 3D, bukan render fotorealistik.
+
+## Character Gallery dan Team Selection — 28 Oktober 2026
+
+- Galeri publik `/characters` dan galeri admin menggunakan komponen bersama: preview 3D interaktif, enam kartu per halaman, sepuluh hero, profil atribut tetap, konfirmasi pilihan, dan preferensi browser. Potret transparan dirender dari model 3D prosedural yang sama; tidak menggunakan screenshot referensi sebagai halaman statis.
+- Dua pengendali mengatur tiga slot masing-masing. Lawan hanya dapat dilihat. Pergantian hero memerlukan konfirmasi, mempertahankan nama slot, dan terkunci setelah mulai. Edit nama tim/slot selama soal aktif disinkronkan tanpa mengganti identitas, jawaban, skor, fase, atau deadline. Reconnect mengirim identitas saja agar snapshot lokal lama tidak menimpa komposisi server.
+- Startup menambahkan hero registry yang belum ada dengan `update: {}`; tes memeriksa metadata lama tidak ditimpa. Tidak ada migrasi schema, penghapusan kuis, atau perubahan rumus skor.
+- `npm test`: **66 lulus**, lima tes integrasi opsional tidak diaktifkan. Termasuk validasi slot/nama, kepemilikan Socket.IO, join bersamaan, pencabutan sesi, rename aktif, pelestarian hasil jawaban, dan penambahan hero tanpa overwrite.
+- Lima skenario Playwright lulus: login ulang admin, audio, galeri/pagination/atribut/mobile, navigasi arena, dan pertandingan lengkap dengan **dua browser pengendali** (satu desktop, satu ponsel), host serta display. Uji pertandingan memeriksa batal/konfirmasi hero, nama tetap, kedua tim Ready, rename setelah jawaban masuk, reload di lobby/soal aktif, serta nama pada hasil/display. Uji pertama menemukan HUD ponsel melebar dan mengganggu klik jawaban; layout diperbaiki dan skenario pertandingan lulus saat diulang.
+- `npx next build apps/web` dan TypeScript berhasil. Galeri serta Team Selection diperiksa pada desktop dan viewport ponsel 390 px; semua thumbnail termuat, tidak ada page error atau overflow horizontal. Mode reduced motion diperiksa pada preview galeri.
+- Pengujian API memakai database SQLite terpisah `.data/qa/character-selection.db`, Prisma JavaScript query compiler dan adapter libSQL resmi. Engine native Prisma belum dapat diunduh dari cloud (HTTP 403 pada pemeriksaan sebelumnya); tipe/client dihasilkan secara offline dari schema yang sama untuk QA. `.env` dan database game pengguna tidak dipakai atau diubah. Konfigurasi runtime QA tidak masuk GitHub/ZIP.
+- Windows asli dan FPS GPU laptop/ponsel fisik belum diuji. Model tetap aset prosedural orisinal; integrasi GLB/GLTF tersedia melalui registry. Patch source ditujukan pada instalasi versi dua pengendali yang sudah berjalan.

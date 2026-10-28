@@ -1,0 +1,71 @@
+/* Keep controller HUD and answer hit areas inside the phone's layout viewport. */
+.cinematic-play-page .play-top-hud {
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+}
+.cinematic-play-page .hud-team,
+.cinematic-play-page .hud-team-text,
+.cinematic-play-page .dedicated-question-section,
+.cinematic-play-page .play-options-grid,
+.cinematic-play-page .option-btn,
+.cinematic-play-page .option-body {
+  min-width: 0;
+}
+.cinematic-play-page .hud-team-text strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cinematic-play-page .option-body {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .cinematic-play-page {
+    padding: 10px 12px 22px;
+  }
+  .cinematic-play-page .play-top-hud {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    padding: 12px;
+    gap: 12px;
+  }
+  .cinematic-play-page .hud-team-a {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .cinematic-play-page .hud-team-b {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .cinematic-play-page .hud-center {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    min-width: 0;
+  }
+  .cinematic-play-page .hud-team {
+    gap: 5px;
+  }
+  .cinematic-play-page .hud-team-text strong {
+    font-size: 12px;
+  }
+  .cinematic-play-page .hud-balance-bar {
+    width: min(260px, 100%);
+  }
+  .cinematic-play-page .active-question-card {
+    padding: 16px;
+  }
+  .cinematic-play-page .question-header-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .cinematic-play-page .question-text {
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  .cinematic-play-page .play-options-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cinematic-play-page .option-btn {
+    min-height: 58px;
+    padding: 12px;
+    touch-action: manipulation;
+  }
+}

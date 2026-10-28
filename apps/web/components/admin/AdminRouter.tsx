@@ -173,6 +173,7 @@ export default function AdminRouter() {
   useEffect(() => setMobile(false), [pathname]);
   if (pathname === '/admin/login') return <Login />;
   if (loading || !user) return <Loading />;
+  if (pathname === '/admin/characters') return <CharacterGallery />;
   const section =
     nav.find((n) => n.href === pathname)?.title ||
     (pathname.startsWith('/admin/matches/') ? 'Kontrol pertandingan' : 'Ringkasan');
@@ -227,7 +228,7 @@ export default function AdminRouter() {
           </span>
           <strong>Siap untuk bertanding?</strong>
           <p>
-            Enam pemain. Dua tim.
+            Enam hero. Dua pengendali.
             <br />
             Satu semangat untuk belajar.
           </p>

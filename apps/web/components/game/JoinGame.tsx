@@ -4,16 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ArrowRight, Users } from 'lucide-react';
-import {
-  defaultTeamCharacters,
-  type JoinResult,
-  type Team,
-  type TeamCharacterSlot,
-} from '@shared/index';
-import { emit, getSocket } from '../../lib/socket';
+import { type JoinResult, type Team, type TeamCharacterSlot } from '@shared/index';
+import { emit } from '../../lib/socket';
 import { playSound } from '../../lib/audio';
 import { GameHeader } from './RoomParts';
-import { readSession, saveSession, sessionKey, useRoom } from './useRoom';
+import { readSession, saveSession, useRoom } from './useRoom';
 import TeamCharacterPicker from './TeamCharacterPicker';
 import './game.css';
 
@@ -24,48 +19,13 @@ export default function JoinGame({ code: initialCode = '' }: { code?: string }) 
   const { state, connected, loading, error, setError } = useRoom(code);
 
   const [team, setTeam] = useState<Team>('A');
-  const [teamName, setTeamName] = useState('Tim Hijau');
-  const [characters, setCharacters] = useState<[TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]>(
-    defaultTeamCharacters('A'),
-  );
   const [busy, setBusy] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  const clearSaved = () => {
-    localStorage.removeItem(sessionKey(code));
-    const socket = getSocket();
-    socket.auth = { ...socket.auth, playerToken: undefined };
-    setSaved(false);
-    setError('');
-  };
-
-  // Sync team initial details from room state
+  // A saved controller resumes its own team; watching this page must not
+  // accidentally claim the opposite team or overwrite saved slot names.
   useEffect(() => {
-    if (!state) return;
-    const tObj = state.teams?.[team];
-    if (tObj) {
-      if (!saved) {
-        setTeamName(tObj.name || (team === 'A' ? state.teamAName : state.teamBName));
-        if (tObj.characters && tObj.characters.length === 3) {
-          setCharacters([...tObj.characters] as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]);
-        }
-      }
-    }
-  }, [state, team, saved]);
-
-  // Load previous session
-  useEffect(() => {
-    if (!code) return;
-    const previous = readSession(code);
-    if (previous) {
-      setTeam(previous.team || 'A');
-      if (previous.teamName) setTeamName(previous.teamName);
-      if (previous.characters && previous.characters.length === 3) {
-        setCharacters(previous.characters as [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]);
-      }
-      setSaved(true);
-    }
-  }, [code]);
+    if (code && readSession(code)) router.replace(`/lobby/${code}`);
+  }, [code, router]);
 
   const handlePickerConfirm = async (data: {
     team: Team;
@@ -94,6 +54,7 @@ export default function JoinGame({ code: initialCode = '' }: { code?: string }) 
         characters: data.characters,
       });
 
+      await emit('team:ready', { code, ready: true });
       playSound('ready');
       router.push(
         ['WAITING', 'READY'].includes(result.state.phase) ? `/lobby/${code}` : `/play/${code}`,
@@ -114,7 +75,9 @@ export default function JoinGame({ code: initialCode = '' }: { code?: string }) 
           </div>
           <p className="eyebrow">HEALTHCARE HEROES QUIZ BATTLE</p>
           <h1>Arena Dua Tim Menunggumu.</h1>
-          <p className="muted">Masukkan kode room dari host untuk mengendalikan Tim Hijau atau Tim Biru.</p>
+          <p className="muted">
+            Masukkan kode room dari host untuk mengendalikan Tim Hijau atau Tim Biru.
+          </p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -149,30 +112,58 @@ export default function JoinGame({ code: initialCode = '' }: { code?: string }) 
     );
   }
 
+  if (!state) {
+    return (
+      <div className="player-page">
+        <GameHeader connected={connected} code={code} />
+        <main className="game-loading card">
+          {loading && <span className="spinner" />}
+          <h2>{loading ? 'Menghubungkan ke arena…' : 'Room belum tersedia'}</h2>
+          {error && (
+            <p className="error-message" role="alert">
+              {error}
+            </p>
+          )}
+          <Link href="/join" className="back-link">
+            <ArrowLeft size={15} /> Masukkan kode lain
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  if (!['WAITING', 'READY'].includes(state.phase)) {
+    return (
+      <div className="player-page">
+        <GameHeader connected={connected} code={code} />
+        <main className="game-loading card">
+          <h2>Pertandingan sudah dimulai</h2>
+          <p>
+            Komposisi hero sudah dikunci. Gunakan perangkat pengendali yang telah bergabung untuk
+            melanjutkan.
+          </p>
+          <Link href={`/display/${code}`} className="btn btn-primary">
+            Lihat pertandingan <ArrowRight size={16} />
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="player-page"
-      style={{
-        background: 'radial-gradient(ellipse at 50% 20%, #112052 0%, #050a1d 100%)',
-        minHeight: '100vh',
-        padding: '20px 16px 40px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <TeamCharacterPicker
-        roomCode={code}
-        roomTitle={state?.title}
-        packageName={state?.packageName}
-        initialTeam={team}
-        initialTeamName={teamName}
-        initialCharacters={characters}
-        busy={busy}
-        connected={connected}
-        error={error}
-        onConfirm={handlePickerConfirm}
-      />
-    </div>
+    <TeamCharacterPicker
+      roomCode={code}
+      roomTitle={state.title}
+      packageName={state.packageName}
+      initialTeam={team}
+      initialTeamName={state.teams[team].name}
+      initialCharacters={state.teams[team].characters}
+      teams={state.teams}
+      busy={busy}
+      connected={connected}
+      error={error}
+      onTeamChange={setTeam}
+      onConfirm={handlePickerConfirm}
+    />
   );
 }

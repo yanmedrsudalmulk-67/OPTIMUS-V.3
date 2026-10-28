@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { calculateAward, calculateRound, winnerAtEnd } from '../packages/game-engine/src';
-import { CHARACTERS, type TeamCharacterSlot } from '../packages/shared/src';
+import { CHARACTERS, defaultTeamCharacters, type TeamCharacterSlot } from '../packages/shared/src';
 import { characterSlotSchema, teamJoinSchema } from '../apps/realtime-server/src/validation';
-import { defaultTeamCharacters } from '../apps/realtime-server/src/services/game';
 
 describe('Two Team Controllers - Character Limit Validation', () => {
   it('provides exactly 3 default characters for Team A and Team B', () => {
@@ -199,7 +198,7 @@ describe('Admin-Only Start Battle & Readiness Logic', () => {
         teams?.A?.ready &&
         teams?.B?.ready &&
         teams?.A?.characters?.length === 3 &&
-        teams?.B?.characters?.length === 3
+        teams?.B?.characters?.length === 3,
       );
 
     // Initial state: both disconnected
@@ -232,7 +231,11 @@ describe('Admin-Only Start Battle & Readiness Logic', () => {
 
     // Both ready but Team A has invalid characters count
     const state5 = {
-      A: { connected: true, ready: true, characters: [{ slot: 0, characterId: 'doctor-m', name: 'Dr' }] },
+      A: {
+        connected: true,
+        ready: true,
+        characters: [{ slot: 0, characterId: 'doctor-m', name: 'Dr' }],
+      },
       B: { connected: true, ready: true, characters: defaultTeamCharacters('B') },
     };
     expect(isStartable(state5)).toBe(false);

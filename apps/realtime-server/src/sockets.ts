@@ -1,13 +1,19 @@
 import type { Server, Socket } from 'socket.io';
 import { z } from 'zod';
 import { cookieToken, getAdmin } from './auth';
-import { codeSchema, characterSlotSchema, errorMessage } from './validation';
+import { codeSchema, teamUpdateSchema, errorMessage } from './validation';
 import type { GameService } from './services/game';
 import type { Team } from '../../../packages/shared/src';
 
 export function registerSockets(io: Server, game: GameService) {
   io.on('connection', (socket: Socket) => {
     let identity: { teamId: string; team: Team; code: string } | null = null;
+    let identityQueue: Promise<unknown> = Promise.resolve();
+    const sequenceIdentity = <T>(action: () => Promise<T>) => {
+      const task = identityQueue.catch(() => {}).then(action);
+      identityQueue = task;
+      return task;
+    };
     const calls = new Map<string, number[]>();
 
     function limited(key: string, limit: number, window = 10000) {
@@ -21,10 +27,7 @@ export function registerSockets(io: Server, game: GameService) {
     const register = (name: string, fn: (payload: any) => Promise<unknown>) =>
       socket.on(name, async (payload: any, ack?: Function) => {
         try {
-          limited(
-            name,
-            name.includes('answer') ? 12 : name.includes('join') ? 10 : 40,
-          );
+          limited(name, name.includes('answer') ? 12 : name.includes('join') ? 10 : 40);
           const data = await fn(payload);
           if (typeof ack === 'function') ack({ ok: true, data });
         } catch (e) {
@@ -35,7 +38,12 @@ export function registerSockets(io: Server, game: GameService) {
 
     const requireTeam = (payload: any) => {
       const code = codeSchema.parse(payload?.code);
-      if (!identity || identity.code !== code) throw new Error('Sesi pengendali tim diperlukan');
+      if (
+        !identity ||
+        identity.code !== code ||
+        !game.hasTeamConnection(code, identity.team, socket.id)
+      )
+        throw new Error('Sesi pengendali tim diperlukan');
       return { ...identity, code };
     };
 
@@ -46,33 +54,31 @@ export function registerSockets(io: Server, game: GameService) {
       return state;
     });
 
-    const handleJoin = async (payload: any) => {
-      if (identity) {
-        await game.disconnect(identity.teamId, identity.code, socket.id);
-      }
-      const result = await game.join(payload, socket.id);
-      identity = { teamId: result.teamId, team: result.team, code: result.state.code };
-      if (!socket.connected) {
-        await game.disconnect(identity.teamId, identity.code, socket.id);
-        throw new Error('Koneksi telah terputus');
-      }
-      await socket.join(result.state.code);
-      socket.emit('room:state', result.state);
-      return result;
-    };
+    const handleJoin = (payload: any) =>
+      sequenceIdentity(async () => {
+        // A rejected join must not disconnect a controller's current team.
+        const previous = identity;
+        const result = await game.join(payload, socket.id);
+        if (previous && (previous.code !== result.state.code || previous.team !== result.team)) {
+          await game.disconnect(previous.teamId, previous.code, socket.id);
+          if (previous.code !== result.state.code) await socket.leave(previous.code);
+        }
+        identity = { teamId: result.teamId, team: result.team, code: result.state.code };
+        if (!socket.connected) {
+          await game.disconnect(identity.teamId, identity.code, socket.id);
+          throw new Error('Koneksi telah terputus');
+        }
+        await socket.join(result.state.code);
+        socket.emit('room:state', result.state);
+        return result;
+      });
 
     register('room:join', handleJoin);
     register('team:join', handleJoin);
 
     register('team:update', async (payload) => {
       const t = requireTeam(payload);
-      return game.updateTeam(t.code, t.team, {
-        teamName: payload.teamName !== undefined ? z.string().trim().min(1).max(40).parse(payload.teamName) : undefined,
-        characters: Array.isArray(payload.characters)
-          ? z.array(characterSlotSchema).length(3).parse(payload.characters)
-          : undefined,
-        ready: payload.ready !== undefined ? z.boolean().parse(payload.ready) : undefined,
-      });
+      return game.updateTeam(t.code, t.team, teamUpdateSchema.parse(payload));
     });
 
     register('team:ready', async (payload) => {
@@ -121,13 +127,15 @@ export function registerSockets(io: Server, game: GameService) {
       );
     });
 
-    register('room:leave', async (payload) => {
-      const t = requireTeam(payload);
-      const state = await game.leave(t.code, t.team);
-      await socket.leave(t.code);
-      identity = null;
-      return state;
-    });
+    register('room:leave', (payload) =>
+      sequenceIdentity(async () => {
+        const t = requireTeam(payload);
+        const state = await game.leave(t.code, t.team);
+        await socket.leave(t.code);
+        identity = null;
+        return state;
+      }),
+    );
 
     for (const action of [
       'start-match',
@@ -151,20 +159,18 @@ export function registerSockets(io: Server, game: GameService) {
 
     const token = socket.handshake.auth?.playerToken;
     if (typeof token === 'string' && token.length < 200) {
-      void game
-        .reconnect(token, socket.id)
-        .then(async (result) => {
-          identity = { teamId: result.teamId, team: result.team, code: result.code };
-          if (!socket.connected) {
-            await game.disconnect(identity.teamId, identity.code, socket.id);
-            return;
-          }
-          await socket.join(result.code);
-          socket.emit('room:state', result.state);
-        })
-        .catch(() =>
-          socket.emit('game:error', { error: 'Sesi tim sebelumnya tidak dapat dipulihkan' }),
-        );
+      void sequenceIdentity(async () => {
+        const result = await game.reconnect(token, socket.id);
+        identity = { teamId: result.teamId, team: result.team, code: result.code };
+        if (!socket.connected) {
+          await game.disconnect(identity.teamId, identity.code, socket.id);
+          return;
+        }
+        await socket.join(result.code);
+        socket.emit('room:state', result.state);
+      }).catch(() =>
+        socket.emit('game:error', { error: 'Sesi tim sebelumnya tidak dapat dipulihkan' }),
+      );
     }
 
     socket.on('disconnect', () => {

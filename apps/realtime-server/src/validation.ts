@@ -60,11 +60,30 @@ export const characterSlotSchema = z.object({
     .refine((id) => CHARACTERS.some((c) => c.id === id), 'Karakter tidak valid'),
   name: z.string().trim().min(1).max(30),
 });
+export const characterSlotsSchema = z
+  .array(characterSlotSchema)
+  .length(3)
+  .refine((slots) => new Set(slots.map((slot) => slot.slot)).size === 3, 'Setiap slot harus unik')
+  .transform((slots) => [...slots].sort((a, b) => a.slot - b.slot));
+export const characterNamesSchema = z
+  .array(z.object({ slot: z.number().int().min(0).max(2), name: z.string().trim().min(1).max(30) }))
+  .min(1)
+  .max(3)
+  .refine(
+    (slots) => new Set(slots.map((slot) => slot.slot)).size === slots.length,
+    'Setiap slot harus unik',
+  );
+export const teamUpdateSchema = z.object({
+  teamName: z.string().trim().min(1).max(40).optional(),
+  characters: characterSlotsSchema.optional(),
+  characterNames: characterNamesSchema.optional(),
+  ready: z.boolean().optional(),
+});
 export const teamJoinSchema = z.object({
   code: codeSchema,
   team: z.enum(['A', 'B']),
   teamName: z.string().trim().min(1).max(40).optional(),
-  characters: z.array(characterSlotSchema).length(3).optional(),
+  characters: characterSlotsSchema.optional(),
   token: z.string().max(200).optional(),
 });
 export const joinSchema = z.object({
@@ -75,7 +94,7 @@ export const joinSchema = z.object({
     .string()
     .refine((id) => CHARACTERS.some((c) => c.id === id), 'Karakter tidak valid')
     .optional(),
-  characters: z.array(characterSlotSchema).length(3).optional(),
+  characters: characterSlotsSchema.optional(),
   teamName: z.string().trim().min(1).max(40).optional(),
   token: z.string().max(200).optional(),
 });

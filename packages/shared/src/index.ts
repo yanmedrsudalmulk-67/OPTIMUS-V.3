@@ -10,80 +10,166 @@ export type Phase =
   | 'NEXT_QUESTION'
   | 'FINISHED';
 export type Quality = 'AUTO' | 'LOW' | 'MEDIUM' | 'HIGH';
+export interface CharacterAttributes {
+  care: number;
+  teamwork: number;
+  knowledge: number;
+  resilience: number;
+}
 export interface CharacterDefinition {
   id: string;
   name: string;
+  title: string;
   profession: string;
   color: string;
+  accent: string;
   accessory: string;
   description: string;
+  thumbnailPath: string;
+  attributes: CharacterAttributes;
+  preview: { kind: 'procedural'; facing: number };
+  modelPath?: string;
+  animationConfig: {
+    idle: string;
+    selected: string;
+    victory: string;
+    scale: number;
+  };
 }
+
+// Presentation traits never enter scoring. Keep IDs stable: saved rooms and
+// both team controllers reference these definitions directly.
+function defineCharacter(
+  hero: Omit<CharacterDefinition, 'accent' | 'thumbnailPath' | 'preview' | 'animationConfig'>,
+): CharacterDefinition {
+  return {
+    ...hero,
+    accent: hero.color,
+    thumbnailPath: `/heroes/${hero.id}.webp`,
+    preview: { kind: 'procedural', facing: -0.12 },
+    animationConfig: { idle: 'idle', selected: 'ready', victory: 'victory', scale: 1 },
+  };
+}
+
 export const CHARACTERS: CharacterDefinition[] = [
-  {
+  defineCharacter({
     id: 'doctor-m',
     name: 'Dr. Arga',
-    profession: 'Dokter',
-    color: '#37bba0',
+    title: 'DOCTOR',
+    profession: 'Dokter Pria',
+    color: '#38bdf8',
     accessory: 'stethoscope',
-    description: 'Tenang, tangguh, dan selalu siap membantu.',
-  },
-  {
+    description:
+      'Tenang dalam mengambil keputusan, teliti membaca gejala, dan selalu mengutamakan keselamatan pasien.',
+    attributes: { care: 88, teamwork: 86, knowledge: 97, resilience: 89 },
+  }),
+  defineCharacter({
     id: 'doctor-f',
     name: 'Dr. Maya',
-    profession: 'Dokter',
-    color: '#7e8ae8',
+    title: 'DOCTOR',
+    profession: 'Dokter Wanita',
+    color: '#818cf8',
     accessory: 'stethoscope',
-    description: 'Ketelitian adalah kekuatan terbaiknya.',
-  },
-  {
+    description:
+      'Menggabungkan pengetahuan klinis dengan empati. Setiap detail adalah petunjuk untuk memberikan perawatan terbaik.',
+    attributes: { care: 91, teamwork: 89, knowledge: 96, resilience: 86 },
+  }),
+  defineCharacter({
     id: 'nurse-m',
     name: 'Ners Bima',
-    profession: 'Perawat',
-    color: '#16a582',
+    title: 'NURSE',
+    profession: 'Perawat Pria',
+    color: '#10b981',
     accessory: 'badge',
-    description: 'Semangat besar untuk setiap tarikan.',
-  },
-  {
+    description:
+      'Rekan yang sigap dan dapat diandalkan. Menjaga kenyamanan pasien sekaligus menyatukan semangat tim.',
+    attributes: { care: 93, teamwork: 95, knowledge: 78, resilience: 90 },
+  }),
+  defineCharacter({
     id: 'nurse-f',
     name: 'Ners Alya',
-    profession: 'Perawat',
-    color: '#4b9be1',
+    title: 'NURSE',
+    profession: 'Perawat Wanita',
+    color: '#22d3ee',
     accessory: 'cap',
-    description: 'Gerak cepat, hati hangat, tim kuat.',
-  },
-  {
+    description:
+      'Selalu hadir di garis depan, memberikan perawatan, dukungan, dan semangat untuk setiap pasien. Andalan hangat dari tim kesehatan.',
+    attributes: { care: 92, teamwork: 88, knowledge: 76, resilience: 84 },
+  }),
+  defineCharacter({
     id: 'midwife',
     name: 'Bidan Sari',
+    title: 'MIDWIFE',
     profession: 'Bidan',
-    color: '#db8da6',
+    color: '#e879f9',
     accessory: 'hijab',
-    description: 'Sahabat andalan untuk tim pemenang.',
-  },
-  {
+    description:
+      'Mendampingi ibu dan bayi dengan sabar, terampil, dan penuh perhatian. Membawa ketenangan di setiap langkah kehidupan.',
+    attributes: { care: 98, teamwork: 90, knowledge: 85, resilience: 88 },
+  }),
+  defineCharacter({
     id: 'pharmacist',
     name: 'Apt. Dimas',
+    title: 'PHARMACIST',
     profession: 'Apoteker',
-    color: '#e3a83f',
+    color: '#34d399',
     accessory: 'glasses',
-    description: 'Meracik strategi untuk kemenangan.',
-  },
-  {
+    description:
+      'Ahli obat yang cermat dan komunikatif. Memastikan terapi tepat serta membantu pasien memahami pengobatannya.',
+    attributes: { care: 83, teamwork: 86, knowledge: 98, resilience: 80 },
+  }),
+  defineCharacter({
     id: 'analyst',
     name: 'Analis Raka',
-    profession: 'Analis Lab',
-    color: '#a28ad4',
+    title: 'LABORATORY ANALYST',
+    profession: 'Analis Laboratorium',
+    color: '#a78bfa',
     accessory: 'goggles',
-    description: 'Selalu menemukan jawaban yang tepat.',
-  },
-  {
+    description:
+      'Membaca petunjuk kecil dengan ketelitian besar. Hasil pemeriksaannya membantu tim menemukan jawaban yang tepat.',
+    attributes: { care: 80, teamwork: 87, knowledge: 99, resilience: 85 },
+  }),
+  defineCharacter({
     id: 'ambulance',
     name: 'Medik Juno',
+    title: 'AMBULANCE OFFICER',
     profession: 'Petugas Ambulans',
-    color: '#e77a4c',
+    color: '#fb923c',
     accessory: 'reflective',
-    description: 'Siaga di garis depan, kuat di arena.',
-  },
+    description:
+      'Sigap menghadapi keadaan darurat. Menjaga keselamatan perjalanan dan memberi pertolongan awal dengan kepala dingin.',
+    attributes: { care: 86, teamwork: 95, knowledge: 81, resilience: 98 },
+  }),
+  defineCharacter({
+    id: 'surgeon',
+    name: 'Dr. Farah',
+    title: 'SURGEON',
+    profession: 'Dokter Bedah',
+    color: '#2dd4bf',
+    accessory: 'surgical-cap',
+    description:
+      'Fokus, presisi, dan percaya pada kerja tim. Menyiapkan setiap tindakan dengan disiplin demi keselamatan pasien.',
+    attributes: { care: 87, teamwork: 92, knowledge: 98, resilience: 95 },
+  }),
+  defineCharacter({
+    id: 'radiographer',
+    name: 'Rad. Danu',
+    title: 'RADIOGRAPHER',
+    profession: 'Radiografer',
+    color: '#60a5fa',
+    accessory: 'dosimeter',
+    description:
+      'Menghasilkan citra yang jelas dengan teknik dan proteksi yang tepat. Membantu tim melihat kondisi pasien dengan lebih baik.',
+    attributes: { care: 85, teamwork: 90, knowledge: 94, resilience: 87 },
+  }),
 ];
+export const CHARACTER_REGISTRY: Readonly<Record<string, CharacterDefinition>> = Object.fromEntries(
+  CHARACTERS.map((character) => [character.id, character]),
+);
+export function getCharacterDefinition(id: string): CharacterDefinition {
+  return CHARACTER_REGISTRY[id] ?? CHARACTERS[0];
+}
+
 export interface GameSettings {
   questionCount: number;
   duration: number;
@@ -155,7 +241,9 @@ export interface TeamCharacterSlot {
   characterId: string;
   name: string;
 }
-export function defaultTeamCharacters(team: Team): [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot] {
+export function defaultTeamCharacters(
+  team: Team,
+): [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot] {
   if (team === 'A') {
     return [
       { slot: 0, characterId: 'doctor-m', name: 'Dr. Arga' },

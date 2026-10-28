@@ -1,10 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
+import CharacterGalleryView from '../characters/CharacterGalleryView';
 import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -16,141 +13,15 @@ import {
   Save,
   ShieldCheck,
   SlidersHorizontal,
-  Sparkles,
-  Swords,
   Volume2,
   Zap,
 } from 'lucide-react';
-import { CHARACTERS, DEFAULT_SETTINGS, type GameSettings } from '@shared/index';
+import { DEFAULT_SETTINGS, type GameSettings } from '@shared/index';
 import { api } from '../../lib/api';
 import { getSocket } from '../../lib/socket';
 import { ErrorNotice, errorText, Loading, SectionHeading } from './AdminCommon';
-const CharacterPreview = dynamic(() => import('../arena/CharacterPreview'), {
-  ssr: false,
-  loading: () => (
-    <div className="arena-loading">
-      <span className="spinner" /> Memuat karakter…
-    </div>
-  ),
-});
-
 export function CharacterGallery() {
-  const [index, setIndex] = useState(0);
-  const [team, setTeam] = useState<'A' | 'B'>('A');
-  const character = CHARACTERS[index];
-  return (
-    <>
-      <SectionHeading
-        eyebrow="MEET YOUR HEALTHCARE HEROES"
-        title="Galeri karakter"
-        description="Delapan profesi. Beragam kepribadian. Satu semangat untuk menang."
-      />
-      <div className="character-gallery">
-        <section className="card character-preview-card">
-          <div className="character-preview-header">
-            <span className="badge badge-green">
-              KARAKTER {String(index + 1).padStart(2, '0')} / 08
-            </span>
-            <span className="eyebrow">3D CHARACTER</span>
-          </div>
-          <div className="gallery-character-view">
-            <CharacterPreview characterId={character.id} team={team} />
-            <div className="character-platform" />
-          </div>
-          <div className="character-preview-nav">
-            <button
-              className="icon-btn"
-              onClick={() => setIndex((index + 7) % 8)}
-              aria-label="Karakter sebelumnya"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <span className="eyebrow">{character.profession}</span>
-              <h2>{character.name}</h2>
-            </div>
-            <button
-              className="icon-btn"
-              onClick={() => setIndex((index + 1) % 8)}
-              aria-label="Karakter selanjutnya"
-            >
-              <ArrowRight size={20} />
-            </button>
-          </div>
-          <p className="muted">{character.description}</p>
-          <div className="team-preview-toggle">
-            <button className={team === 'A' ? 'selected green' : ''} onClick={() => setTeam('A')}>
-              <span className="team-dot green" />
-              Tim Hijau
-            </button>
-            <button className={team === 'B' ? 'selected blue' : ''} onClick={() => setTeam('B')}>
-              <span className="team-dot blue" />
-              Tim Biru
-            </button>
-          </div>
-          <span className="character-drag-hint">Geser untuk memutar karakter 3D</span>
-        </section>
-        <section className="character-selection">
-          <div className="section-card-title">
-            <h3>Pilih pahlawan Anda</h3>
-            <span className="badge">8 profesi</span>
-          </div>
-          <div className="character-grid">
-            {CHARACTERS.map((c, i) => (
-              <button
-                key={c.id}
-                className={`character-select-card ${index === i ? 'selected' : ''}`}
-                onClick={() => setIndex(i)}
-                style={{ '--character-color': c.color } as React.CSSProperties}
-              >
-                <span className="character-select-number">0{i + 1}</span>
-                <span className="character-select-symbol">
-                  <ShieldCheck size={34} />
-                  <i>+</i>
-                </span>
-                <strong>{c.name}</strong>
-                <small>{c.profession}</small>
-                {index === i && (
-                  <span className="character-selected-check">
-                    <Check size={13} />
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-          <div className="character-gallery-note">
-            <Sparkles size={21} />
-            <p>
-              Model 3D prosedural orisinal dengan animasi sendi. Aset GLB profesional dapat
-              ditambahkan melalui sistem model karakter.
-            </p>
-          </div>
-          <div className="card character-profile">
-            <span className="eyebrow">PROFIL PAHLAWAN</span>
-            <h3>{character.profession}</h3>
-            <p>{character.description}</p>
-            <dl>
-              <div>
-                <dt>Keahlian utama</dt>
-                <dd>Pengetahuan & kerja sama</dd>
-              </div>
-              <div>
-                <dt>Power standar</dt>
-                <dd>Sama untuk seluruh karakter</dd>
-              </div>
-              <div>
-                <dt>Ketersediaan</dt>
-                <dd>Semua pemain · semua tim</dd>
-              </div>
-            </dl>
-            <p className="muted">
-              Karakter adalah pilihan visual. Kemenangan ditentukan oleh jawaban tim, bukan profesi.
-            </p>
-          </div>
-        </section>
-      </div>
-    </>
-  );
+  return <CharacterGalleryView backHref="/admin" />;
 }
 
 function NumberSetting({
@@ -328,7 +199,7 @@ export function GameSettingsPage() {
             />
             <ToggleSetting
               title="Tutup soal otomatis"
-              description="Lanjut ketika keenam pemain sudah menjawab."
+              description="Lanjut ketika kedua tim sudah menjawab."
               value={settings.autoClose}
               onChange={(v) => change('autoClose', v)}
             />
