@@ -825,6 +825,11 @@
     gap: 22px;
   }
 }
+@media (max-width: 900px) {
+  .home-sidebar:not(.is-open) {
+    visibility: hidden;
+  }
+}
 @media (max-width: 640px) {
   .home-topbar {
     height: 65px;
@@ -977,5 +982,505 @@
   }
   .home-footer > span:last-child {
     display: none;
+  }
+}
+
+/* The arena dashboard shares the Gallery's cinematic healthcare-hero palette. */
+.home-app {
+  --home-ink: #f4f8ff;
+  --home-muted: #a9bdd4;
+  --home-cyan: #58e8d1;
+  --home-edge: #2b5374;
+  color: var(--home-ink);
+  background:
+    radial-gradient(ellipse at 22% 0%, #12496780, transparent 35%),
+    radial-gradient(ellipse at 95% 55%, #0c427366, transparent 42%),
+    linear-gradient(130deg, #102b49 0%, #071629 48%, #0a1e39 100%);
+  font-family: 'DM Sans', sans-serif;
+}
+.home-app *,
+.home-app *::before,
+.home-app *::after {
+  box-sizing: border-box;
+}
+.home-app a:focus-visible,
+.home-app button:focus-visible,
+.home-app input:focus-visible {
+  outline: 3px solid #facc15;
+  outline-offset: 3px;
+}
+.home-sidebar {
+  background: linear-gradient(180deg, #0d2744, #071629 75%);
+  border-color: #28425f;
+  box-shadow: 8px 0 30px #020c1d26;
+}
+.home-brand {
+  color: #f7fbff;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+}
+.home-brand > span:last-child > span {
+  color: #c5d9e9;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.brand-mark {
+  color: #37e3c6;
+  background: #113b50;
+  border: 1px solid #2ac8b268;
+  box-shadow:
+    inset 0 0 12px #2cbea520,
+    0 0 18px #17c1ae18;
+}
+.home-nav-label {
+  color: #81a3c0;
+  font-size: 10px;
+}
+.home-nav a {
+  color: #b3c7dc;
+  font-size: 12px;
+  transition:
+    background 0.18s,
+    color 0.18s,
+    transform 0.18s;
+}
+.home-nav a:hover {
+  color: #e9fffa;
+  background: #173d59;
+  transform: translateX(2px);
+}
+.home-nav a.active {
+  background: linear-gradient(100deg, #114e52, #12374f);
+  color: #6ff5d5;
+  border: 1px solid #1f9c8b75;
+}
+.nav-dot {
+  background: #43e6c1;
+  box-shadow: 0 0 10px #43e6c1;
+}
+.home-sidebar-guide {
+  border-color: #2a536a;
+  background: linear-gradient(140deg, #12374d, #0b253c);
+  box-shadow: inset 0 1px 0 #70e4e111;
+}
+.home-guide-icon,
+.home-avatar {
+  background: #194b50;
+  color: #62e7cc;
+}
+.home-sidebar-guide h3 {
+  color: #f2f7fc;
+}
+.home-sidebar-guide p,
+.home-sidebar-footer small {
+  color: #9fb8cb;
+}
+.home-sidebar-guide a,
+.home-sidebar-footer > a {
+  color: #74ead3;
+}
+.home-sidebar-footer {
+  border-color: #28425f;
+}
+.home-sidebar-footer strong {
+  color: #e6f2fa;
+}
+.home-main {
+  min-width: 0;
+}
+.home-topbar {
+  background: #071a30d9;
+  border-color: #27435f;
+  backdrop-filter: blur(14px);
+}
+.home-breadcrumb,
+.home-how-caption {
+  color: #96b0c6;
+}
+.home-breadcrumb strong,
+.home-top-login {
+  color: #e1eef9;
+}
+.home-top-login {
+  border-color: #36506a;
+}
+.home-top-login:hover,
+.home-arena-footer > a:hover {
+  color: #76f1d7;
+}
+.home-online {
+  color: #a7c7d2;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+}
+.home-online i,
+.home-welcome-tag > span {
+  background: #3fe6bc;
+  box-shadow: 0 0 9px #3fe6bc;
+}
+.home-content {
+  position: relative;
+}
+.home-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(#71c4da14 0.8px, transparent 0.8px);
+  background-size: 12px 12px;
+  mask-image: linear-gradient(115deg, transparent 20%, #000 75%);
+}
+.home-content > * {
+  position: relative;
+}
+.home-welcome {
+  padding: 12px 0 4px;
+}
+.home-welcome-tag,
+.home-how .eyebrow,
+.home-hero-count,
+.home-battle-header .eyebrow,
+.home-join-card .eyebrow {
+  color: #72dcca;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+.home-welcome h1,
+.home-battle-header h2,
+.home-join-card h2,
+.home-how h2,
+.home-hero-strip h3 {
+  color: #f6faff;
+  font-family: Manrope, sans-serif;
+  font-style: italic;
+  font-weight: 800;
+}
+.home-welcome h1 {
+  font-size: clamp(27px, 3vw, 45px);
+  line-height: 1.12;
+  text-transform: uppercase;
+  letter-spacing: -0.045em;
+  text-shadow: 0 3px 0 #4e6d8250;
+}
+.home-welcome h1 > span {
+  color: #4de8c5;
+}
+.home-welcome p {
+  color: #b1c6d7;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.home-app .btn-primary {
+  color: #091b31;
+  border: 1px solid #fff0a2;
+  background: linear-gradient(125deg, #fff09a 0%, #ffda39 42%, #facc15 100%);
+  font-family: Manrope, sans-serif;
+  font-weight: 800;
+  font-style: italic;
+  box-shadow:
+    inset 0 -3px 0 #bd8e2845,
+    0 4px 16px #facc1520;
+}
+.home-app .btn-primary:hover {
+  background: linear-gradient(125deg, #fff7bb, #ffe15c 55%, #facc15);
+  color: #071629;
+  box-shadow: 0 0 22px #facc153d;
+}
+.home-welcome > .btn {
+  font-size: 12px;
+  min-height: 45px;
+  padding: 12px 18px;
+}
+.home-battle-card,
+.home-join-card,
+.home-hero-strip {
+  background: linear-gradient(155deg, #102e4c, #0b1d35 85%);
+  border-color: #2c5978;
+  box-shadow:
+    inset 0 1px 0 #94e6f318,
+    0 12px 30px #020b1d24;
+}
+.home-battle-card {
+  border-top: 2px solid #28cfd7;
+  border-radius: 14px;
+}
+.home-battle-header h2 {
+  font-size: 20px;
+}
+.home-live-pill {
+  background: #103b42;
+  border-color: #276b69;
+  color: #a3f6dc;
+  font-size: 9px;
+}
+.home-live-pill i {
+  background: #35e7bb;
+  box-shadow: 0 0 7px #35e7bb;
+}
+.home-arena-wrap {
+  background: #173955;
+}
+.home-team-label.green {
+  color: #b6ffe3;
+  background: #0d5747e6;
+  border-color: #43d8ac99;
+}
+.home-team-label.blue {
+  color: #cee8ff;
+  background: #174478ed;
+  border-color: #68b8fb99;
+}
+.home-team-label b {
+  background: #ffffff1d;
+}
+.home-vs {
+  font-size: 18px;
+  text-shadow: 0 0 10px #0e385b;
+}
+.home-arena-bottom > span:first-child {
+  background: #082b3bd4;
+  color: #dffcf5;
+  font-size: 8px;
+}
+.home-camera-tag {
+  color: #bdf5e8;
+  background: #0a3b48d9;
+  font-size: 8px;
+}
+.home-sound-button {
+  background: #0c2942e8;
+  border-color: #67b7bb;
+  color: #d9fff8;
+  width: 36px;
+  height: 36px;
+}
+.home-sound-button:hover {
+  background: #175d65;
+}
+.home-theme-tabs button {
+  color: #b6cbdb;
+  font-size: 10px;
+  min-height: 44px;
+}
+.home-theme-tabs button:hover {
+  background: #173c56;
+  color: #f4ffff;
+}
+.home-theme-tabs button.selected {
+  color: #9bffdf;
+  background: #174a48;
+  border-color: #38ba9b;
+}
+.home-arena-footer > a {
+  color: #a7d7d2;
+  font-size: 10px;
+}
+.home-join-card {
+  border-top: 2px solid #31debd;
+}
+.home-join-card:after {
+  border-color: #66d7cc20;
+  box-shadow:
+    0 0 0 18px #1cb4bb08,
+    0 0 0 19px #79e7da18;
+}
+.home-small-icon {
+  background: #145255;
+  color: #70f0d0;
+  border: 1px solid #369e8d80;
+}
+.home-join-card h2 {
+  font-size: 27px;
+}
+.home-join-card > p {
+  color: #b8cadd;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.home-join-card > label {
+  color: #a7d2d1;
+  font-size: 10px;
+}
+.home-room-input {
+  background: #06182e;
+  color: #efffff;
+  border-color: #386783;
+}
+.home-room-input::placeholder {
+  color: #829fb2;
+  opacity: 1;
+}
+.home-room-input:focus {
+  border-color: #47e6ca;
+  box-shadow: 0 0 0 3px #2bd6bd2b;
+}
+.home-join-card > .btn {
+  min-height: 46px;
+  font-size: 12px;
+}
+.home-no-account {
+  color: #a8c6c5;
+  font-size: 10px;
+}
+.home-quick-note {
+  background: linear-gradient(130deg, #173d4b, #102c42);
+  border-color: #2d6071;
+}
+.home-note-symbol {
+  color: #7deccf;
+}
+.home-quick-note strong {
+  color: #e6f8f4;
+  font-size: 12px;
+}
+.home-quick-note p {
+  color: #b2c8d4;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.home-how {
+  padding-top: 36px;
+}
+.home-how h2 {
+  font-size: 23px;
+}
+.home-step-icon.green {
+  background: #154a43;
+  color: #6af0c4;
+}
+.home-step-icon.blue {
+  background: #173e64;
+  color: #7ac6ff;
+}
+.home-step-icon.yellow {
+  background: #554a25;
+  color: #ffe078;
+}
+.home-step-number {
+  color: #8fbbcd;
+  font-size: 9px;
+}
+.home-step h3 {
+  color: #edf6ff;
+  font-size: 13px;
+}
+.home-step p {
+  color: #b1c4d4;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.home-hero-strip {
+  border-radius: 12px;
+}
+.home-hero-strip h3 {
+  font-size: 17px;
+}
+.home-hero-strip p {
+  color: #b2c8d4;
+  font-size: 11px;
+}
+.home-profession small,
+.home-all-heroes small {
+  color: #b4c8d4;
+  font-size: 9px;
+  text-align: center;
+}
+.home-all-heroes > svg {
+  color: #7be9d2;
+}
+.home-footer {
+  color: #8caac0;
+  font-size: 9px;
+}
+.home-footer > span:first-child {
+  font-size: 8px;
+}
+.home-menu-button,
+.home-mobile-close {
+  background: #102b47;
+  color: #d5f5f3;
+  border-color: #3d677b;
+}
+.home-menu-scrim {
+  background: #020a18b8;
+}
+.home-app .error-message {
+  color: #ffd8d8;
+  background: #782c3b;
+  border-color: #d8707e;
+  font-size: 11px;
+}
+@media (max-width: 1120px) {
+  .home-welcome h1 {
+    font-size: clamp(26px, 3vw, 36px);
+  }
+  .home-join-card h2 {
+    font-size: 23px;
+  }
+}
+@media (max-width: 640px) {
+  .home-welcome h1 {
+    font-size: clamp(27px, 8vw, 37px);
+    line-height: 1.13;
+  }
+  .home-welcome p {
+    font-size: 12px;
+  }
+  .home-battle-header h2 {
+    font-size: 17px;
+  }
+  .home-theme-tabs button,
+  .home-arena-footer > a {
+    font-size: 9px;
+  }
+  .home-arena-footer {
+    min-height: 56px;
+    height: auto;
+    flex-wrap: wrap;
+  }
+  .home-arena-bottom > span:first-child {
+    font-size: 8px;
+  }
+  .home-join-card h2 {
+    font-size: 25px;
+  }
+  .home-steps {
+    gap: 20px;
+  }
+  .home-step p {
+    font-size: 11px;
+  }
+  .home-professions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 13px;
+  }
+  .home-profession,
+  .home-all-heroes {
+    min-width: 44px;
+  }
+}
+@media (max-width: 380px) {
+  .home-arena-footer {
+    padding: 6px 10px;
+  }
+  .home-arena-footer > a {
+    min-height: 34px;
+  }
+  .home-camera-tag {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-app *,
+  .home-app *::before,
+  .home-app *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .home-nav a:hover {
+    transform: none;
   }
 }

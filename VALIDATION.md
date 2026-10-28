@@ -84,3 +84,8 @@ Data pertandingan uji dibersihkan setelah verifikasi; lima paket, 25 soal contoh
 - Geometri karakter dalam game diperhalus: wajah/mata lebih sederhana, tunik dan bahu menyatu, tangan/sepatu membulat, serta pencahayaan preview lebih lembut. Animasi prosedural dan genggaman tali tetap dipakai. Sepuluh potret dirender ulang dari model final.
 - Build frontend/TypeScript, 66 unit test (5 tes opsional dilewati), serta tes browser galeri desktop/ponsel lulus. Tampilan galeri dan arena diperiksa di Chromium software rendering tanpa page error. Data pengguna dan schema tidak digunakan dalam pemeriksaan visual.
 - Satu contoh dokter diekspor dari geometri game, diimpor dan dibuka ulang di Blender 4.3.2: 62 mesh, 63 material, 16.476 vertex dan tidak ada tekstur eksternal yang hilang. File Blender merupakan satu pose statis tanpa armature, belum otomatis tersinkron ke game. Model adalah adaptasi prosedural, belum setara sculpt referensi.
+
+## Tema halaman utama — 28 Oktober 2026
+
+- Halaman utama memakai palet navy, hijau–biru, tombol kuning dan judul Manrope miring yang selaras dengan galeri karakter. Pilihan arena memakai status aksesibel, menu ponsel tertutup tidak masuk urutan fokus, dan jumlah hero mengikuti registry.
+- Production build frontend/TypeScript dan tes browser navigasi arena/room lulus. Pemeriksaan Chromium desktop dan ponsel 390/320 px memverifikasi tampilan, pergantian tema, suara, menu, tidak ada page error serta tidak ada overflow horizontal. Pengujian memakai Chromium software rendering di cloud.

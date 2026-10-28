@@ -145,6 +145,7 @@ export default function HomePage() {
               className="home-menu-button btn btn-icon"
               onClick={() => setMenu(true)}
               aria-label="Buka menu"
+              aria-expanded={menu}
             >
               <Menu size={19} />
             </button>
@@ -226,6 +227,7 @@ export default function HomePage() {
                   <button
                     className={theme === 'hospital' ? 'selected' : ''}
                     onClick={() => setTheme('hospital')}
+                    aria-pressed={theme === 'hospital'}
                   >
                     <Heart size={14} />
                     Hospital Battle
@@ -233,6 +235,7 @@ export default function HomePage() {
                   <button
                     className={theme === 'fantasy' ? 'selected' : ''}
                     onClick={() => setTheme('fantasy')}
+                    aria-pressed={theme === 'fantasy'}
                   >
                     <Swords size={14} />
                     Fantasy Battlefield
@@ -256,8 +259,7 @@ export default function HomePage() {
                 </h2>
                 <p>
                   Masukkan kode room dari host.
-                  <br />
-                  Hero-mu sudah menunggu!
+                  <br /> Hero-mu sudah menunggu!
                 </p>
                 <label htmlFor="room-code">KODE ROOM</label>
                 <input
@@ -347,7 +349,7 @@ export default function HomePage() {
             <div>
               <div className="home-hero-count">
                 <Heart size={17} />
-                <span>8 HERO KESEHATAN</span>
+                <span>{CHARACTERS.length} HERO KESEHATAN</span>
               </div>
               <h3>Beda profesi. Semangat yang sama.</h3>
               <p>Temukan karakter yang mewakili dirimu.</p>
