@@ -104,22 +104,22 @@ export default function CharacterPreview({
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
           }}
         >
-          <hemisphereLight args={['#e9f5ff', '#718397', 1.8]} />
+          <hemisphereLight args={['#fff3e7', '#9b9b99', 1.65]} />
           <directionalLight
             position={[-3, 5, 4]}
-            intensity={3.0}
-            color="#ffe7ce"
+            intensity={2.5}
+            color="#ffeadb"
             castShadow
             shadow-mapSize={512}
             shadow-normalBias={0.03}
           />
-          <directionalLight position={[3, 3, -3]} intensity={3.0} color="#60d9ff" />
+          <directionalLight position={[3, 3, -3]} intensity={1.25} color="#c0e8f5" />
           <directionalLight
             position={[-3, 2, -2]}
-            intensity={1.6}
-            color={team === 'A' ? '#47e7b4' : '#739cff'}
+            intensity={0.8}
+            color={team === 'A' ? '#a2e6cb' : '#bbd8ff'}
           />
-          <directionalLight position={[0, 1.5, 4]} intensity={0.35} color="#edf7ff" />
+          <directionalLight position={[0, 1.5, 4]} intensity={0.6} color="#fff7ed" />
           <Suspense fallback={null}>
             <PreviewActor
               characterId={characterId}

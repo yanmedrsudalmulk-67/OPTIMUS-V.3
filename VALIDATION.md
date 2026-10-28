@@ -78,3 +78,9 @@ Data pertandingan uji dibersihkan setelah verifikasi; lima paket, 25 soal contoh
 - `npx next build apps/web` dan TypeScript berhasil. Galeri serta Team Selection diperiksa pada desktop dan viewport ponsel 390 px; semua thumbnail termuat, tidak ada page error atau overflow horizontal. Mode reduced motion diperiksa pada preview galeri.
 - Pengujian API memakai database SQLite terpisah `.data/qa/character-selection.db`, Prisma JavaScript query compiler dan adapter libSQL resmi. Engine native Prisma belum dapat diunduh dari cloud (HTTP 403 pada pemeriksaan sebelumnya); tipe/client dihasilkan secara offline dari schema yang sama untuk QA. `.env` dan database game pengguna tidak dipakai atau diubah. Konfigurasi runtime QA tidak masuk GitHub/ZIP.
 - Windows asli dan FPS GPU laptop/ponsel fisik belum diuji. Model tetap aset prosedural orisinal; integrasi GLB/GLTF tersedia melalui registry. Patch source ditujukan pada instalasi versi dua pengendali yang sudah berjalan.
+
+## Penyesuaian model hero — 28 Oktober 2026
+
+- Geometri karakter dalam game diperhalus: wajah/mata lebih sederhana, tunik dan bahu menyatu, tangan/sepatu membulat, serta pencahayaan preview lebih lembut. Animasi prosedural dan genggaman tali tetap dipakai. Sepuluh potret dirender ulang dari model final.
+- Build frontend/TypeScript, 66 unit test (5 tes opsional dilewati), serta tes browser galeri desktop/ponsel lulus. Tampilan galeri dan arena diperiksa di Chromium software rendering tanpa page error. Data pengguna dan schema tidak digunakan dalam pemeriksaan visual.
+- Satu contoh dokter diekspor dari geometri game, diimpor dan dibuka ulang di Blender 4.3.2: 62 mesh, 63 material, 16.476 vertex dan tidak ada tekstur eksternal yang hilang. File Blender merupakan satu pose statis tanpa armature, belum otomatis tersinkron ke game. Model adalah adaptasi prosedural, belum setara sculpt referensi.

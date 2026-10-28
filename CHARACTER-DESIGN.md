@@ -23,6 +23,10 @@ Potret WebP di `apps/web/public/heroes` merupakan render transparan dari model p
 
 Model prosedural merupakan aset sementara yang berfungsi, bukan sculpt profesional setara ilustrasi referensi. Untuk memakai GLB/GLTF berlisensi, isi `modelPath` pada definisi registry, atur `animationConfig.scale`, dan sediakan thumbnail yang cocok. `AnimatedGLTF.tsx` memuat model, mengkloning skeleton, dan memilih/crossfade clip animasi yang sesuai. Posisi tangan pada tali tetap memerlukan rig/animasi model yang sesuai; metadata database saja tidak otomatis mengganti registry frontend.
 
+Model dalam game telah diperhalus dengan bentuk wajah dan mata yang lebih sederhana, tunik dan lengan yang tersambung, tangan serta sepatu yang membulat, dan pencahayaan preview yang lebih lembut. Sepuluh potret dibuat ulang dari geometri terbaru.
+
+`design/Doctor-Hero.blend` adalah contoh dokter yang diekspor dari geometri game dan dapat diedit di Blender 4.3 atau lebih baru. File ini berisi satu pose statis tanpa armature/animasi; mengubahnya tidak otomatis mengubah game. `design/BACA-MODEL-BLENDER.txt` menjelaskan integrasi GLB dan rig, dan `Blender-Hero-Dokter.zip` menyediakan file beserta pratinjau. Penyesuaian gaya ini merupakan pendekatan terhadap referensi, bukan model sculpt identik dengan gambar.
+
 ## Data lokal dan pemasangan
 
 Perubahan ini tidak mengubah schema database atau memasukkan database contoh ke instalasi pengguna. Startup API menambahkan definisi hero yang belum ada menggunakan upsert dengan pembaruan kosong; metadata karakter yang sudah tersimpan tetap dipertahankan. Bank soal, akun, dan riwayat tidak dihapus.

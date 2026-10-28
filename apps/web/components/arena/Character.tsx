@@ -156,10 +156,10 @@ function SweptHair({ color }: { color: string }) {
   return (
     <group>
       <mesh geometry={shapes.body} castShadow>
-        <meshStandardMaterial color={color} roughness={0.43} />
+        <meshStandardMaterial color={color} roughness={0.78} />
       </mesh>
       <mesh geometry={shapes.detail}>
-        <meshStandardMaterial color="#765137" roughness={0.5} />
+        <meshStandardMaterial color={color} roughness={0.85} />
       </mesh>
     </group>
   );
@@ -316,6 +316,22 @@ export default function Character({
     }),
     [],
   );
+  // A gently tapered tunic gives the torso a soft fabric silhouette rather
+  // than a stretched sphere. It stays inside the existing coat/accessories.
+  const tunicGeometry = useMemo(() => {
+    const profile = new THREE.SplineCurve([
+      new THREE.Vector2(0, 0.06),
+      new THREE.Vector2(0.29, 0.06),
+      new THREE.Vector2(0.35, 0.12),
+      new THREE.Vector2(0.36, 0.38),
+      new THREE.Vector2(0.34, 0.61),
+      new THREE.Vector2(0.25, 0.79),
+      new THREE.Vector2(0.12, 0.84),
+      new THREE.Vector2(0, 0.84),
+    ]);
+    return new THREE.LatheGeometry(profile.getPoints(32), 32);
+  }, []);
+  useEffect(() => () => tunicGeometry.dispose(), [tunicGeometry]);
   const smilePoints = useMemo<[number, number, number][]>(
     () => [
       [-0.145, -0.17, 0.363],
@@ -456,9 +472,9 @@ export default function Character({
               roughness={0.5}
             />
           </mesh>
-          <mesh position={[0, -0.405, 0.085]}>
-            <boxGeometry args={[0.25, 0.04, 0.35]} />
-            <meshStandardMaterial color={doctor ? '#aa9980' : '#c4d1ce'} />
+          <mesh position={[0, -0.405, 0.085]} scale={[1, 0.15, 1.42]}>
+            <sphereGeometry args={[0.16, 20, 12]} />
+            <meshStandardMaterial color={doctor ? '#aa9980' : '#c4d1ce'} roughness={0.85} />
           </mesh>
         </group>
       </group>
@@ -479,25 +495,45 @@ export default function Character({
               roughness={0.5}
             />
           </mesh>
-          <mesh position={[0, -0.405, 0.085]}>
-            <boxGeometry args={[0.25, 0.04, 0.35]} />
-            <meshStandardMaterial color={doctor ? '#aa9980' : '#c4d1ce'} />
+          <mesh position={[0, -0.405, 0.085]} scale={[1, 0.15, 1.42]}>
+            <sphereGeometry args={[0.16, 20, 12]} />
+            <meshStandardMaterial color={doctor ? '#aa9980' : '#c4d1ce'} roughness={0.85} />
           </mesh>
         </group>
       </group>
       <group ref={chest} position={[0, 0.85, 0]}>
-        <mesh position={[0, 0.42, 0]} scale={[0.4, 0.48, 0.25]} castShadow>
-          <sphereGeometry args={[1, 28, 20]} />
+        <mesh geometry={tunicGeometry} scale={[1, 1, 0.7]} castShadow>
           <meshStandardMaterial color={uniform} roughness={0.78} />
         </mesh>
-        <mesh position={[0, 0.2, 0]} scale={[0.32, 0.21, 0.215]} castShadow>
-          <sphereGeometry args={[1, 24, 16]} />
-          <meshStandardMaterial color={uniform} roughness={0.78} />
-        </mesh>
-        <mesh position={[0, 0.49, 0.24]} scale={[0.17, 0.35, 0.055]}>
-          <sphereGeometry args={[1, 12, 10]} />
-          <meshStandardMaterial color={doctor ? '#d4e1dc' : definition.color} />
-        </mesh>
+        {[-1, 1].map((sign) => (
+          <mesh key={sign} position={[sign * 0.325, 0.66, 0]} scale={[1, 0.92, 0.9]} castShadow>
+            <sphereGeometry args={[0.145, 20, 14]} />
+            <meshStandardMaterial color={uniform} roughness={0.78} />
+          </mesh>
+        ))}
+        {!doctor && (
+          <>
+            <mesh position={[0, 0.125, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[1, 0.7, 1]}>
+              <torusGeometry args={[0.35, 0.012, 6, 32]} />
+              <meshStandardMaterial color={uniform} roughness={0.9} />
+            </mesh>
+            <Tube
+              points={[
+                [-0.11, 0.8, 0.17],
+                [0, 0.71, 0.22],
+                [0.11, 0.8, 0.17],
+              ]}
+              color={surgeon ? '#b6ded6' : '#dae9e5'}
+              radius={0.012}
+            />
+          </>
+        )}
+        {doctor && (
+          <mesh position={[0, 0.49, 0.232]} scale={[0.13, 0.28, 0.035]}>
+            <sphereGeometry args={[1, 16, 12]} />
+            <meshStandardMaterial color="#d4e1dc" roughness={0.85} />
+          </mesh>
+        )}
         {doctor && (
           <>
             <mesh position={[-0.16, 0.61, 0.252]} rotation={[0, 0, -0.26]}>
@@ -600,8 +636,8 @@ export default function Character({
             <sphereGeometry args={[0.45, 32, 24]} />
             <meshPhysicalMaterial
               color={skin}
-              roughness={0.52}
-              clearcoat={0.08}
+              roughness={0.68}
+              clearcoat={0.035}
               clearcoatRoughness={0.7}
             />
           </mesh>
@@ -618,7 +654,7 @@ export default function Character({
             </group>
           ))}
           <mesh position={[0, -0.055, 0.415]} scale={[1, 0.8, 1.1]}>
-            <sphereGeometry args={[0.084, 20, 14]} />
+            <sphereGeometry args={[0.067, 24, 16]} />
             <meshStandardMaterial color={skin} roughness={0.42} />
           </mesh>
           {[-1, 1].map((sign) => (
@@ -632,7 +668,7 @@ export default function Character({
               <meshStandardMaterial
                 color="#d8907b"
                 transparent
-                opacity={0.28}
+                opacity={0.16}
                 depthWrite={false}
                 roughness={0.8}
               />
@@ -642,35 +678,17 @@ export default function Character({
             {[-1, 1].map((sign) => (
               <group
                 key={sign}
-                position={[sign * 0.176, 0.082, 0.367]}
+                position={[sign * 0.16, 0.065, 0.385]}
                 rotation={[0, sign * 0.12, 0]}
               >
-                <mesh scale={[0.94, 1.08, 0.48]}>
-                  <sphereGeometry args={[0.126, 24, 18]} />
-                  <meshPhysicalMaterial color="#fff7e6" roughness={0.25} clearcoat={0.25} />
+                {/* Small glossy eyes keep the rounded, gentle childlike expression. */}
+                <mesh scale={[0.78, 1.12, 0.34]}>
+                  <sphereGeometry args={[0.055, 20, 14]} />
+                  <meshStandardMaterial color="#251b17" roughness={0.28} />
                 </mesh>
-                <mesh position={[-sign * 0.009, -0.002, 0.053]} scale={[0.94, 1, 0.35]}>
-                  <sphereGeometry args={[0.077, 22, 16]} />
-                  <meshStandardMaterial color="#493020" roughness={0.3} />
-                </mesh>
-                <mesh position={[-sign * 0.009, -0.002, 0.071]} scale={[0.94, 1, 0.26]}>
-                  <sphereGeometry args={[0.063, 20, 16]} />
-                  <meshStandardMaterial
-                    color={index % 3 === 1 ? '#856135' : '#9b6735'}
-                    roughness={0.35}
-                  />
-                </mesh>
-                <mesh position={[-sign * 0.009, -0.001, 0.084]} scale={[0.94, 1, 0.24]}>
-                  <sphereGeometry args={[0.042, 20, 14]} />
-                  <meshStandardMaterial color="#211c19" roughness={0.22} />
-                </mesh>
-                <mesh position={[-0.026, 0.033, 0.094]}>
-                  <sphereGeometry args={[0.018, 12, 10]} />
-                  <meshBasicMaterial color="#ffffff" />
-                </mesh>
-                <mesh position={[0.024, -0.023, 0.092]}>
-                  <sphereGeometry args={[0.008, 8, 6]} />
-                  <meshBasicMaterial color="#fff6dc" />
+                <mesh position={[-0.01, 0.018, 0.019]}>
+                  <sphereGeometry args={[0.009, 10, 8]} />
+                  <meshBasicMaterial color="#fff7e9" />
                 </mesh>
               </group>
             ))}
@@ -679,7 +697,7 @@ export default function Character({
             {[-1, 1].map((sign) => (
               <mesh
                 key={sign}
-                position={[sign * 0.176, 0.258, 0.36]}
+                position={[sign * 0.16, 0.19, 0.367]}
                 rotation={[
                   0,
                   0,
@@ -687,7 +705,7 @@ export default function Character({
                     sign * (motion === 'pulling' || motion === 'struggling' ? 0.22 : -0.09),
                 ]}
               >
-                <capsuleGeometry args={[0.027, 0.115, 5, 12]} />
+                <capsuleGeometry args={[0.018, 0.077, 5, 12]} />
                 <meshStandardMaterial color={hair} />
               </mesh>
             ))}
@@ -767,18 +785,18 @@ export default function Character({
           {(characterId === 'doctor-m' ||
             characterId === 'pharmacist' ||
             characterId === 'analyst') && (
-            <group position={[0, 0.085, 0.464]}>
+            <group position={[0, 0.07, 0.423]}>
               {[-1, 1].map((sign) => (
-                <group key={sign} position={[sign * 0.183, 0, 0]}>
+                <group key={sign} position={[sign * 0.16, 0, 0]}>
                   <mesh scale={[1.1, 0.95, 1]}>
-                    <torusGeometry args={[0.146, 0.016, 8, 32]} />
+                    <torusGeometry args={[0.118, 0.012, 8, 32]} />
                     <meshStandardMaterial
                       color={characterId === 'analyst' ? '#789a9b' : '#39443c'}
                       roughness={0.34}
                     />
                   </mesh>
                   <mesh scale={[1.1, 0.95, 1]}>
-                    <circleGeometry args={[0.137, 28]} />
+                    <circleGeometry args={[0.11, 28]} />
                     <meshPhysicalMaterial
                       color="#d4eeed"
                       transparent
@@ -787,7 +805,7 @@ export default function Character({
                       roughness={0.1}
                     />
                   </mesh>
-                  <mesh position={[sign * 0.151, 0.015, -0.105]} rotation={[0, sign * -0.22, 0]}>
+                  <mesh position={[sign * 0.127, 0.015, -0.105]} rotation={[0, sign * -0.22, 0]}>
                     <boxGeometry args={[0.025, 0.025, 0.22]} />
                     <meshStandardMaterial color="#39443c" roughness={0.34} />
                   </mesh>
@@ -827,13 +845,33 @@ export default function Character({
           <Segment start={arm.elbow} end={arm.hand} radius={0.105} color={skin} />
         </group>
       ))}
-      <mesh ref={handL} castShadow scale={[1, 0.85, 1]}>
-        <sphereGeometry args={[0.135, 20, 14]} />
-        <meshStandardMaterial color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin} />
+      <mesh ref={handL} castShadow scale={[1, 0.85, 0.92]}>
+        <sphereGeometry args={[0.13, 24, 16]} />
+        <meshStandardMaterial
+          color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin}
+          roughness={0.7}
+        />
+        <mesh position={[0.105, 0.015, 0.035]} scale={[0.7, 1, 0.7]}>
+          <sphereGeometry args={[0.065, 16, 12]} />
+          <meshStandardMaterial
+            color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin}
+            roughness={0.7}
+          />
+        </mesh>
       </mesh>
-      <mesh ref={handR} castShadow scale={[1, 0.85, 1]}>
-        <sphereGeometry args={[0.135, 20, 14]} />
-        <meshStandardMaterial color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin} />
+      <mesh ref={handR} castShadow scale={[1, 0.85, 0.92]}>
+        <sphereGeometry args={[0.13, 24, 16]} />
+        <meshStandardMaterial
+          color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin}
+          roughness={0.7}
+        />
+        <mesh position={[-0.105, 0.015, 0.035]} scale={[0.7, 1, 0.7]}>
+          <sphereGeometry args={[0.065, 16, 12]} />
+          <meshStandardMaterial
+            color={characterId === 'analyst' || surgeon ? '#b3d6e1' : skin}
+            roughness={0.7}
+          />
+        </mesh>
       </mesh>
       <mesh ref={sweat} position={[0.48, 1.95, 0.27]} rotation={[0, 0, -0.3]}>
         <coneGeometry args={[0.065, 0.16, 8]} />
