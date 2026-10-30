@@ -24,12 +24,17 @@ function PreviewActor({
     entrance.current = 0;
   }, [characterId]);
   useFrame((_, delta) => {
-    entrance.current = Math.min(1, entrance.current + delta * 3);
+    entrance.current = Math.min(1, entrance.current + delta * 2.8);
     if (group.current) {
-      const target = selected ? 1.025 : 1;
+      const target = selected ? 1.02 : 1;
       const progress = reducedMotion ? 1 : 1 - Math.pow(1 - entrance.current, 3);
-      group.current.scale.setScalar((0.94 + progress * 0.06) * target);
-      group.current.position.y = reducedMotion ? 0 : -0.05 * (1 - progress);
+      // Subtle springy entrance settle without stiff pop
+      const spring = reducedMotion
+        ? 1
+        : 1 + Math.sin(progress * Math.PI) * 0.018 * (1 - progress);
+      group.current.scale.setScalar((0.95 + progress * 0.05) * target * spring);
+      group.current.position.y = reducedMotion ? 0 : -0.04 * (1 - progress);
+      group.current.rotation.y = reducedMotion ? 0 : (1 - progress) * 0.16;
     }
   });
   const definition = getCharacterDefinition(characterId);
@@ -40,7 +45,7 @@ function PreviewActor({
         characterId={characterId}
         team={team}
         facing={definition.preview.facing}
-        motion={selected ? 'ready' : 'idle'}
+        motion="idle"
         animate={!reducedMotion}
       />
     </group>
@@ -93,33 +98,37 @@ export default function CharacterPreview({
       <WebGLBoundary compact>
         <Canvas
           shadows
-          dpr={[1, 1.5]}
+          dpr={[1, 1.75]}
           frameloop={reducedMotion ? 'demand' : 'always'}
-          camera={{ position: [0, 1.7, 5.35], fov: 34, near: 0.1, far: 20 }}
-          gl={{ antialias: true, alpha: true, powerPreference: 'low-power' }}
+          camera={{ position: [0, 1.28, 4.92], fov: 33, near: 0.1, far: 20 }}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
           onCreated={({ gl }) => {
             gl.setClearColor('#000000', 0);
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 1.02;
             gl.shadowMap.type = THREE.PCFSoftShadowMap;
           }}
         >
-          <hemisphereLight args={['#fff3e7', '#9b9b99', 1.65]} />
+          {/* Studio Dome Light with warm peachy ground bounce (eliminates muddy chin shadows) */}
+          <hemisphereLight args={['#fff8f0', '#e5c6b3', 1.48]} />
+          {/* Soft Warm Key Light */}
           <directionalLight
-            position={[-3, 5, 4]}
-            intensity={2.5}
-            color="#ffeadb"
+            position={[-2.8, 4.8, 4.2]}
+            intensity={1.9}
+            color="#fff0e0"
             castShadow
-            shadow-mapSize={512}
-            shadow-normalBias={0.03}
+            shadow-mapSize={1024}
+            shadow-bias={-0.0003}
+            shadow-normalBias={0.025}
           />
-          <directionalLight position={[3, 3, -3]} intensity={1.25} color="#c0e8f5" />
+          {/* Frontal Area Fill Light */}
+          <directionalLight position={[3.2, 2.5, 3.2]} intensity={0.76} color="#edf5ff" />
+          {/* Subtle Rim Light */}
           <directionalLight
-            position={[-3, 2, -2]}
-            intensity={0.8}
-            color={team === 'A' ? '#a2e6cb' : '#bbd8ff'}
+            position={[0.4, 3.8, -3.6]}
+            intensity={0.92}
+            color={team === 'A' ? '#c5f4e0' : '#cce2ff'}
           />
-          <directionalLight position={[0, 1.5, 4]} intensity={0.6} color="#fff7ed" />
           <Suspense fallback={null}>
             <PreviewActor
               characterId={characterId}
@@ -128,24 +137,26 @@ export default function CharacterPreview({
               reducedMotion={reducedMotion}
             />
             <ContactShadows
-              position={[0, 0.005, 0]}
-              opacity={0.4}
-              scale={4}
-              blur={2.5}
-              far={3}
-              resolution={128}
-              frames={1}
+              position={[0, 0.004, 0]}
+              opacity={0.42}
+              scale={3.6}
+              blur={2.2}
+              far={2.6}
+              resolution={256}
+              color="#1b1410"
+              frames={reducedMotion ? 1 : Infinity}
             />
           </Suspense>
           <OrbitControls
             key={characterId}
-            target={[0, 1.38, 0]}
+            target={[0, 1.21, 0]}
             enablePan={false}
             enableZoom={false}
             enableDamping={!reducedMotion}
-            minPolarAngle={Math.PI * 0.35}
-            maxPolarAngle={Math.PI * 0.55}
-            rotateSpeed={0.65}
+            dampingFactor={0.08}
+            minPolarAngle={Math.PI * 0.34}
+            maxPolarAngle={Math.PI * 0.56}
+            rotateSpeed={0.68}
           />
         </Canvas>
       </WebGLBoundary>

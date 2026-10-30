@@ -306,14 +306,14 @@ export default function Arena({ state, preview = false, theme, quality, classNam
           )}
           <fog attach="fog" args={[arenaTheme === 'hospital' ? '#edd0b0' : '#dae9e7', 26, 48]} />
           <hemisphereLight
-            args={[arenaTheme === 'hospital' ? '#ffe6c7' : '#fff3da', '#87a7a0', 2.0]}
+            args={[arenaTheme === 'hospital' ? '#fff0db' : '#fff6e4', '#d8bfa3', 1.65]}
           />
           <ambientLight intensity={0.45} />
-          <directionalLight position={[1, 4, 10]} intensity={0.55} color="#fff0da" />
+          <directionalLight position={[1, 4, 10]} intensity={0.72} color="#fff3e3" />
           <directionalLight
             position={arenaTheme === 'hospital' ? [8, 10, 6] : [-6, 12, 6]}
             color={arenaTheme === 'hospital' ? '#ffdfac' : '#ffffff'}
-            intensity={2.7}
+            intensity={2.15}
             castShadow={!low}
             shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
             shadow-camera-left={-13}

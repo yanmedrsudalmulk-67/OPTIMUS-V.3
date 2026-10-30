@@ -54,7 +54,7 @@ function defineCharacter(
 export const CHARACTERS: CharacterDefinition[] = [
   defineCharacter({
     id: 'doctor-m',
-    modelPath: '/models/doctor-hero.glb',
+
     name: 'Dr. Arga',
     title: 'DOCTOR',
     profession: 'Dokter Pria',
