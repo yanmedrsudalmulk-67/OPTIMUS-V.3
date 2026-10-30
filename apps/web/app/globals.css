@@ -15,6 +15,38 @@
 * {
   box-sizing: border-box;
 }
+/* Sleek Dark Blue Scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #1e456d #07172b;
+}
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+::-webkit-scrollbar-track {
+  background: #07172b;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e456d;
+  border-radius: 9999px;
+  border: 1px solid #0b233e;
+  transition: background 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2b6197;
+}
+::-webkit-scrollbar-thumb:active {
+  background: #38bdf8;
+}
+::-webkit-scrollbar-corner {
+  background: #07172b;
+}
 body {
   margin: 0;
   background: var(--bg);
