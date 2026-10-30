@@ -555,8 +555,7 @@ function VinylHeroCharacter({
     pelvis.rotation.set(s.pelvisRot.x, s.pelvisRot.y, s.pelvisRot.z);
 
     chest.rotation.set(s.chestRot.x, s.chestRot.y, s.chestRot.z);
-    const bScale = 1 + s.chestBreath * 0.016;
-    chest.scale.set(bScale, 1 + s.chestBreath * 0.01, 1 + s.chestBreath * 0.022);
+    chest.scale.set(1, 1, 1);
 
     head.rotation.set(s.headRot.x, s.headRot.y, s.headRot.z);
 

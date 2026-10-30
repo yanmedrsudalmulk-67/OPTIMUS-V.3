@@ -154,12 +154,12 @@ function easeInOutSine(u: number): number {
   return -(Math.cos(Math.PI * u) - 1) / 2;
 }
 
-/** Smooth plateau wave for natural human head glances (holds gaze, glides softly, holds). */
+/** Smooth plateau wave for natural human head glances with zero derivative singularities. */
 function curiousLookWave(t: number, speed: number, phaseOffset: number): number {
   const s = Math.sin(t * speed + phaseOffset);
   const c = Math.sin(t * speed * 0.47 + phaseOffset * 1.7);
   const raw = s * 0.72 + c * 0.28;
-  return Math.sign(raw) * Math.pow(Math.abs(raw), 0.78);
+  return raw * (1.3 - 0.3 * raw * raw);
 }
 
 /**
@@ -287,11 +287,23 @@ export function evaluateCharacterPose(
   // 1. IDLE (Standing Relaxed in Gallery/Preview OR Waiting on Rope in Arena)
   if (motion === 'idle') {
     if (holdRope) {
-      pose.pelvisPos = [sway * 0.018, 0.79 + breath * 0.007, 0.14];
+      // Gameplay arena: two teams facing each other holding rope
+      // Grounded, firm stance: feet planted, pelvis stable, chest leaning forward into rope
+      pose.pelvisPos = [0, 0.795, 0.14];
+      pose.pelvisRot = [0, 0, 0];
+      pose.chestRot = [-0.03, team === 'A' ? 0.12 : -0.12, 0];
+      // Head stays completely steady & still ("diam saja") facing opponent/rope center!
+      pose.headRot = [0, 0, 0];
+      // Hair and accessories calm and steady
+      pose.hairBounceX = 0;
+      pose.hairBounceZ = 0;
+      pose.accessorySwingX = 0;
+      pose.accessorySwingZ = 0;
+
       pose.footLTarget = [-0.2, ankleY, 0.24];
       pose.footRTarget = [0.2, ankleY, -0.02];
-      pose.chestRot = [-0.04 + breath * 0.018, team === 'A' ? 0.14 : -0.14, swayDelayed * 0.025];
       setRopeHands(0, 0);
+      return pose;
     }
     return pose;
   }
@@ -300,10 +312,15 @@ export function evaluateCharacterPose(
   if (motion === 'ready') {
     if (holdRope) {
       const coil = Math.sin(t * 3.5 + seed) * 0.5 + 0.5;
-      pose.pelvisPos = [0, 0.76 - coil * 0.02, 0.15];
-      pose.pelvisRot = [-0.06, team === 'A' ? -0.08 : 0.08, 0];
-      pose.chestRot = [-0.12 - coil * 0.032, team === 'A' ? 0.16 : -0.16, 0];
-      pose.headRot = [0.1, team === 'A' ? -0.18 : 0.18, 0];
+      pose.pelvisPos = [0, 0.76 - coil * 0.015, 0.15];
+      pose.pelvisRot = [-0.04, team === 'A' ? -0.06 : 0.06, 0];
+      pose.chestRot = [-0.1 - coil * 0.02, team === 'A' ? 0.14 : -0.14, 0];
+      // Steady focused head counter-balancing chest lean so head doesn't pitch or wobble
+      pose.headRot = [0.08, team === 'A' ? -0.08 : 0.08, 0];
+      pose.hairBounceX = 0;
+      pose.hairBounceZ = 0;
+      pose.accessorySwingX = 0;
+      pose.accessorySwingZ = 0;
       pose.footLTarget = [-0.21, ankleY, 0.28];
       pose.footRTarget = [0.21, ankleY, -0.06];
       pose.browTiltL = -0.12;
@@ -346,12 +363,10 @@ export function evaluateCharacterPose(
   if (motion === 'pulling') {
     const cycle = (t * 0.92 + (seed % 3) * 0.09) % 1;
     let heave = 0;
-    let strainTremor = 0;
     if (cycle < 0.44) {
       heave = easeInOutSine(cycle / 0.44);
     } else if (cycle < 0.7) {
       heave = 1.0;
-      strainTremor = Math.sin(t * 28 + seed * 3) * 0.012;
     } else {
       heave = 1.0 - easeInOutSine((cycle - 0.7) / 0.3);
     }
@@ -360,20 +375,21 @@ export function evaluateCharacterPose(
     pose.squashXZ = 1 / Math.sqrt(pose.squashY);
 
     pose.pelvisPos = [
-      strainTremor * 0.5,
+      0,
       0.74 - (1 - heave) * 0.035,
       0.16 - heave * 0.12,
     ];
     pose.pelvisRot = [-0.13 - heave * 0.09, (team === 'A' ? -0.1 : 0.1) * (0.8 + heave * 0.3), 0];
     pose.chestRot = [
-      -0.17 - heave * 0.18 + strainTremor,
+      -0.17 - heave * 0.18,
       team === 'A' ? 0.16 : -0.16,
-      strainTremor * 0.8,
+      0,
     ];
+    // Smooth, steady head orientation following the heave lean back (NO high-frequency strain tremor!)
     pose.headRot = [
-      -0.07 - heave * 0.13 + strainTremor * 0.7,
-      team === 'A' ? -0.18 : 0.18,
-      strainTremor,
+      -0.08 - heave * 0.1,
+      team === 'A' ? -0.12 : 0.12,
+      0,
     ];
 
     pose.footLTarget = [-0.22, ankleY, 0.32];
@@ -390,8 +406,8 @@ export function evaluateCharacterPose(
     pose.browLiftL = -0.01;
     pose.browLiftR = -0.01;
     pose.mouthMood = heave > 0.35 ? 'effort' : 'smile';
-    pose.hairBounceX = heave * 0.05;
-    pose.accessorySwingX = -heave * 0.055;
+    pose.hairBounceX = heave * 0.03;
+    pose.accessorySwingX = -heave * 0.03;
     return pose;
   }
 
@@ -399,25 +415,25 @@ export function evaluateCharacterPose(
   if (motion === 'struggling' || motion === 'sliding') {
     const sliding = motion === 'sliding';
     const scramble = t * (sliding ? 9.5 : 7.0) + seed * 2.1;
-    const tremor = Math.sin(t * 24 + seed) * 0.016;
     const stepL = Math.max(0, Math.sin(scramble)) * (sliding ? 0.06 : 0.032);
     const stepR = Math.max(0, Math.sin(scramble + Math.PI)) * (sliding ? 0.06 : 0.032);
 
     pose.pelvisPos = [
-      Math.sin(scramble * 0.5) * 0.024,
+      0,
       0.73 + (stepL + stepR) * 0.25,
       sliding ? 0.23 : 0.18,
     ];
-    pose.pelvisRot = [0.07, Math.sin(scramble * 0.5) * 0.07, tremor];
+    pose.pelvisRot = [0.07, 0, 0];
     pose.chestRot = [
-      (sliding ? 0.18 : 0.12) + Math.sin(scramble) * 0.038,
-      (team === 'A' ? 0.14 : -0.14) + Math.cos(scramble * 0.5) * 0.06,
-      tremor * 1.3,
+      (sliding ? 0.18 : 0.12) + Math.sin(scramble) * 0.02,
+      team === 'A' ? 0.14 : -0.14,
+      0,
     ];
+    // Steady braced head orientation (NO random sine wave wobble or tremor!)
     pose.headRot = [
-      -0.1 + tremor,
-      (team === 'A' ? -0.14 : 0.14) + Math.sin(t * 4) * 0.05,
-      Math.sin(t * 5) * 0.045,
+      -0.08,
+      team === 'A' ? -0.1 : 0.1,
+      0,
     ];
 
     pose.footLTarget = [-0.21, ankleY + stepL, 0.28 + Math.cos(scramble) * 0.045];
@@ -432,7 +448,8 @@ export function evaluateCharacterPose(
     pose.mouthMood = 'effort';
     pose.sweatVisible = true;
     pose.sweatProgress = (t * 1.35 + seed * 0.3) % 1;
-    pose.hairBounceX = -0.035 + tremor;
+    pose.hairBounceX = 0;
+    pose.hairBounceZ = 0;
     return pose;
   }
 
