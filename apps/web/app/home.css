@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  font-family: Manrope, sans-serif;
+  font-family: 'Plus Jakarta Sans', Outfit, sans-serif;
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.035em;
@@ -352,7 +352,7 @@
   font-size: 15px;
   font-weight: 800;
   text-shadow: 0 2px 4px #173f5b44;
-  font-family: Manrope, sans-serif;
+  font-family: 'Plus Jakarta Sans', Outfit, sans-serif;
   font-style: italic;
 }
 .home-arena-bottom {
@@ -520,7 +520,7 @@
   color: #2d6250;
   font-weight: 800;
   outline: none;
-  font-family: Manrope, sans-serif;
+  font-family: 'Plus Jakarta Sans', Outfit, sans-serif;
   background: #fbfcfb;
 }
 .home-room-input::placeholder {
@@ -996,7 +996,7 @@
     radial-gradient(ellipse at 22% 0%, #12496780, transparent 35%),
     radial-gradient(ellipse at 95% 55%, #0c427366, transparent 42%),
     linear-gradient(130deg, #102b49 0%, #071629 48%, #0a1e39 100%);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Plus Jakarta Sans', Outfit, sans-serif;
 }
 .home-app *,
 .home-app *::before,
@@ -1152,7 +1152,7 @@
 .home-how h2,
 .home-hero-strip h3 {
   color: #f6faff;
-  font-family: Manrope, sans-serif;
+  font-family: 'Plus Jakarta Sans', Outfit, sans-serif;
   font-style: italic;
   font-weight: 800;
 }
@@ -1175,7 +1175,7 @@
   color: #091b31;
   border: 1px solid #fff0a2;
   background: linear-gradient(125deg, #fff09a 0%, #ffda39 42%, #facc15 100%);
-  font-family: Manrope, sans-serif;
+  font-family: 'Plus Jakarta Sans', Outfit, sans-serif;
   font-weight: 800;
   font-style: italic;
   box-shadow:

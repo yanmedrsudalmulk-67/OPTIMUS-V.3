@@ -12,7 +12,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {
-      executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium',
+      executablePath:
+        process.env.CHROMIUM_PATH ||
+        (process.platform === 'win32'
+          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+          : '/usr/bin/chromium'),
       args: ['--no-sandbox', '--enable-unsafe-swiftshader'],
     },
   },
