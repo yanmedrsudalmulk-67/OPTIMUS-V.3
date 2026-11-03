@@ -5,6 +5,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, ContactShadows } from '@react-three/drei';
 import { getCharacterDefinition, type Team } from '../../../../packages/shared/src';
 import Character from './Character';
+import StudioEnvironment from './StudioEnvironment';
 import WebGLBoundary from './WebGLBoundary';
 
 function PreviewActor({
@@ -104,29 +105,32 @@ export default function CharacterPreview({
           gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
           onCreated={({ gl }) => {
             gl.setClearColor('#000000', 0);
-            gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.02;
-            gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            gl.toneMapping = THREE.NeutralToneMapping;
+            gl.toneMappingExposure = 1.0;
+            gl.shadowMap.type = THREE.PCFShadowMap;
           }}
         >
-          {/* Studio Dome Light with warm peachy ground bounce (eliminates muddy chin shadows) */}
-          <hemisphereLight args={['#fff8f0', '#e5c6b3', 1.48]} />
+          {/* Soft photographic studio IBL (softbox reflections + smooth wrap-around fill) */}
+          <StudioEnvironment intensity={0.62} />
+          {/* Gentle sky/ground bounce so shadows stay warm and never muddy */}
+          <hemisphereLight args={['#fff8f0', '#e5c6b3', 0.45]} />
           {/* Soft Warm Key Light */}
           <directionalLight
             position={[-2.8, 4.8, 4.2]}
-            intensity={1.9}
+            intensity={2.0}
             color="#fff0e0"
             castShadow
             shadow-mapSize={1024}
+            shadow-radius={6}
             shadow-bias={-0.0003}
             shadow-normalBias={0.025}
           />
           {/* Frontal Area Fill Light */}
-          <directionalLight position={[3.2, 2.5, 3.2]} intensity={0.76} color="#edf5ff" />
+          <directionalLight position={[3.2, 2.5, 3.2]} intensity={0.38} color="#edf5ff" />
           {/* Subtle Rim Light */}
           <directionalLight
             position={[0.4, 3.8, -3.6]}
-            intensity={0.92}
+            intensity={0.85}
             color={team === 'A' ? '#c5f4e0' : '#cce2ff'}
           />
           <Suspense fallback={null}>

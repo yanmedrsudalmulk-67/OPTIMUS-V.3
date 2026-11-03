@@ -144,20 +144,25 @@ export function getSculptedEarGeometry(): THREE.BufferGeometry {
   return geo;
 }
 
-/** Cute plump vertical-ovoid button nose right between/below the eyes. */
+/** Cute plump rounded button nose matching the reference 3D boy. */
 export function getSculptedNoseGeometry(): THREE.BufferGeometry {
-  const key = 'nose-v3';
+  const key = 'nose-v5';
   const cached = geoCache.get(key);
   if (cached) return cached;
 
-  const geo = new THREE.SphereGeometry(1, 26, 20);
+  const geo = new THREE.SphereGeometry(1, 32, 24);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const nx = pos.getX(i);
     const ny = pos.getY(i);
     const nz = pos.getZ(i);
-    const tipFullness = 1 + 0.11 * smoothstep(0.4, -0.6, ny);
-    pos.setXYZ(i, nx * 0.048 * tipFullness, ny * 0.062, nz * 0.054 * (nz > 0 ? 1.08 : 0.72));
+    const tipFullness = 1 + 0.1 * smoothstep(0.4, -0.5, ny);
+    pos.setXYZ(
+      i,
+      nx * 0.062 * tipFullness,
+      ny * 0.068,
+      nz * 0.058 * (nz > 0 ? 1.05 : 0.72) * tipFullness,
+    );
   }
   geo.computeVertexNormals();
   geoCache.set(key, geo);
@@ -896,7 +901,7 @@ function makeSculptedHairLock(
  * Plush fitted cranial hair volume hugging the back, crown, temples, and cute neat sideburns
  * right in front of the ears while keeping the forehead & face 100% clean.
  */
-function makeHairBaseCap(extraBackLength = 0): THREE.BufferGeometry {
+function makeHairBaseCap(extraBackLength = 0, hairlineNy = 0.32): THREE.BufferGeometry {
   const geo = new THREE.SphereGeometry(1, 44, 32);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
@@ -911,13 +916,13 @@ function makeHairBaseCap(extraBackLength = 0): THREE.BufferGeometry {
 
     // Retract front lower hemisphere cleanly behind forehead (above eyebrows y = 0.165),
     // while keeping cute rounded temple sideburns right in front of the ears!
-    if (nz > -0.06 && ny < 0.42) {
+    if (nz > -0.06 && ny < hairlineNy) {
       const frontFactor = smoothstep(-0.06, 0.42, nz);
       const sideburn =
         Math.exp(-Math.pow((Math.abs(nx) - 0.9) / 0.16, 2)) *
         (1 - smoothstep(0.06, 0.36, nz)) *
         smoothstep(-0.22, 0.05, ny);
-      const lift = (0.42 - ny) * frontFactor * (1 - sideburn * 0.72);
+      const lift = (hairlineNy - ny) * frontFactor * (1 - sideburn * 0.72);
       y += lift * 0.52;
       z -= lift * 0.42;
     }
@@ -945,15 +950,16 @@ export function getHairStyleGeometries(style: HairStyle): {
   headwear?: THREE.BufferGeometry;
   headwearTrim?: THREE.BufferGeometry;
 } {
-  const cachePrefix = `hairstyle-v5:${style}`;
+  const cachePrefix = `hairstyle-v8:${style}`;
 
   if (style === 'curly-tousled') {
     const k = `${cachePrefix}:main`;
     if (!geoCache.has(k)) {
-      const parts: THREE.BufferGeometry[] = [makeHairBaseCap(0)];
+      // 1. Base scalp cap (smooth skull-hugging foundation)
+      const parts: THREE.BufferGeometry[] = [makeHairBaseCap(0, 0.32)];
 
-      // Plush, fuller sculpted wavy crown volume so surface curls blend organically into one soft silhouette!
-      const crownDome = new THREE.SphereGeometry(1, 44, 32);
+      // 2. Voluminous sculpted crown dome (smooth organic clay volume with harmonic waves)
+      const crownDome = new THREE.SphereGeometry(1, 48, 36);
       const cpos = crownDome.attributes.position;
       for (let i = 0; i < cpos.count; i++) {
         const nx = cpos.getX(i);
@@ -961,114 +967,266 @@ export function getHairStyleGeometries(style: HairStyle): {
         const nz = cpos.getZ(i);
         const wave =
           1 +
-          0.068 * Math.sin(nx * 5.2 + nz * 3.8) * smoothstep(-0.2, 0.6, ny) +
-          0.052 * Math.cos(nz * 4.6 - nx * 3.3) * smoothstep(-0.15, 0.7, ny);
-        cpos.setXYZ(i, nx * 0.502 * wave, ny * 0.275 * wave + 0.312, nz * 0.438 * wave + 0.008);
+          0.068 * Math.sin(nx * 4.4 + nz * 3.6) * smoothstep(-0.2, 0.6, ny) +
+          0.055 * Math.cos(nz * 4.2 - nx * 3.4) * smoothstep(-0.15, 0.7, ny);
+        cpos.setXYZ(i, nx * 0.498 * wave, ny * 0.285 * wave + 0.315, nz * 0.446 * wave + 0.005);
       }
       crownDome.computeVertexNormals();
       parts.push(crownDome);
 
-      // Soft, blended, tousled wavy locks + playful upward crown tufts matching the boy in the reference image!
+      // 3. Hand-sculpted chunky Catmull-Rom wavy hair locks & playful crown tufts
       const locks: { pts: [number, number, number][]; w: number; th: number; tp?: number }[] = [
-        // Cute tousled upward-swept crown tuft left-center (signature messy boy tuft in reference!)
+        // --- Playful messy crown tufts flicking upward (signature boy bedhead in reference image!) ---
         {
           pts: [
-            [-0.18, 0.41, 0.05],
-            [-0.12, 0.53, 0.09],
-            [-0.07, 0.615, 0.07],
+            [-0.15, 0.46, 0.04],
+            [-0.13, 0.58, 0.08],
+            [-0.09, 0.68, 0.06],
+            [-0.07, 0.73, 0.04],
           ],
-          w: 0.112,
+          w: 0.095,
+          th: 0.075,
+          tp: 0.8,
+        },
+        {
+          pts: [
+            [-0.03, 0.47, 0.08],
+            [-0.05, 0.60, 0.14],
+            [0.01, 0.69, 0.12],
+            [0.04, 0.74, 0.09],
+          ],
+          w: 0.092,
+          th: 0.072,
+          tp: 0.8,
+        },
+        {
+          pts: [
+            [0.08, 0.46, 0.06],
+            [0.14, 0.58, 0.09],
+            [0.18, 0.67, 0.05],
+            [0.22, 0.71, 0.02],
+          ],
+          w: 0.088,
+          th: 0.068,
+          tp: 0.8,
+        },
+        {
+          pts: [
+            [0.22, 0.43, 0.02],
+            [0.30, 0.53, 0.04],
+            [0.36, 0.62, 0.0],
+            [0.40, 0.66, -0.03],
+          ],
+          w: 0.082,
+          th: 0.062,
+          tp: 0.78,
+        },
+        {
+          pts: [
+            [-0.24, 0.43, 0.02],
+            [-0.32, 0.53, 0.04],
+            [-0.38, 0.61, 0.0],
+            [-0.42, 0.65, -0.03],
+          ],
+          w: 0.082,
+          th: 0.062,
+          tp: 0.78,
+        },
+
+        // --- Forehead Bangs & Drooping Curls (Drop DOWN past hairline over upper forehead!) ---
+        {
+          // Center-left signature drooping curl (drops down toward the nose/brow bridge!)
+          pts: [
+            [-0.14, 0.42, 0.26],
+            [-0.10, 0.32, 0.40],
+            [-0.05, 0.22, 0.42],
+            [-0.02, 0.14, 0.41],
+          ],
+          w: 0.105,
           th: 0.082,
-          tp: 0.72,
+          tp: 0.68,
         },
-        // Cute tousled upward-swept crown tuft right-center
         {
+          // Center-right drooping curl
           pts: [
-            [0.01, 0.42, 0.06],
-            [0.08, 0.54, 0.1],
-            [0.14, 0.6, 0.08],
+            [0.04, 0.43, 0.26],
+            [0.09, 0.33, 0.40],
+            [0.13, 0.23, 0.41],
+            [0.16, 0.15, 0.395],
           ],
-          w: 0.106,
+          w: 0.102,
           th: 0.078,
-          tp: 0.72,
+          tp: 0.68,
         },
-        // Soft mid-crown wave bridging left to right
+        {
+          // Left-center curl curving down-left
+          pts: [
+            [-0.26, 0.40, 0.24],
+            [-0.22, 0.30, 0.37],
+            [-0.17, 0.20, 0.39],
+            [-0.13, 0.13, 0.38],
+          ],
+          w: 0.102,
+          th: 0.078,
+          tp: 0.68,
+        },
+        {
+          // Right-center curl curving down-right
+          pts: [
+            [0.19, 0.40, 0.24],
+            [0.24, 0.30, 0.36],
+            [0.28, 0.20, 0.37],
+            [0.31, 0.13, 0.35],
+          ],
+          w: 0.098,
+          th: 0.075,
+          tp: 0.68,
+        },
+        {
+          // Left temple framing curl
+          pts: [
+            [-0.38, 0.34, 0.16],
+            [-0.36, 0.24, 0.28],
+            [-0.31, 0.15, 0.32],
+            [-0.26, 0.08, 0.32],
+          ],
+          w: 0.088,
+          th: 0.068,
+          tp: 0.68,
+        },
+        {
+          // Right temple framing curl
+          pts: [
+            [0.36, 0.34, 0.16],
+            [0.38, 0.24, 0.26],
+            [0.34, 0.15, 0.29],
+            [0.29, 0.08, 0.29],
+          ],
+          w: 0.085,
+          th: 0.065,
+          tp: 0.68,
+        },
+
+        // --- Front-Mid Forehead Overlapping Wave Layer ---
         {
           pts: [
-            [-0.28, 0.37, 0.12],
-            [-0.08, 0.5, 0.21],
-            [0.16, 0.48, 0.19],
+            [-0.34, 0.38, 0.18],
+            [-0.18, 0.42, 0.32],
+            [0.02, 0.38, 0.35],
+            [0.12, 0.31, 0.33],
           ],
-          w: 0.132,
+          w: 0.118,
+          th: 0.09,
+        },
+        {
+          pts: [
+            [-0.08, 0.41, 0.30],
+            [0.12, 0.43, 0.33],
+            [0.28, 0.37, 0.27],
+            [0.36, 0.28, 0.20],
+          ],
+          w: 0.115,
+          th: 0.088,
+        },
+
+        // --- Mid-Crown & Side Volume ---
+        {
+          pts: [
+            [-0.32, 0.46, 0.06],
+            [-0.08, 0.54, 0.18],
+            [0.18, 0.51, 0.16],
+            [0.32, 0.44, 0.08],
+          ],
+          w: 0.125,
+          th: 0.095,
+        },
+        {
+          pts: [
+            [-0.24, 0.48, -0.06],
+            [0.0, 0.55, 0.04],
+            [0.22, 0.50, -0.04],
+          ],
+          w: 0.122,
           th: 0.092,
         },
-        // Fluffy left & right side volume waves (embedded smoothly into crownDome!)
+
+        // --- Side Volume & Temple Sideburns (Framing the ears cleanly) ---
         {
           pts: [
-            [-0.35, 0.21, 0.0],
-            [-0.47, 0.33, 0.08],
-            [-0.36, 0.46, 0.13],
+            [-0.41, 0.22, 0.14],
+            [-0.45, 0.1, 0.09],
+            [-0.42, -0.01, 0.04],
           ],
-          w: 0.124,
-          th: 0.088,
+          w: 0.078,
+          th: 0.058,
         },
         {
           pts: [
-            [0.35, 0.21, 0.0],
-            [0.47, 0.32, 0.08],
-            [0.35, 0.45, 0.12],
+            [0.41, 0.22, 0.14],
+            [0.45, 0.1, 0.09],
+            [0.42, -0.01, 0.04],
           ],
-          w: 0.124,
-          th: 0.088,
+          w: 0.078,
+          th: 0.058,
         },
-        // Natural airy wavy forehead hairline (parted slightly off-center like reference!)
         {
           pts: [
-            [-0.41, 0.22, 0.18],
-            [-0.28, 0.34, 0.32],
-            [-0.12, 0.36, 0.378],
+            [-0.35, 0.24, 0.01],
+            [-0.47, 0.33, 0.07],
+            [-0.37, 0.44, 0.11],
           ],
-          w: 0.112,
+          w: 0.115,
+          th: 0.085,
+        },
+        {
+          pts: [
+            [0.35, 0.24, 0.01],
+            [0.47, 0.33, 0.07],
+            [0.37, 0.44, 0.11],
+          ],
+          w: 0.115,
+          th: 0.085,
+        },
+
+        // --- Back of Head & Nape Curls (Full, soft 360-degree roundness) ---
+        {
+          pts: [
+            [-0.25, 0.38, -0.21],
+            [0.0, 0.46, -0.26],
+            [0.25, 0.38, -0.21],
+          ],
+          w: 0.125,
+          th: 0.095,
+        },
+        {
+          pts: [
+            [-0.33, 0.28, -0.16],
+            [-0.37, 0.16, -0.24],
+            [-0.24, 0.04, -0.28],
+          ],
+          w: 0.11,
+          th: 0.082,
+        },
+        {
+          pts: [
+            [0.33, 0.28, -0.16],
+            [0.37, 0.16, -0.24],
+            [0.24, 0.04, -0.28],
+          ],
+          w: 0.11,
+          th: 0.082,
+        },
+        {
+          pts: [
+            [-0.14, 0.08, -0.31],
+            [0.0, 0.02, -0.34],
+            [0.14, 0.08, -0.31],
+          ],
+          w: 0.102,
           th: 0.078,
-        },
-        {
-          pts: [
-            [-0.12, 0.39, 0.27],
-            [0.02, 0.38, 0.382],
-            [0.16, 0.34, 0.378],
-          ],
-          w: 0.114,
-          th: 0.078,
-        },
-        {
-          pts: [
-            [0.15, 0.37, 0.27],
-            [0.28, 0.34, 0.335],
-            [0.4, 0.23, 0.22],
-          ],
-          w: 0.108,
-          th: 0.074,
-        },
-        // Neat temple sideburns framing right in front of the ears
-        {
-          pts: [
-            [-0.41, 0.23, 0.15],
-            [-0.454, 0.11, 0.095],
-            [-0.44, 0.01, 0.045],
-          ],
-          w: 0.076,
-          th: 0.056,
-        },
-        {
-          pts: [
-            [0.41, 0.23, 0.15],
-            [0.454, 0.11, 0.095],
-            [0.44, 0.01, 0.045],
-          ],
-          w: 0.076,
-          th: 0.056,
         },
       ];
+
       for (const l of locks) {
         parts.push(makeSculptedHairLock(l.pts, l.w, l.th, l.tp ?? 0.62));
       }

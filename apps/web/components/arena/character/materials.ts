@@ -39,8 +39,8 @@ export const HERO_PROFILES: Record<string, HeroVisualProfile> = {
   'doctor-m': {
     skin: '#eea87e',
     skinBlush: '#e07a5f',
-    hair: '#693f26',
-    hairSheen: '#9e6543',
+    hair: '#4a2c1b',
+    hairSheen: '#7c492c',
     hairStyle: 'curly-tousled',
     top: '#597441',
     coat: '#f0ebe0',
@@ -67,8 +67,8 @@ export const HERO_PROFILES: Record<string, HeroVisualProfile> = {
   'nurse-m': {
     skin: '#eca479',
     skinBlush: '#de785c',
-    hair: '#663d24',
-    hairSheen: '#9b6240',
+    hair: '#4a2c1b',
+    hairSheen: '#7c492c',
     hairStyle: 'curly-tousled',
     top: '#587e40',
     pants: '#b99563',
@@ -274,11 +274,13 @@ export function getHairMaterial(hex: string, sheenHex: string): THREE.MeshPhysic
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: hex,
-    roughness: 0.81,
+    roughness: 0.7,
     metalness: 0.0,
-    sheen: 0.32,
-    sheenRoughness: 0.62,
+    sheen: 0.38,
+    sheenRoughness: 0.58,
     sheenColor: new THREE.Color(sheenHex),
+    clearcoat: 0.04,
+    clearcoatRoughness: 0.6,
   });
 
   materialCache.set(key, mat);

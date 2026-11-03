@@ -296,7 +296,7 @@ export default function Arena({ state, preview = false, theme, quality, classNam
           onCreated={({ gl }) => {
             gl.toneMapping = THREE.ACESFilmicToneMapping;
             gl.toneMappingExposure = 1.05;
-            gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            gl.shadowMap.type = THREE.PCFShadowMap;
           }}
         >
           {arenaTheme === 'hospital' ? (

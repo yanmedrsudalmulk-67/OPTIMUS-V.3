@@ -344,45 +344,45 @@ function VinylHeroCharacter({
         false,
       );
     return {
-      // Softly arched horizontal eyebrow (centered at 0,0,0 along X)
+      // Thin, softly arched, slightly longer eyebrow (centered at 0,0,0 along X) like the reference
       brow: mk(
         [
-          [-0.042, -0.005, -0.006],
-          [-0.015, 0.005, 0.002],
-          [0.015, 0.005, 0.002],
-          [0.042, -0.005, -0.006],
+          [-0.052, -0.006, -0.008],
+          [-0.018, 0.006, 0.002],
+          [0.018, 0.006, 0.002],
+          [0.052, -0.006, -0.008],
         ],
-        0.0135,
+        0.0088,
       ),
-      // Delicate minimal calm mouth line (matches reference image!)
+      // Small, slightly down-turned calm mouth (sits gracefully right below the nose button)
       gentle: mk(
         [
-          [-0.04, -0.172, 0.376],
-          [-0.016, -0.165, 0.382],
-          [0.016, -0.165, 0.382],
-          [0.04, -0.172, 0.376],
+          [-0.042, -0.165, 0.378],
+          [-0.016, -0.158, 0.384],
+          [0.016, -0.158, 0.384],
+          [0.042, -0.165, 0.378],
         ],
-        0.0072,
+        0.0068,
       ),
       // Warm friendly smile
       smile: mk(
         [
-          [-0.058, -0.158, 0.372],
-          [-0.022, -0.178, 0.381],
-          [0.022, -0.178, 0.381],
-          [0.058, -0.158, 0.372],
+          [-0.056, -0.152, 0.374],
+          [-0.022, -0.172, 0.382],
+          [0.022, -0.172, 0.382],
+          [0.056, -0.152, 0.374],
         ],
-        0.0078,
+        0.0074,
       ),
       // Cute rueful pout
       pout: mk(
         [
-          [-0.044, -0.18, 0.374],
-          [-0.016, -0.165, 0.382],
-          [0.016, -0.165, 0.382],
-          [0.044, -0.18, 0.374],
+          [-0.042, -0.172, 0.376],
+          [-0.015, -0.158, 0.384],
+          [0.015, -0.158, 0.384],
+          [0.042, -0.172, 0.376],
         ],
-        0.0076,
+        0.0072,
       ),
     };
   }, []);
@@ -474,8 +474,8 @@ function VinylHeroCharacter({
     gazeY: 0,
     browLiftL: 0.006,
     browLiftR: 0.006,
-    browTiltL: 0.085,
-    browTiltR: -0.085,
+    browTiltL: 0.18,
+    browTiltR: -0.18,
     hairX: 0,
     hairZ: 0,
     accX: 0,
@@ -650,22 +650,22 @@ function VinylHeroCharacter({
     // 4. Facial Acting (Eyes, Brows, Mouth, Sweat)
     if (eyeGroupLRef.current) {
       eyeGroupLRef.current.scale.y = Math.max(0.08, s.blink);
-      eyeGroupLRef.current.position.set(-0.114 + s.gazeX, 0.036 + s.gazeY, 0.376);
+      eyeGroupLRef.current.position.set(-0.12 + s.gazeX, 0.038 + s.gazeY, 0.376);
     }
     if (eyeGroupRRef.current) {
       eyeGroupRRef.current.scale.y = Math.max(0.08, s.blink);
-      eyeGroupRRef.current.position.set(0.114 + s.gazeX, 0.036 + s.gazeY, 0.376);
+      eyeGroupRRef.current.position.set(0.12 + s.gazeX, 0.038 + s.gazeY, 0.376);
     }
     // Note: brow geometry lies horizontally along X!
     // Positive rotation.z lifts +X and lowers -X:
     //   For browL (screen left, -X): +browTiltL lifts inner (+X) end -> sweet curious '/' arch!
     //   For browR (screen right, +X): -browTiltR lifts inner (-X) end -> sweet curious '\' arch!
     if (browLRef.current) {
-      browLRef.current.position.y = 0.156 + s.browLiftL;
+      browLRef.current.position.y = 0.165 + s.browLiftL;
       browLRef.current.rotation.z = s.browTiltL;
     }
     if (browRRef.current) {
-      browRRef.current.position.y = 0.156 + s.browLiftR;
+      browRRef.current.position.y = 0.165 + s.browLiftR;
       browRRef.current.rotation.z = s.browTiltR;
     }
 
@@ -956,8 +956,9 @@ function VinylHeroCharacter({
                 ([-1, 1] as const).map((sign) => (
                   <group
                     key={sign}
-                    position={[sign * 0.462, -0.046, -0.008]}
+                    position={[sign * 0.47, -0.04, -0.012]}
                     rotation={[0, -sign * 0.22, sign * 0.06]}
+                    scale={1.26}
                   >
                     <mesh geometry={earGeo} material={limbSkinMat} castShadow />
                     <mesh
@@ -972,14 +973,14 @@ function VinylHeroCharacter({
 
               {/* Plump Warm-Peachy Button Nose */}
               <mesh
-                position={[0, -0.036, 0.404]}
+                position={[0, -0.038, 0.408]}
                 geometry={noseGeo}
                 material={noseSkinMat}
                 castShadow
               />
 
               {/* Small Expressive Glossy Dark-Espresso Oval Bead Eyes + Crisp Top-Left Catchlights */}
-              <group ref={eyeGroupLRef} position={[-0.114, 0.036, 0.376]} rotation={[0, -0.14, 0]}>
+              <group ref={eyeGroupLRef} position={[-0.12, 0.038, 0.376]} rotation={[0, -0.16, 0]}>
                 <mesh scale={[0.028, 0.044, 0.022]} material={eyeMat}>
                   <sphereGeometry args={[1, 20, 14]} />
                 </mesh>
@@ -987,7 +988,7 @@ function VinylHeroCharacter({
                   <sphereGeometry args={[0.0065, 10, 8]} />
                 </mesh>
               </group>
-              <group ref={eyeGroupRRef} position={[0.114, 0.036, 0.376]} rotation={[0, 0.14, 0]}>
+              <group ref={eyeGroupRRef} position={[0.12, 0.038, 0.376]} rotation={[0, 0.16, 0]}>
                 <mesh scale={[0.028, 0.044, 0.022]} material={eyeMat}>
                   <sphereGeometry args={[1, 20, 14]} />
                 </mesh>
@@ -999,15 +1000,15 @@ function VinylHeroCharacter({
               {/* Softly Arched Curious Eyebrows (/ \ sweet innocent look from reference!) */}
               <mesh
                 ref={browLRef}
-                position={[-0.118, 0.156, 0.362]}
-                rotation={[0.12, -0.18, 0.085]}
+                position={[-0.124, 0.165, 0.362]}
+                rotation={[0.12, -0.16, 0.085]}
                 geometry={faceCurves.brow}
                 material={hairMat}
               />
               <mesh
                 ref={browRRef}
-                position={[0.118, 0.156, 0.362]}
-                rotation={[0.12, 0.18, -0.085]}
+                position={[0.124, 0.165, 0.362]}
+                rotation={[0.12, 0.16, -0.085]}
                 geometry={faceCurves.brow}
                 material={hairMat}
               />
@@ -1028,14 +1029,14 @@ function VinylHeroCharacter({
               />
               <mesh
                 ref={mouthEffortRef}
-                position={[0, -0.17, 0.376]}
+                position={[0, -0.165, 0.378]}
                 scale={[0.036, 0.042, 0.02]}
                 material={mouthOpenMat}
                 visible={false}
               >
                 <sphereGeometry args={[1, 16, 12]} />
               </mesh>
-              <group ref={mouthCheerRef} position={[0, -0.17, 0.376]} visible={false}>
+              <group ref={mouthCheerRef} position={[0, -0.165, 0.378]} visible={false}>
                 <mesh scale={[0.062, 0.048, 0.022]} material={mouthOpenMat}>
                   <sphereGeometry args={[1, 18, 12]} />
                 </mesh>
