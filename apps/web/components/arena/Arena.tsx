@@ -13,6 +13,7 @@ import {
 import Character, { type CharacterMotion } from './Character';
 import Environment from './Environment';
 import HospitalSky from './HospitalSky';
+import Rope from './Rope';
 import WebGLBoundary from './WebGLBoundary';
 
 export interface ArenaProps {
@@ -38,89 +39,6 @@ function CameraRig({ state }: { state?: RoomState | null }) {
     camera.lookAt(0, 1.45, -0.8);
   });
   return null;
-}
-
-function Rope({ phase }: { phase?: string }) {
-  const ref = useRef<THREE.Mesh>(null),
-    marker = useRef<THREE.Group>(null);
-  const geometry = useMemo(
-    () =>
-      new THREE.TubeGeometry(
-        new THREE.LineCurve3(new THREE.Vector3(-7.1, 1.05, 0.5), new THREE.Vector3(7.1, 1.05, 0.5)),
-        72,
-        0.047,
-        8,
-        false,
-      ),
-    [],
-  );
-  const texture = useMemo(() => {
-    const pixels = new Uint8Array(64 * 64 * 4);
-    for (let y = 0; y < 64; y++)
-      for (let x = 0; x < 64; x++) {
-        const line = ((x + y * 2) % 16) / 16;
-        const value = 0.7 + Math.sin(line * Math.PI * 2) * 0.2;
-        const i = (y * 64 + x) * 4;
-        pixels[i] = 218 * value;
-        pixels[i + 1] = 175 * value;
-        pixels[i + 2] = 115 * value;
-        pixels[i + 3] = 255;
-      }
-    const map = new THREE.DataTexture(pixels, 64, 64, THREE.RGBAFormat);
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(30, 1);
-    map.needsUpdate = true;
-    return map;
-  }, []);
-  useEffect(
-    () => () => {
-      geometry.dispose();
-      texture.dispose();
-    },
-    [geometry, texture],
-  );
-  useFrame(({ clock }) => {
-    const sag = phase === 'FINISHED' ? 0.25 : phase === 'PULL_ANIMATION' ? 0.005 : 0.025;
-    const attr = geometry.attributes.position;
-    for (let i = 0; i <= 72; i++)
-      for (let j = 0; j <= 8; j++) {
-        const u = i / 72,
-          angle = (j / 8) * Math.PI * 2;
-        const y =
-          1.05 -
-          Math.sin(u * Math.PI) * sag +
-          (phase === 'PULL_ANIMATION' ? Math.sin(u * 45 + clock.elapsedTime * 12) * 0.008 : 0);
-        attr.setXYZ(
-          i * 9 + j,
-          -7.1 + u * 14.2,
-          y + Math.cos(angle) * 0.047,
-          0.5 + Math.sin(angle) * 0.047,
-        );
-      }
-    attr.needsUpdate = true;
-    if (marker.current) {
-      marker.current.position.y = 1.05 - sag;
-      marker.current.rotation.x = Math.sin(clock.elapsedTime * 2) * 0.03;
-    }
-  });
-  return (
-    <>
-      <mesh ref={ref} geometry={geometry} castShadow>
-        <meshStandardMaterial map={texture} color="#d9b27b" roughness={0.95} />
-      </mesh>
-      <group ref={marker} position={[0, 1.03, 0.5]}>
-        <mesh castShadow>
-          <boxGeometry args={[0.15, 0.13, 0.12]} />
-          <meshStandardMaterial color="#e66151" />
-        </mesh>
-        <mesh position={[0.012, -0.15, 0]} rotation={[0.08, 0, -0.08]} castShadow>
-          <boxGeometry args={[0.15, 0.29, 0.038]} />
-          <meshStandardMaterial color="#ee705d" side={THREE.DoubleSide} />
-        </mesh>
-      </group>
-    </>
-  );
 }
 
 function motionFor(state: RoomState | null | undefined, team: Team): CharacterMotion {
