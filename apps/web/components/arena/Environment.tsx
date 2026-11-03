@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import Crowd from './Crowd';
 import HospitalBuilding from './HospitalBuilding';
+import PapercraftTree from './PapercraftTree';
 import * as THREE from 'three';
 import type { Quality } from '../../../../packages/shared/src';
 
@@ -303,11 +304,11 @@ export default function Environment({
           </mesh>
           <Festival />
           <Ambulance />
-          <Tree position={[-9.1, 0, -4.3]} scale={0.95} />
-          <Tree position={[9.3, 0, -1.8]} scale={0.95} />
-          <Tree position={[-9.4, 0, -0.3]} scale={0.9} />
-          <Tree position={[-7.2, 0, 3.8]} scale={0.65} />
-          <Tree position={[7.7, 0, 3.4]} scale={0.62} />
+          <PapercraftTree position={[-9.1, 0, -4.3]} scale={0.88} seed={1} pulling={phase === 'PULL_ANIMATION'} />
+          <PapercraftTree position={[9.3, 0, -1.8]} scale={0.88} seed={2} pulling={phase === 'PULL_ANIMATION'} />
+          <PapercraftTree position={[-9.4, 0, -0.3]} scale={0.85} seed={3} pulling={phase === 'PULL_ANIMATION'} />
+          <PapercraftTree position={[-8.6, 0, 4.0]} scale={0.52} seed={4} pulling={phase === 'PULL_ANIMATION'} />
+          <PapercraftTree position={[8.7, 0, 3.8]} scale={0.5} seed={5} pulling={phase === 'PULL_ANIMATION'} />
         </>
       )}
       <Flag position={[-8.3, 0, 1.5]} team="A" />
