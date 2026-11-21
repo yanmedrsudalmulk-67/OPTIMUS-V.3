@@ -3,10 +3,13 @@ setlocal
 cd /d "%~dp0"
 title Update Game Dari GitHub (yanmedrsudalmulk-67 / OPTIMUS-V.3)
 
+for /f "tokens=*" %%i in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set BRANCH=%%i
+if "%BRANCH%"=="" set BRANCH=main
+
 echo ======================================================================
 echo   PEMBARUAN APLIKASI MEDICAL TUG OF WAR DARI GITHUB
 echo   Repositori: https://github.com/yanmedrsudalmulk-67/OPTIMUS-V.3
-echo   Branch: codex/game-local-launcher
+echo   Branch: %BRANCH%
 echo ======================================================================
 echo.
 
@@ -16,7 +19,7 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr ":4001\>"') do taskkill /F /P
 timeout /t 1 /nobreak >nul
 
 echo [1/3] Mengambil pembaharuan terbaru dari GitHub...
-git fetch origin codex/game-local-launcher
+git fetch origin %BRANCH%
 if errorlevel 1 (
     echo [ERROR] Gagal terhubung ke GitHub. Pastikan internet Anda aktif.
     pause
@@ -25,11 +28,11 @@ if errorlevel 1 (
 
 echo.
 echo [2/3] Menerapkan perubahan ke komputer lokal...
-git pull origin codex/game-local-launcher
+git pull origin %BRANCH%
 if errorlevel 1 (
     echo [PERINGATAN] Ada file lokal yang bentrok. Mencoba menyinkronkan...
     git stash -u
-    git pull origin codex/game-local-launcher
+    git pull origin %BRANCH%
     git stash pop >nul 2>&1
 )
 

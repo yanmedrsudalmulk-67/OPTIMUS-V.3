@@ -8,7 +8,7 @@
     "dev:server": "tsx watch apps/realtime-server/src/index.ts",
     "dev:web": "next dev apps/web -p 3000 --hostname 0.0.0.0",
     "build": "prisma generate --schema packages/database/prisma/schema.prisma && next build apps/web --webpack",
-    "start": "NODE_ENV=production tsx server.ts",
+    "start": "cross-env NODE_ENV=production tsx server.ts",
     "postinstall": "prisma generate --schema packages/database/prisma/schema.prisma",
     "db:generate": "prisma generate --schema packages/database/prisma/schema.prisma",
     "db:migrate": "prisma db push --schema packages/database/prisma/schema.prisma",

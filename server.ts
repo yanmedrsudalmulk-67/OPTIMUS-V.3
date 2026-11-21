@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { existsSync, mkdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import express, { type Request, type Response, type NextFunction } from 'express';
@@ -24,7 +24,7 @@ import { GameService } from './apps/realtime-server/src/services/game';
 import { registerSockets } from './apps/realtime-server/src/sockets';
 import { codeSchema, errorMessage } from './apps/realtime-server/src/validation';
 
-const port = Number(process.env.PORT || 3000);
+const port = Number(process.env.PORT || 3005);
 const dev = process.env.NODE_ENV !== 'production';
 
 const configuredOrigins = (
@@ -56,8 +56,6 @@ function isOriginAllowed(origin?: string, requestHost?: string): boolean {
 async function ensureDatabaseReady() {
   mkdirSync(path.dirname(dbPath), { recursive: true });
   const schemaPath = path.resolve('packages/database/prisma/schema.prisma');
-  const prismaBin = path.resolve('node_modules/.bin/prisma');
-  const tsxBin = path.resolve('node_modules/.bin/tsx');
 
   let needsPush = !existsSync(dbPath);
   if (!needsPush) {
@@ -70,7 +68,7 @@ async function ensureDatabaseReady() {
 
   if (needsPush) {
     console.log('Initializing SQLite database schema...');
-    execFileSync(prismaBin, ['db', 'push', '--skip-generate', '--schema', schemaPath], {
+    execSync(`npx prisma db push --skip-generate --schema "${schemaPath}"`, {
       stdio: 'inherit',
       env: process.env,
     });
@@ -79,7 +77,7 @@ async function ensureDatabaseReady() {
   const packageCount = await prisma.questionPackage.count();
   if (packageCount === 0) {
     console.log('Seeding default medical question packages and characters...');
-    execFileSync(tsxBin, [path.resolve('packages/database/seed.ts')], {
+    execSync(`npx tsx "${path.resolve('packages/database/seed.ts')}"`, {
       stdio: 'inherit',
       env: process.env,
     });
