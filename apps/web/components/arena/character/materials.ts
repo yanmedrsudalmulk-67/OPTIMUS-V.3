@@ -62,24 +62,24 @@ export interface HeroVisualProfile {
 
 export const HERO_PROFILES: Record<string, HeroVisualProfile> = {
   'doctor-m': {
-    skin: '#f2ac84',
-    skinBlush: '#e3775d',
-    hair: '#69361a',
-    hairSheen: '#b06535',
+    skin: '#ea9b6e',
+    skinBlush: '#d64f34',
+    hair: '#4a210b',
+    hairSheen: '#bd632a',
     hairStyle: 'curly-fluffy-doctor',
-    top: '#558bd6',
-    coat: '#eff1f9',
+    top: '#1d4ed8',
+    coat: '#f1f5f9',
     tailoredLabCoat: true,
     dressShirtCollar: true,
     longSleeves: true,
-    innerCuffColor: '#558bd6',
-    lanyardColor: '#1a8a52',
+    innerCuffColor: '#1d4ed8',
+    lanyardColor: '#16a34a',
     beltColor: '#3d2518',
-    beltBuckleColor: '#caa16b',
-    pants: '#583f30',
-    shoeUpper: '#703f23',
-    shoeSole: '#3b2214',
-    shoeLaceColor: '#482613',
+    beltBuckleColor: '#d4af77',
+    pants: '#5c3d28',
+    shoeUpper: '#733a18',
+    shoeSole: '#2e180c',
+    shoeLaceColor: '#3d1e0d',
     dressShoes: true,
     hasStethoscope: true,
     proStethoscope: true,
@@ -87,53 +87,55 @@ export const HERO_PROFILES: Record<string, HeroVisualProfile> = {
     hasWatch: false,
   },
   'doctor-f': {
-    skin: '#f2b189',
-    skinBlush: '#e57c63',
-    hair: '#5c341a',
-    hairSheen: '#9c6036',
+    skin: '#ec9f74',
+    skinBlush: '#d9563c',
+    hair: '#4d260f',
+    hairSheen: '#a8602e',
     hairStyle: 'doctor-f-wavy',
-    top: '#2e64d1',
-    coat: '#f3f6fc',
+    top: '#1d4ed8',
+    coat: '#f1f5f9',
     tailoredLabCoat: true,
     longSleeves: true,
-    pants: '#224a9e',
-    shoeUpper: '#eef2f7',
-    shoeSole: '#ffffff',
-    shoeLaceColor: '#d9e3f0',
+    pants: '#1e40af',
+    shoeUpper: '#e2e8f0',
+    shoeSole: '#f8fafc',
+    shoeLaceColor: '#cbd5e1',
     hasStethoscope: true,
     proStethoscope: true,
     blueCrossBadge: true,
+    confidentSmile: true,
     hasWatch: false,
   },
   'nurse-m': {
-    skin: '#f1ab82',
-    skinBlush: '#e3795e',
-    hair: '#6b3c20',
-    hairSheen: '#a6663d',
+    skin: '#e8986c',
+    skinBlush: '#d65237',
+    hair: '#572c13',
+    hairSheen: '#ad6332',
     hairStyle: 'nurse-swept-fluffy',
-    top: '#edf1f5',
+    top: '#f1f5f9',
     tunicTrim: '#0d8a5b',
     nurseScrubTop: true,
     sleeveStripeColor: '#0d8a5b',
     lanyardColor: '#0d8a5b',
     nurseIdCard: true,
-    pants: '#0c7f53',
+    pants: '#0a6e47',
     shortsStyle: false,
-    shoeUpper: '#ebe0c8',
-    shoeSole: '#f6f2e7',
-    shoeLaceColor: '#f5efe0',
+    shoeUpper: '#e2e8f0',
+    shoeSole: '#f8fafc',
+    shoeLaceColor: '#cbd5e1',
+    confidentSmile: true,
     hasWatch: true,
     galleryProp: 'clipboard',
   },
   'nurse-f': {
-    skin: '#f2b189',
-    skinBlush: '#e57b61',
-    hair: '#693c21',
-    hairSheen: '#a4643b',
+    skin: '#ec9f74',
+    skinBlush: '#d9563c',
+    hair: '#542a12',
+    hairSheen: '#ab6132',
     hairStyle: 'nurse-bob-cap',
-    capColor: '#f8fafc',
+    capColor: '#f1f5f9',
     hijabInner: '#0d8a5b',
-    top: '#f2f6fa',
+    top: '#f1f5f9',
     tunicTrim: '#0d8a5b',
     nurseScrubTop: true,
     nurseFrontPlacket: true,
@@ -141,102 +143,107 @@ export const HERO_PROFILES: Record<string, HeroVisualProfile> = {
     sleeveStripeColor: '#0d8a5b',
     lanyardColor: '#0d8a5b',
     nurseIdCard: true,
-    pants: '#0c8254',
+    pants: '#0a6e47',
     shortsStyle: false,
-    shoeUpper: '#eef2f7',
-    shoeSole: '#ffffff',
-    shoeLaceColor: '#dde6f0',
+    shoeUpper: '#e2e8f0',
+    shoeSole: '#f8fafc',
+    shoeLaceColor: '#cbd5e1',
     confidentSmile: true,
     hasWatch: false,
     galleryProp: 'clipboard',
   },
   midwife: {
-    skin: '#efa87f',
-    skinBlush: '#e4735a',
-    hair: '#3a2014',
-    hairSheen: '#6b3f29',
+    skin: '#e8986c',
+    skinBlush: '#d65237',
+    hair: '#331a0e',
+    hairSheen: '#6e3f26',
     hairStyle: 'hijab-draped',
-    hijabColor: '#097f53',
-    hijabInner: '#edf2f5',
-    top: '#e6ecef',
-    tunicTrim: '#097f53',
+    hijabColor: '#087049',
+    hijabInner: '#e2e8f0',
+    top: '#e8eef2',
+    tunicTrim: '#087049',
     longSleeves: true,
-    pants: '#08774d',
-    shoeUpper: '#ede0c4',
-    shoeSole: '#f1f3f1',
-    pouch: '#097d51',
-    pouchBody: '#ebf0f2',
+    pants: '#076340',
+    shoeUpper: '#e2e8f0',
+    shoeSole: '#f8fafc',
+    pouch: '#087049',
+    pouchBody: '#e8eef2',
+    confidentSmile: true,
     hasWatch: true,
   },
   pharmacist: {
-    skin: '#eba77f',
-    skinBlush: '#de785e',
-    hair: '#573420',
-    hairSheen: '#8a5639',
+    skin: '#e69569',
+    skinBlush: '#d45136',
+    hair: '#472613',
+    hairSheen: '#8f5532',
     hairStyle: 'parted-fluffy',
-    top: '#3f8c71',
-    coat: '#eee8dc',
-    pants: '#ae8c5d',
-    shoeUpper: '#e8d5a4',
-    shoeSole: '#f4ecd5',
+    top: '#267359',
+    coat: '#f1f5f9',
+    pants: '#8c6b3f',
+    shoeUpper: '#dcc692',
+    shoeSole: '#f1f5f9',
+    confidentSmile: true,
     hasGlasses: true,
     hasWatch: true,
     galleryProp: 'pill-bottle',
   },
   analyst: {
-    skin: '#e7a178',
-    skinBlush: '#da745a',
-    hair: '#4a2c1c',
-    hairSheen: '#784b33',
+    skin: '#e39165',
+    skinBlush: '#d14f34',
+    hair: '#3d2112',
+    hairSheen: '#804c2f',
     hairStyle: 'curly-tousled',
-    top: '#6960a6',
-    coat: '#efeae0',
-    pants: '#394354',
-    shoeUpper: '#e7d4a5',
-    shoeSole: '#f4ecd5',
-    glove: '#9fd0e0',
+    top: '#4f4694',
+    coat: '#f1f5f9',
+    pants: '#2b3748',
+    shoeUpper: '#dcc692',
+    shoeSole: '#f1f5f9',
+    glove: '#38bdf8',
+    confidentSmile: true,
     hasGoggles: true,
     galleryProp: 'test-tube',
   },
   ambulance: {
-    skin: '#de966c',
-    skinBlush: '#cf6b51',
-    hair: '#472a1b',
-    hairSheen: '#734730',
+    skin: '#dc895c',
+    skinBlush: '#c94a30',
+    hair: '#3b2012',
+    hairSheen: '#7a472c',
     hairStyle: 'responder-cap',
-    capColor: '#e6aa3a',
-    top: '#c95233',
-    pants: '#303c42',
-    shoeUpper: '#434f56',
-    shoeSole: '#eae0c8',
-    pouch: '#384640',
+    capColor: '#d97706',
+    top: '#c73e1d',
+    pants: '#222d33',
+    shoeUpper: '#354046',
+    shoeSole: '#e5dec9',
+    pouch: '#2b3732',
+    confidentSmile: true,
     hasReflective: true,
     hasWatch: true,
     galleryProp: 'first-aid',
   },
   surgeon: {
-    skin: '#efa982',
-    skinBlush: '#e17b62',
-    hair: '#4c2d1d',
-    hairSheen: '#7a4b33',
+    skin: '#e8986c',
+    skinBlush: '#d65237',
+    hair: '#3f2213',
+    hairSheen: '#7d492e',
     hairStyle: 'surgical-bouffant',
-    capColor: '#3ca39c',
-    top: '#297a7c',
-    pants: '#226163',
-    shoeUpper: '#ece2c8',
-    shoeSole: '#f6f0df',
-    glove: '#a7ded9',
+    capColor: '#0d9488',
+    top: '#0f766e',
+    pants: '#115e59',
+    shoeUpper: '#e2e8f0',
+    shoeSole: '#f8fafc',
+    glove: '#5eead4',
   },
   radiographer: {
-    skin: '#e6a076',
-    skinBlush: '#d97359',
-    hair: '#5e3823',
-    hairSheen: '#915b3c',
+    skin: '#e39165',
+    skinBlush: '#d14f34',
+    hair: '#4d2b17',
+    hairSheen: '#945935',
     hairStyle: 'parted-fluffy',
-    top: '#89b2d1',
-    pants: '#34485c',
-    shoeUpper: '#e7d4a3',
-    shoeSole: '#f4ecd5',
+    top: '#0284c7',
+    pants: '#243444',
+    shoeUpper: '#dcc692',
+    shoeSole: '#f1f5f9',
+    confidentSmile: true,
     hasLeadApron: true,
     hasWatch: true,
     galleryProp: 'xray',
@@ -255,10 +262,10 @@ const materialCache = new Map<string, THREE.Material>();
 
 const SUBSURFACE_PARSE_PATCH = `
 float rawNL_sss = dot( geometryNormal, directLight.direction );
-float wrapNL_sss = saturate( ( rawNL_sss + 0.44 ) / 1.44 );
-float sssBand = smoothstep( -0.48, 0.14, rawNL_sss ) * ( 1.0 - smoothstep( 0.04, 0.56, rawNL_sss ) );
-vec3 sssTint = vec3( 0.94, 0.36, 0.23 );
-vec3 skinIrradiance = ( wrapNL_sss * directLight.color ) + ( sssBand * 0.20 * directLight.color * sssTint );
+float wrapNL_sss = saturate( ( rawNL_sss + 0.24 ) / 1.24 );
+float sssBand = smoothstep( -0.42, 0.14, rawNL_sss ) * ( 1.0 - smoothstep( 0.02, 0.52, rawNL_sss ) );
+vec3 sssTint = vec3( 0.95, 0.34, 0.20 );
+vec3 skinIrradiance = ( wrapNL_sss * directLight.color ) + ( sssBand * 0.26 * directLight.color * sssTint );
 reflectedLight.directDiffuse += skinIrradiance * BRDF_Lambert( material.diffuseContribution );
 `;
 
@@ -267,26 +274,26 @@ reflectedLight.directDiffuse += skinIrradiance * BRDF_Lambert( material.diffuseC
  * Wraps diffuse key lighting smoothly across cheeks and chin so shadows stay warm peachy-terracotta.
  */
 export function getSkinMaterial(hex: string, useVertexColors = false): THREE.MeshPhysicalMaterial {
-  const key = `skin:${hex}:${useVertexColors ? 'vc' : 'flat'}`;
+  const key = `skin-v3:${hex}:${useVertexColors ? 'vc' : 'flat'}`;
   const cached = materialCache.get(key) as THREE.MeshPhysicalMaterial | undefined;
   if (cached) return cached;
 
   const base = new THREE.Color(hex);
-  const sheenTint = base.clone().lerp(new THREE.Color('#ffdcc8'), 0.55);
+  const sheenTint = base.clone().lerp(new THREE.Color('#ffd6bd'), 0.5);
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: useVertexColors ? '#ffffff' : hex,
     vertexColors: useVertexColors,
-    roughness: 0.72,
+    roughness: 0.44,
     metalness: 0.0,
-    sheen: 0.24,
-    sheenRoughness: 0.75,
+    sheen: 0.32,
+    sheenRoughness: 0.52,
     sheenColor: sheenTint,
-    clearcoat: 0.03,
-    clearcoatRoughness: 0.65,
+    clearcoat: 0.2,
+    clearcoatRoughness: 0.34,
   });
 
-  mat.customProgramCacheKey = () => 'clay-vinyl-skin-sss-v1';
+  mat.customProgramCacheKey = () => 'clay-vinyl-skin-sss-v3';
   mat.onBeforeCompile = (shader) => {
     const chunk = THREE.ShaderChunk.lights_physical_pars_fragment;
     const target =
@@ -304,26 +311,28 @@ export function getSkinMaterial(hex: string, useVertexColors = false): THREE.Mes
   return mat;
 }
 
-/** Cozy brushed-cotton / fleece fabric material with soft velvet edge sheen. */
+/** Cozy brushed-cotton / vinyl-satin fabric material with soft studio edge sheen. */
 export function getFabricMaterial(
   hex: string,
-  roughness = 0.87,
+  roughness = 0.72,
   doubleSided = false,
 ): THREE.MeshPhysicalMaterial {
-  const key = `fabric:${hex}:${roughness}:${doubleSided ? '2' : '1'}`;
+  const key = `fabric-v2:${hex}:${roughness}:${doubleSided ? '2' : '1'}`;
   const cached = materialCache.get(key) as THREE.MeshPhysicalMaterial | undefined;
   if (cached) return cached;
 
   const base = new THREE.Color(hex);
-  const sheenColor = base.clone().lerp(new THREE.Color('#fff9ef'), 0.38);
+  const sheenColor = base.clone().lerp(new THREE.Color('#ffffff'), 0.45);
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: base,
-    roughness,
+    roughness: Math.max(0.42, roughness * 0.8),
     metalness: 0.0,
-    sheen: 0.34,
-    sheenRoughness: 0.78,
+    sheen: 0.44,
+    sheenRoughness: 0.62,
     sheenColor,
+    clearcoat: 0.1,
+    clearcoatRoughness: 0.45,
     side: doubleSided ? THREE.DoubleSide : THREE.FrontSide,
   });
 
@@ -331,21 +340,21 @@ export function getFabricMaterial(
   return mat;
 }
 
-/** Plush sculpted hair material — rich matte base with warm chestnut rim sheen, never shiny plastic. */
+/** Glossy sculpted vinyl hair material — rich chestnut base with warm specular curl highlights like Hero Gallery. */
 export function getHairMaterial(hex: string, sheenHex: string): THREE.MeshPhysicalMaterial {
-  const key = `hair:${hex}:${sheenHex}`;
+  const key = `hair-v2:${hex}:${sheenHex}`;
   const cached = materialCache.get(key) as THREE.MeshPhysicalMaterial | undefined;
   if (cached) return cached;
 
   const mat = new THREE.MeshPhysicalMaterial({
     color: hex,
-    roughness: 0.7,
-    metalness: 0.0,
-    sheen: 0.38,
-    sheenRoughness: 0.58,
+    roughness: 0.32,
+    metalness: 0.02,
+    sheen: 0.65,
+    sheenRoughness: 0.38,
     sheenColor: new THREE.Color(sheenHex),
-    clearcoat: 0.04,
-    clearcoatRoughness: 0.6,
+    clearcoat: 0.46,
+    clearcoatRoughness: 0.22,
   });
 
   materialCache.set(key, mat);

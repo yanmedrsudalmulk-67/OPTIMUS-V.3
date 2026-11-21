@@ -14,6 +14,7 @@ import Character, { type CharacterMotion } from './Character';
 import Environment from './Environment';
 import HospitalSky from './HospitalSky';
 import Rope from './Rope';
+import StudioEnvironment from './StudioEnvironment';
 import WebGLBoundary from './WebGLBoundary';
 
 export interface ArenaProps {
@@ -126,8 +127,30 @@ function NameAnchor({ id, labels }: { id: string; labels: LabelRefs }) {
   return <group ref={ref} position={[0, 2.95, 0]} />;
 }
 
+function useSoftShadowTexture() {
+  return useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const grad = ctx.createRadialGradient(64, 64, 6, 64, 64, 62);
+      grad.addColorStop(0, 'rgba(38, 22, 12, 0.48)');
+      grad.addColorStop(0.55, 'rgba(38, 22, 12, 0.22)');
+      grad.addColorStop(1, 'rgba(38, 22, 12, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 128, 128);
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    return tex;
+  }, []);
+}
+
 function Contestants({ state, labels }: { state?: RoomState | null; labels: LabelRefs }) {
   const group = useRef<THREE.Group>(null);
+  const shadowTex = useSoftShadowTexture();
   const slots = useMemo(
     () =>
       ['A', 'B'].flatMap((team) =>
@@ -154,10 +177,25 @@ function Contestants({ state, labels }: { state?: RoomState | null; labels: Labe
         const characterId = player?.characterId || sample[i];
         return (
           <group key={team + index} position={[x, 0, 0.05]}>
+            {/* Soft radial ambient occlusion contact shadow beneath hero feet */}
+            {shadowTex && (
+              <mesh
+                position={[0, 0.012, 0.02]}
+                rotation={[-Math.PI / 2, 0, 0]}
+                scale={[1.25, 0.88, 1]}
+              >
+                <planeGeometry args={[1.05, 1.05]} />
+                <meshBasicMaterial
+                  map={shadowTex}
+                  transparent
+                  depthWrite={false}
+                />
+              </mesh>
+            )}
             <Character
               characterId={characterId}
               team={team}
-              facing={team === 'A' ? 1.05 : -1.05}
+              facing={team === 'A' ? 0.72 : -0.72}
               motion={motionFor(state, team)}
               seed={i}
               holdRope
@@ -206,18 +244,22 @@ export default function Arena({ state, preview = false, theme, quality, classNam
       <WebGLBoundary>
         <Canvas
           shadows={!low}
-          dpr={low ? 1 : [1, 1.7]}
-
+          dpr={low ? 1 : [1, 1.75]}
           camera={{ position: [0, 3.95, 11.2], fov: 44, near: 0.1, far: 80 }}
-
-          gl={{ antialias: !low, powerPreference: low ? 'low-power' : 'high-performance' }}
+          gl={{
+            antialias: !low,
+            powerPreference: low ? 'low-power' : 'high-performance',
+            preserveDrawingBuffer: true,
+          }}
           onCreated={({ gl }) => {
             gl.debug.checkShaderErrors = false;
             gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 1.05;
+            gl.toneMappingExposure = 0.96;
             gl.shadowMap.type = THREE.PCFShadowMap;
           }}
         >
+          {/* Controlled Studio IBL reflections so clearcoat hair, eyes, and leather pop without washing out shadows */}
+          <StudioEnvironment intensity={0.42} />
           {arenaTheme === 'hospital' ? (
             <HospitalSky />
           ) : (
@@ -225,13 +267,15 @@ export default function Arena({ state, preview = false, theme, quality, classNam
           )}
           <fog attach="fog" args={[arenaTheme === 'hospital' ? '#edd0b0' : '#dae9e7', 26, 48]} />
           <hemisphereLight
-            args={[arenaTheme === 'hospital' ? '#fff0db' : '#fff6e4', '#d8bfa3', 1.65]}
+            args={[arenaTheme === 'hospital' ? '#ffe8c8' : '#fff6e4', '#8c6244', 0.55]}
           />
-          <ambientLight intensity={0.45} />
-          <directionalLight position={[1, 4, 10]} intensity={0.72} color="#fff3e3" />
+          <ambientLight intensity={0.14} />
+          {/* Subtle front fill for eye catchlights */}
+          <directionalLight position={[1.5, 3.4, 10.5]} intensity={0.38} color="#ffe4c4" />
+          {/* High-contrast warm golden studio key light */}
           <directionalLight
-            position={arenaTheme === 'hospital' ? [8, 10, 6] : [-6, 12, 6]}
-            color={arenaTheme === 'hospital' ? '#ffdfac' : '#ffffff'}
+            position={arenaTheme === 'hospital' ? [-6.5, 10.5, 7.5] : [-6, 12, 6]}
+            color={arenaTheme === 'hospital' ? '#ffdca8' : '#ffffff'}
             intensity={2.15}
             castShadow={!low}
             shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
@@ -241,10 +285,11 @@ export default function Arena({ state, preview = false, theme, quality, classNam
             shadow-camera-bottom={-12}
             shadow-camera-near={1}
             shadow-camera-far={35}
-            shadow-bias={-0.0007}
-            shadow-normalBias={0.04}
+            shadow-bias={-0.0006}
+            shadow-normalBias={0.035}
           />
-          <directionalLight position={[6, 5, -8]} intensity={1.2} color="#b4d2e5" />
+          {/* Cool sky-cyan rim/backlight to sculpt hair curls and lab coat silhouettes like Hero Gallery */}
+          <directionalLight position={[7.5, 6.5, -8.5]} intensity={1.25} color="#7dd3fc" />
           <Suspense fallback={null}>
             <Environment
               theme={arenaTheme}

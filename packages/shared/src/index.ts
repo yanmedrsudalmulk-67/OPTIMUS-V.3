@@ -27,6 +27,7 @@ export interface CharacterDefinition {
   description: string;
   thumbnailPath: string;
   poseImagePath: string;
+  fullBodyImagePath: string;
   attributes: CharacterAttributes;
   preview: { kind: 'procedural' | 'gltf'; facing: number };
   modelPath?: string;
@@ -43,7 +44,7 @@ export interface CharacterDefinition {
 function defineCharacter(
   hero: Omit<
     CharacterDefinition,
-    'accent' | 'thumbnailPath' | 'poseImagePath' | 'preview' | 'animationConfig'
+    'accent' | 'thumbnailPath' | 'poseImagePath' | 'fullBodyImagePath' | 'preview' | 'animationConfig'
   >,
 ): CharacterDefinition {
   return {
@@ -51,6 +52,7 @@ function defineCharacter(
     accent: hero.color,
     thumbnailPath: `/heroes/${hero.id}.webp`,
     poseImagePath: `/heroes/poses/${hero.id}.png`,
+    fullBodyImagePath: `/heroes/fullbody/${hero.id}.png`,
     preview: { kind: hero.modelPath ? 'gltf' : 'procedural', facing: -0.12 },
     animationConfig: { idle: 'idle', selected: 'ready', victory: 'victory', scale: 1 },
   };
@@ -66,7 +68,7 @@ export const CHARACTERS: CharacterDefinition[] = [
     color: '#38bdf8',
     accessory: 'stethoscope',
     description:
-      'Tenang dalam mengambil keputusan, teliti membaca gejala, dan selalu mengutamakan keselamatan pasien.',
+      'Tenaga medis yang berperan dalam mengambil keputusan klinis, membaca gejala, dan menjaga keselamatan pasien.',
     attributes: { care: 88, teamwork: 86, knowledge: 97, resilience: 89 },
   }),
   defineCharacter({

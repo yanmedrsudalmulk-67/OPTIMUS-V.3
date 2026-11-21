@@ -5,14 +5,13 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
-  Activity,
   ArrowRight,
+  CreditCard,
   Gamepad2,
   Heart,
   Info,
+  LogOut,
   Play,
-  Power,
-  RotateCcw,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -42,8 +41,7 @@ const Arena = dynamic(() => import('../components/arena/Arena'), {
   loading: () => null,
 });
 
-type MenuId = 'start' | 'continue' | 'characters' | 'options' | 'credit' | 'admin' | 'quit';
-type PopoutId = 'continue' | 'quit';
+type MenuId = 'continue' | 'start' | 'characters' | 'options' | 'credit' | 'admin' | 'quit';
 type ModalId = 'options' | 'credit' | 'ranking';
 
 type PublicLeader = {
@@ -61,11 +59,12 @@ export default function HomePage() {
   const [prefs, setPrefs] = useState<GamePrefs>(DEFAULT_GAME_PREFS);
   const [muted, setMuted] = useState(true);
   const [live3d, setLive3d] = useState(false);
+  // Default highlighted menu is NEW GAME ('start') matching the reference design
   const [activeId, setActiveId] = useState<MenuId>('start');
-  const [popout, setPopout] = useState<PopoutId | null>(null);
+  const [popout, setPopout] = useState<MenuId | null>(null);
   const [modal, setModal] = useState<ModalId | null>(null);
   const [navigatingTo, setNavigatingTo] = useState<MenuId | null>(null);
-  const [confirmQuit, setConfirmQuit] = useState<'no' | 'yes'>('no');
+  const [confirmChoice, setConfirmChoice] = useState<'yes' | 'no'>('yes');
   const [quitNotice, setQuitNotice] = useState('');
   const [roomCode, setRoomCode] = useState('');
   const [roomError, setRoomError] = useState('');
@@ -90,7 +89,7 @@ export default function HomePage() {
       volume: savedPrefs.volume,
     });
 
-    // Pre-warm primary routes so switching menus is instantaneous
+    // Pre-warm primary routes so confirming a menu is instantaneous
     router.prefetch('/play');
     router.prefetch('/characters');
     router.prefetch('/admin/login');
@@ -155,18 +154,15 @@ export default function HomePage() {
       /* ignore */
     }
     window.close();
-    // Browsers/iframes block window.close() on user-opened tabs; give clear feedback instead of silent no-op
     if (mounted.current) {
       setQuitNotice('Tutup tab atau jendela ini untuk keluar dari game.');
     }
   }, []);
 
-  const activateMenu = useCallback(
+  // Execute the confirmed action for a menu item once the user chooses inside its popout
+  const confirmMenuAction = useCallback(
     (id: MenuId) => {
-      playSound('click');
-      setActiveId(id);
       setQuitNotice('');
-
       if (id === 'start') {
         setPopout(null);
         setNavigatingTo('start');
@@ -183,42 +179,47 @@ export default function HomePage() {
       }
       if (id === 'options') {
         setPopout(null);
+        playSound('click');
         setModal('options');
         return;
       }
       if (id === 'credit') {
         setPopout(null);
+        playSound('click');
         setModal('credit');
         return;
       }
       if (id === 'admin') {
         setPopout(null);
         setNavigatingTo('admin');
+        playSound('click');
         router.push('/admin/login');
         return;
       }
+      if (id === 'quit') {
+        void handleQuitGame();
+      }
+    },
+    [handleQuitGame, router],
+  );
 
-      // Secondary popout drawers: CONTINUE (Room Code input / Resume) and QUIT GAME (Confirmation)
-      if (id === 'continue') {
-        if (popout === 'continue') {
-          setPopout(null);
-        } else {
-          setRoomError('');
-          setPopout('continue');
-        }
+  // Clicking a sidebar item highlights it and toggles its confirmation/choice popout first
+  const selectMenu = useCallback(
+    (id: MenuId) => {
+      playSound('select');
+      setActiveId(id);
+      setQuitNotice('');
+      setRoomError('');
+
+      if (popout === id) {
+        setPopout(null);
         return;
       }
 
-      if (id === 'quit') {
-        if (popout === 'quit') {
-          setPopout(null);
-        } else {
-          setConfirmQuit('no');
-          setPopout('quit');
-        }
-      }
+      setConfirmChoice(id === 'quit' ? 'no' : 'yes');
+      setPopout(id);
     },
-    [popout, router],
+    [popout],
   );
 
   // Close popout on outside click
@@ -238,8 +239,8 @@ export default function HomePage() {
   // Keyboard arcade navigation (Arrow Up / Down / Left / Right / Enter / Escape)
   useEffect(() => {
     const order: MenuId[] = [
-      'start',
       'continue',
+      'start',
       'characters',
       'options',
       'credit',
@@ -260,7 +261,7 @@ export default function HomePage() {
         return;
       }
 
-      if (popout === 'quit') {
+      if (popout) {
         if (e.key === 'Escape') {
           e.preventDefault();
           setPopout(null);
@@ -270,14 +271,21 @@ export default function HomePage() {
         if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
           e.preventDefault();
           playSound('select');
-          setConfirmQuit((c) => (c === 'no' ? 'yes' : 'no'));
+          if (popout === 'start') {
+            updatePrefs({ playMode: prefs.playMode === 'local' ? 'bot' : 'local' });
+          } else {
+            setConfirmChoice((c) => (c === 'yes' ? 'no' : 'yes'));
+          }
           return;
         }
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && popout !== 'continue') {
           e.preventDefault();
-          if (confirmQuit === 'yes') {
-            void handleQuitGame();
+          if (popout === 'start') {
+            confirmMenuAction('start');
+          } else if (confirmChoice === 'yes') {
+            confirmMenuAction(popout);
           } else {
+            playSound('click');
             setPopout(null);
           }
           return;
@@ -296,7 +304,7 @@ export default function HomePage() {
         playSound('select');
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        activateMenu(activeId);
+        selectMenu(activeId);
       } else if (e.key === 'Escape') {
         setPopout(null);
         setQuitNotice('');
@@ -304,7 +312,16 @@ export default function HomePage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeId, activateMenu, confirmQuit, handleQuitGame, modal, popout]);
+  }, [
+    activeId,
+    confirmChoice,
+    confirmMenuAction,
+    modal,
+    popout,
+    prefs.playMode,
+    selectMenu,
+    updatePrefs,
+  ]);
 
   const joinRoomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,6 +348,54 @@ export default function HomePage() {
       });
     },
     [live3d],
+  );
+
+  const renderConfirmPopout = (
+    id: MenuId,
+    tabTitle: string,
+    yesLabel = 'MASUK',
+    noLabel = 'BATAL',
+  ) => (
+    <div className="welcome-popout-card" role="dialog" aria-label={tabTitle}>
+      <div className="welcome-popout-tab">{tabTitle}</div>
+      <div className="welcome-popout-bar">
+        <button
+          type="button"
+          className={`welcome-chevron-btn ${confirmChoice === 'yes' ? 'is-active' : ''}`}
+          onMouseEnter={() => {
+            if (confirmChoice !== 'yes') {
+              setConfirmChoice('yes');
+              playSound('select');
+            }
+          }}
+          onClick={() => confirmMenuAction(id)}
+        >
+          {yesLabel}
+        </button>
+        <button
+          type="button"
+          className={`welcome-chevron-btn ${confirmChoice === 'no' ? 'is-active' : ''}`}
+          onMouseEnter={() => {
+            if (confirmChoice !== 'no') {
+              setConfirmChoice('no');
+              playSound('select');
+            }
+          }}
+          onClick={() => {
+            playSound('click');
+            setQuitNotice('');
+            setPopout(null);
+          }}
+        >
+          {noLabel}
+        </button>
+      </div>
+      {id === 'quit' && quitNotice && (
+        <p role="status" className="welcome-popout-notice">
+          {quitNotice}
+        </p>
+      )}
+    </div>
   );
 
   return (
@@ -368,11 +433,11 @@ export default function HomePage() {
       <div className="welcome-seam-accent" aria-hidden="true" />
       <div className="welcome-white-panel" aria-hidden="true" />
 
-      {/* TOP-LEFT ANGULAR GAME TITLE BANNER */}
+      {/* TOP-LEFT ANGULAR GAME TITLE BANNER MATCHING REFERENCE IMAGE */}
       <header className="welcome-logo-banner">
         <div className="welcome-logo-backdrop">
           <div className="welcome-logo-crest" aria-hidden="true">
-            <Activity size={32} strokeWidth={2.8} />
+            <Gamepad2 size={32} strokeWidth={2.5} />
           </div>
           <div className="welcome-logo-text">
             <span className="welcome-logo-main">MEDICAL</span>
@@ -430,49 +495,21 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* INTERACTIVE SLANTED ARCADE GAME MENU */}
+      {/* INTERACTIVE SLANTED ARCADE GAME MENU — 100% MATCHING REFERENCE IMAGE */}
       <nav className="welcome-menu-layer" aria-label="Menu Utama Game">
         <div className="welcome-menu-list">
-          {/* 1. START GAME — direct prefetched Link */}
-          <div className="welcome-menu-row welcome-popout-anchor">
-            <Link
-              href="/play"
-              prefetch={true}
-              className={`welcome-menu-btn ${activeId === 'start' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'start') {
-                  setActiveId('start');
-                  playSound('select');
-                }
-              }}
-              onClick={() => {
-                setPopout(null);
-                setActiveId('start');
-                setNavigatingTo('start');
-                playSound('ready');
-              }}
-            >
-              <Play size={20} fill="currentColor" />
-              {navigatingTo === 'start' ? 'MEMBUKA…' : 'START GAME'}
-              <span className="welcome-menu-badge">2 TIM</span>
-            </Link>
-          </div>
-
-          {/* 2. CONTINUE / GABUNG ROOM CODE */}
+          {/* 1. CONTINUE */}
           <div className="welcome-menu-row welcome-popout-anchor">
             <button
               type="button"
               className={`welcome-menu-btn ${activeId === 'continue' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'continue') {
-                  setActiveId('continue');
-                  playSound('select');
-                }
-              }}
-              onClick={() => activateMenu('continue')}
+              onClick={() => selectMenu('continue')}
             >
-              <RotateCcw size={19} />
-              CONTINUE
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <Play size={22} strokeWidth={2.5} />
+              </span>
+              <span className="welcome-menu-label">CONTINUE</span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
 
             {popout === 'continue' && (
@@ -531,28 +568,94 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* 3. HERO GALLERY — direct prefetched Link */}
+          {/* 2. NEW GAME (START GAME) */}
           <div className="welcome-menu-row welcome-popout-anchor">
-            <Link
-              href="/characters"
-              prefetch={true}
-              className={`welcome-menu-btn ${activeId === 'characters' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'characters') {
-                  setActiveId('characters');
-                  playSound('select');
-                }
-              }}
-              onClick={() => {
-                setPopout(null);
-                setActiveId('characters');
-                setNavigatingTo('characters');
-                playSound('ready');
-              }}
+            <button
+              type="button"
+              className={`welcome-menu-btn ${activeId === 'start' ? 'is-active' : ''}`}
+              onClick={() => selectMenu('start')}
             >
-              <Users size={19} />
-              {navigatingTo === 'characters' ? 'MEMBUKA…' : 'HERO GALLERY'}
-            </Link>
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <Gamepad2 size={24} strokeWidth={2.4} />
+              </span>
+              <span className="welcome-menu-label">
+                {navigatingTo === 'start' ? 'MEMBUKA…' : 'NEW GAME'}
+              </span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
+            </button>
+
+            {popout === 'start' && (
+              <div className="welcome-popout-card" role="dialog" aria-label="Pilih Mode Permainan">
+                <div className="welcome-popout-tab">
+                  <Gamepad2 size={14} />
+                  PILIH MODE PERMAINAN ?
+                </div>
+                <div className="welcome-popout-bar">
+                  <button
+                    type="button"
+                    className={`welcome-chevron-btn ${prefs.playMode === 'local' ? 'is-active' : ''}`}
+                    onMouseEnter={() => {
+                      if (prefs.playMode !== 'local') {
+                        updatePrefs({ playMode: 'local' });
+                        playSound('select');
+                      }
+                    }}
+                    onClick={() => {
+                      updatePrefs({ playMode: 'local' });
+                      confirmMenuAction('start');
+                    }}
+                  >
+                    2 TIM LOKAL
+                  </button>
+                  <button
+                    type="button"
+                    className={`welcome-chevron-btn ${prefs.playMode === 'bot' ? 'is-active' : ''}`}
+                    onMouseEnter={() => {
+                      if (prefs.playMode !== 'bot') {
+                        updatePrefs({ playMode: 'bot' });
+                        playSound('select');
+                      }
+                    }}
+                    onClick={() => {
+                      updatePrefs({ playMode: 'bot' });
+                      confirmMenuAction('start');
+                    }}
+                  >
+                    VS BOT AI
+                  </button>
+                  <button
+                    type="button"
+                    className="welcome-chevron-btn"
+                    onClick={() => {
+                      playSound('click');
+                      setPopout(null);
+                    }}
+                  >
+                    BATAL
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3. HERO GALLERY */}
+          <div className="welcome-menu-row welcome-popout-anchor">
+            <button
+              type="button"
+              className={`welcome-menu-btn ${activeId === 'characters' ? 'is-active' : ''}`}
+              onClick={() => selectMenu('characters')}
+            >
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <Users size={22} strokeWidth={2.4} />
+              </span>
+              <span className="welcome-menu-label">
+                {navigatingTo === 'characters' ? 'MEMBUKA…' : 'HERO GALLERY'}
+              </span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
+            </button>
+
+            {popout === 'characters' &&
+              renderConfirmPopout('characters', 'BUKA HERO GALLERY ?', 'BUKA GALERI', 'BATAL')}
           </div>
 
           {/* 4. OPTIONS */}
@@ -560,124 +663,73 @@ export default function HomePage() {
             <button
               type="button"
               className={`welcome-menu-btn ${activeId === 'options' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'options') {
-                  setActiveId('options');
-                  playSound('select');
-                }
-              }}
-              onClick={() => activateMenu('options')}
+              onClick={() => selectMenu('options')}
             >
-              <Settings size={19} />
-              OPTIONS
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <Settings size={22} strokeWidth={2.4} />
+              </span>
+              <span className="welcome-menu-label">OPTIONS</span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
+
+            {popout === 'options' &&
+              renderConfirmPopout('options', 'BUKA PENGATURAN ?', 'ATUR GAME', 'BATAL')}
           </div>
 
-          {/* 5. CREDIT & HOW TO PLAY */}
+          {/* 5. CREDIT */}
           <div className="welcome-menu-row welcome-popout-anchor">
             <button
               type="button"
               className={`welcome-menu-btn ${activeId === 'credit' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'credit') {
-                  setActiveId('credit');
-                  playSound('select');
-                }
-              }}
-              onClick={() => activateMenu('credit')}
+              onClick={() => selectMenu('credit')}
             >
-              <Info size={19} />
-              CREDIT
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <CreditCard size={22} strokeWidth={2.4} />
+              </span>
+              <span className="welcome-menu-label">CREDIT</span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
+
+            {popout === 'credit' &&
+              renderConfirmPopout('credit', 'LIHAT CREDIT & PANDUAN ?', 'BUKA INFO', 'BATAL')}
           </div>
 
-          {/* 6. PANEL ADMIN — direct prefetched Link */}
+          {/* 6. ADMIN PANEL */}
           <div className="welcome-menu-row welcome-popout-anchor">
-            <Link
-              href="/admin/login"
-              prefetch={true}
+            <button
+              type="button"
               className={`welcome-menu-btn ${activeId === 'admin' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'admin') {
-                  setActiveId('admin');
-                  playSound('select');
-                }
-              }}
-              onClick={() => {
-                setPopout(null);
-                setActiveId('admin');
-                setNavigatingTo('admin');
-                playSound('click');
-              }}
+              onClick={() => selectMenu('admin')}
             >
-              <ShieldCheck size={19} />
-              {navigatingTo === 'admin' ? 'MEMBUKA…' : 'ADMIN PANEL'}
-            </Link>
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <ShieldCheck size={22} strokeWidth={2.4} />
+              </span>
+              <span className="welcome-menu-label">
+                {navigatingTo === 'admin' ? 'MEMBUKA…' : 'ADMIN PANEL'}
+              </span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
+            </button>
+
+            {popout === 'admin' &&
+              renderConfirmPopout('admin', 'MASUK PANEL ADMIN ?', 'LOGIN ADMIN', 'BATAL')}
           </div>
 
           {/* 7. QUIT GAME */}
           <div className="welcome-menu-row welcome-popout-anchor">
             <button
               type="button"
-              className={`welcome-menu-btn is-quit ${activeId === 'quit' ? 'is-active' : ''}`}
-              onMouseEnter={() => {
-                if (activeId !== 'quit') {
-                  setActiveId('quit');
-                  playSound('select');
-                }
-              }}
-              onClick={() => activateMenu('quit')}
+              className={`welcome-menu-btn ${activeId === 'quit' ? 'is-active' : ''}`}
+              onClick={() => selectMenu('quit')}
             >
-              <Power size={19} />
-              QUIT GAME
+              <span className="welcome-menu-icon" aria-hidden="true">
+                <LogOut size={22} strokeWidth={2.5} />
+              </span>
+              <span className="welcome-menu-label">QUIT GAME</span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
 
-            {popout === 'quit' && (
-              <div
-                className="welcome-popout-card is-quit-popout"
-                role="dialog"
-                aria-label="Konfirmasi Keluar Game"
-              >
-                <div className="welcome-popout-tab">ARE YOU SURE ?</div>
-                <div className="welcome-popout-bar">
-                  <button
-                    type="button"
-                    className={`welcome-chevron-btn ${confirmQuit === 'no' ? 'is-active' : ''}`}
-                    onMouseEnter={() => {
-                      if (confirmQuit !== 'no') {
-                        setConfirmQuit('no');
-                        playSound('select');
-                      }
-                    }}
-                    onClick={() => {
-                      playSound('click');
-                      setQuitNotice('');
-                      setPopout(null);
-                    }}
-                  >
-                    NO
-                  </button>
-                  <button
-                    type="button"
-                    className={`welcome-chevron-btn ${confirmQuit === 'yes' ? 'is-active' : ''}`}
-                    onMouseEnter={() => {
-                      if (confirmQuit !== 'yes') {
-                        setConfirmQuit('yes');
-                        playSound('select');
-                      }
-                    }}
-                    onClick={handleQuitGame}
-                  >
-                    YES
-                  </button>
-                </div>
-                {quitNotice && (
-                  <p role="status" className="welcome-popout-notice">
-                    {quitNotice}
-                  </p>
-                )}
-              </div>
-            )}
+            {popout === 'quit' &&
+              renderConfirmPopout('quit', 'ARE YOU SURE ?', 'YES', 'NO')}
           </div>
         </div>
       </nav>
@@ -908,7 +960,7 @@ export default function HomePage() {
                   setModal(null);
                 }}
               >
-                LANJUT START GAME <ArrowRight size={16} />
+                LANJUT NEW GAME <ArrowRight size={16} />
               </Link>
             </div>
           </div>
@@ -944,7 +996,7 @@ export default function HomePage() {
                   <div>
                     <strong>Pilih Hero dari 2 Tim</strong>
                     <p>
-                      Tekan START GAME lalu pilih 3 pahlawan kesehatan untuk Tim Hijau dan Tim Biru.
+                      Tekan NEW GAME lalu pilih 3 pahlawan kesehatan untuk Tim Hijau dan Tim Biru.
                     </p>
                   </div>
                 </div>
@@ -979,7 +1031,7 @@ export default function HomePage() {
                   setModal(null);
                 }}
               >
-                START GAME SEKARANG <ArrowRight size={16} />
+                MULAI GAME SEKARANG <ArrowRight size={16} />
               </Link>
             </div>
           </div>

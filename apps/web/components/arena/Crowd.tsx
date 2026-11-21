@@ -22,7 +22,7 @@ export default function Crowd({
   const helper = useMemo(() => new THREE.Object3D(), []);
   const color = useMemo(() => new THREE.Color(), []);
   const excited = ['COUNTDOWN', 'PULL_ANIMATION', 'ROUND_RESULT', 'FINISHED'].includes(phase || '');
-  const skins = ['#f0af86', '#e39e74', '#d88e64', '#eab28d'];
+  const skins = ['#e2986b', '#d98e62', '#ce8256', '#df9b72'];
   const shirts = ['#5a733b', '#478db7', '#cf7b98', '#3f8c71', '#d16640', '#6961a6'];
   useFrame((_, delta) => {
     if (!mesh.current) return;
@@ -77,21 +77,21 @@ export default function Crowd({
       body(0, 0.9, 0, 0.09, 0.09, 0.09, skin);
       body(0, 1.13, 0.015, 0.295, 0.285, 0.255, skin, -sway * 0.4);
       for (const sign of [-1, 1]) body(sign * 0.295, 1.105, 0.01, 0.056, 0.082, 0.046, skin);
-      body(0, 1.31, -0.045, 0.3, 0.15, 0.23, hair);
-      body(-0.115, 1.36, 0.08, 0.16, 0.095, 0.15, hair, -0.25);
-      body(0.095, 1.355, 0.105, 0.155, 0.09, 0.145, hair, 0.25);
+      body(0, 1.32, -0.04, 0.31, 0.165, 0.24, hair);
+      body(-0.12, 1.37, 0.085, 0.175, 0.11, 0.16, hair, -0.25);
+      body(0.1, 1.365, 0.11, 0.17, 0.105, 0.155, hair, 0.25);
       if (i % 3 === 1) {
         body(-0.31, 1.15, -0.02, 0.095, 0.16, 0.095, hair, -0.2);
         body(0.31, 1.15, -0.02, 0.095, 0.16, 0.095, hair, 0.2);
       }
       const blink = Math.sin(time.current * 0.7 + i * 3.4) > 0.996 ? 0.12 : 1;
       for (const sign of [-1, 1]) {
-        body(sign * 0.092, 1.148, 0.252, 0.024, 0.036 * blink, 0.018, '#18100c');
-        body(sign * 0.092 - 0.007, 1.16, 0.266, 0.007, 0.008 * blink, 0.005, '#fffaf0');
-        body(sign * 0.16, 1.055, 0.222, 0.044, 0.024, 0.01, '#df856f');
+        body(sign * 0.094, 1.15, 0.254, 0.031, 0.046 * blink, 0.02, '#18100c');
+        body(sign * 0.094 - 0.008, 1.164, 0.268, 0.009, 0.01 * blink, 0.006, '#fffaf0');
+        body(sign * 0.16, 1.055, 0.222, 0.048, 0.026, 0.01, '#df856f');
       }
-      body(0, 1.095, 0.264, 0.038, 0.042, 0.042, '#e2886f');
-      body(0, 1.005, 0.238, 0.045, excited ? 0.036 : 0.012, 0.014, '#5e2f21');
+      body(0, 1.095, 0.266, 0.042, 0.046, 0.045, '#e2886f');
+      body(0, 1.005, 0.24, 0.052, excited ? 0.042 : 0.018, 0.016, '#5e2f21');
       for (const sign of [-1, 1]) {
         const clap = i % 3 === 0;
         const angle = clap
@@ -141,8 +141,15 @@ export default function Crowd({
       frustumCulled={false}
       castShadow={!low}
     >
-      <sphereGeometry args={[1, low ? 10 : 14, low ? 8 : 12]} />
-      <meshStandardMaterial roughness={0.78} metalness={0} />
+      <sphereGeometry args={[1, low ? 12 : 18, low ? 10 : 14]} />
+      <meshPhysicalMaterial
+        roughness={0.44}
+        metalness={0}
+        clearcoat={0.28}
+        clearcoatRoughness={0.32}
+        sheen={0.35}
+        sheenRoughness={0.55}
+      />
     </instancedMesh>
   );
 }

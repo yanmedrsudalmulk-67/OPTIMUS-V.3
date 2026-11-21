@@ -3,6 +3,7 @@
    ========================================================================== */
 
 .welcome-shell {
+  --sidebar-w: clamp(300px, 27.5vw, 396px);
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -98,32 +99,26 @@
   top: 0;
   left: 0;
   bottom: 0;
-  width: clamp(275px, 28vw, 390px);
+  width: calc(var(--sidebar-w) + 20px);
   z-index: 4;
-  background:
-    repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.28) 0px,
-      rgba(255, 255, 255, 0.28) 7px,
-      transparent 7px,
-      transparent 16px
-    ),
-    linear-gradient(180deg, #00d2ff 0%, #0284c7 65%, #0369a1 100%);
-  clip-path: polygon(0 0, 90% 0, 100% 45%, 85% 100%, 0 100%);
+  background: linear-gradient(180deg, #00e6ff 0%, #0284c7 48%, #00e5ff 100%);
+  clip-path: polygon(0 0, 88% 0, 74% 100%, 0 100%);
   filter: drop-shadow(10px 0 24px rgba(4, 24, 52, 0.32));
   pointer-events: none;
 }
 
-/* Crisp slanted white menu surface */
+/* Crisp slanted white menu surface with halftone dot texture at top-left */
 .welcome-white-panel {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  width: clamp(260px, 26vw, 368px);
+  width: var(--sidebar-w);
   z-index: 5;
-  background: #ffffff;
-  clip-path: polygon(0 0, 90% 0, 100% 45%, 85% 100%, 0 100%);
+  background:
+    radial-gradient(rgba(14, 165, 233, 0.14) 1.4px, transparent 1.4px) 0 0 / 12px 12px,
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  clip-path: polygon(0 0, 88% 0, 72% 100%, 0 100%);
   pointer-events: none;
 }
 
@@ -133,13 +128,13 @@
   top: 0;
   left: 0;
   z-index: 9;
-  width: clamp(275px, 28.5vw, 410px);
-  height: clamp(86px, 14vh, 134px);
-  padding: clamp(8px, 1.4vh, 16px) clamp(18px, 2.2vw, 30px) clamp(12px, 1.8vh, 18px)
+  width: calc(var(--sidebar-w) + 26px);
+  height: clamp(104px, 16.5vh, 142px);
+  padding: clamp(10px, 1.5vh, 16px) clamp(32px, 3vw, 46px) clamp(12px, 1.8vh, 18px)
     clamp(16px, 1.8vw, 24px);
-  background: linear-gradient(118deg, #00f2fe 0%, #09d5ff 55%, #0ea5e9 100%);
-  clip-path: polygon(0 0, 90% 0, 100% 100%, 0 85%);
-  filter: drop-shadow(0 10px 22px rgba(3, 52, 84, 0.34));
+  background: linear-gradient(118deg, #00eaff 0%, #05d5ff 58%, #00b4ff 100%);
+  clip-path: polygon(0 0, 86% 0, 100% 88%, 0 96%);
+  filter: drop-shadow(0 8px 18px rgba(3, 52, 84, 0.28));
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -154,40 +149,43 @@
 
 .welcome-logo-crest {
   position: relative;
-  width: clamp(46px, 7.2vh, 68px);
-  height: clamp(46px, 7.2vh, 68px);
+  width: clamp(50px, 7.6vh, 68px);
+  height: clamp(50px, 7.6vh, 68px);
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  background: #0a192f;
-  border-radius: 15px;
+  background: radial-gradient(circle at 32% 30%, #163760 0%, #071529 100%);
+  border-radius: 50%;
   border: 3px solid #ffffff;
-  color: #00f2fe;
-  transform: rotate(-7deg);
+  color: #38f6ff;
+  transform: rotate(-8deg);
   box-shadow:
-    4px 5px 0 #ff1865,
-    0 10px 20px rgba(7, 22, 42, 0.38);
+    0 0 0 3px #0a192f,
+    0 6px 0 #ff125d,
+    0 10px 18px rgba(7, 22, 42, 0.38);
 }
 
 .welcome-logo-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
   transform: skewX(-6deg);
 }
 
+/* White italic MEDICAL with thick dark-navy comic outline */
 .welcome-logo-main {
-  font-size: clamp(22px, min(2.6vw, 4.4vh), 38px);
+  font-size: clamp(24px, min(2.7vw, 4.5vh), 38px);
   font-weight: 900;
   font-style: italic;
-  line-height: 0.92;
-  letter-spacing: -0.04em;
-  color: #ff1865;
+  line-height: 0.9;
+  letter-spacing: -0.03em;
+  color: #ffffff;
   text-shadow:
     -2px -2px 0 #0a192f,
     2px -2px 0 #0a192f,
     -2px 2px 0 #0a192f,
     2px 2px 0 #0a192f,
+    0 3px 0 #0a192f,
     4px 4px 0 #0a192f;
 }
 
@@ -197,132 +195,163 @@
   gap: 8px;
 }
 
+/* Hot-pink TUG OF WAR banner with white text and solid dark drop shadow */
 .welcome-logo-sub {
   display: inline-block;
-  padding: 2px 10px;
-  background: #0a192f;
-  color: #38f6ff;
-  font-size: clamp(10px, min(1.05vw, 1.8vh), 14px);
+  padding: 2px 12px;
+  background: linear-gradient(92deg, #ff125d 0%, #e11d48 100%);
+  color: #ffffff;
+  font-size: clamp(11px, min(1.15vw, 1.85vh), 14px);
   font-weight: 900;
   font-style: italic;
-  letter-spacing: 0.14em;
-  border-radius: 4px;
-  box-shadow: 3px 3px 0 rgba(255, 24, 101, 0.85);
+  letter-spacing: 0.12em;
+  border: 2px solid #0a192f;
+  box-shadow: 3px 3px 0 #0a192f;
 }
 
 .welcome-logo-tag {
-  font-size: clamp(8px, 1.25vh, 9px);
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  color: #082038;
+  margin-top: 2px;
+  font-size: clamp(8.5px, 1.25vh, 10px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.1em;
+  color: #07192e;
   text-transform: uppercase;
 }
 
-/* Interactive Menu Container */
+/* Interactive Menu Container — fills the slanted sidebar rhythm cleanly */
 .welcome-menu-layer {
   position: relative;
   z-index: 8;
   height: 100%;
-  padding-top: clamp(92px, 15.5vh, 138px);
-  padding-bottom: clamp(14px, 2.5vh, 30px);
-  padding-left: clamp(16px, 2.3vw, 34px);
+  width: var(--sidebar-w);
+  padding-top: clamp(112px, 18vh, 158px);
+  padding-bottom: clamp(18px, 3.2vh, 34px);
+  padding-left: 0;
+  padding-right: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  max-width: clamp(260px, 26vw, 360px);
 }
 
 .welcome-menu-list {
   display: flex;
   flex-direction: column;
-  gap: clamp(2px, 0.7vh, 8px);
-  width: fit-content;
+  justify-content: space-evenly;
+  width: 100%;
+  flex: 1;
+  max-height: 76vh;
 }
 
 .welcome-menu-row {
   position: relative;
   display: flex;
   align-items: center;
+  width: 78%;
+  border-bottom: 1.5px solid rgba(148, 163, 184, 0.25);
+}
+
+.welcome-menu-row:last-child {
+  border-bottom: none;
 }
 
 .welcome-menu-btn {
   position: relative;
+  width: 100%;
   border: 0;
   background: transparent;
-  padding: clamp(6px, 1.05vh, 11px) clamp(16px, 1.8vw, 26px) clamp(6px, 1.05vh, 11px)
-    clamp(12px, 1.4vw, 18px);
-  margin-left: 0;
+  padding: clamp(8px, 1.65vh, 15px) clamp(14px, 1.6vw, 22px) clamp(8px, 1.65vh, 15px)
+    clamp(22px, 2.4vw, 34px);
   font-family: 'Plus Jakarta Sans', Outfit, -apple-system, sans-serif;
-  font-size: clamp(14px, min(1.55vw, 2.5vh), 21px);
+  font-size: clamp(16px, min(1.75vw, 2.85vh), 23px);
   font-weight: 900;
   font-style: italic;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   text-decoration: none;
-  color: #0b192e;
-  display: inline-flex;
+  color: #0e1e38;
+  display: flex;
   align-items: center;
-  gap: 11px;
+  gap: clamp(12px, 1.3vw, 18px);
   text-align: left;
-  min-width: clamp(195px, 18.5vw, 260px);
-  transform: skewX(-12deg);
-  transform-origin: left center;
   cursor: pointer;
-  transition:
-    transform 0.14s cubic-bezier(0.22, 1, 0.36, 1),
-    color 0.14s ease,
-    background 0.14s ease,
-    box-shadow 0.14s ease;
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.welcome-menu-btn svg {
+.welcome-menu-icon {
+  width: clamp(28px, min(2.6vw, 4.2vh), 36px);
+  height: clamp(28px, min(2.6vw, 4.2vh), 36px);
+  color: #2c4365;
+  display: grid;
+  place-items: center;
   flex-shrink: 0;
-  opacity: 0.8;
-  transition: transform 0.14s ease, opacity 0.14s ease;
+  filter: drop-shadow(1px 1px 0 rgba(11, 25, 46, 0.16));
+}
+
+.welcome-menu-label {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: skewX(-6deg);
+}
+
+.welcome-menu-slash {
+  display: none;
 }
 
 .welcome-menu-btn:hover {
   color: #ff125d;
-  transform: skewX(-12deg) translateX(4px);
+  transform: translateX(5px);
 }
 
+.welcome-menu-btn:hover .welcome-menu-icon {
+  color: #ff125d;
+}
+
+/* Signature hot-pink protruding parallelogram ribbon with golden-yellow right accent & dark 3D shadow */
 .welcome-menu-btn.is-active {
-  background: linear-gradient(96deg, #ff125d 0%, #ff206a 100%);
+  width: calc(100% + 52px);
+  margin-left: 10px;
+  padding: clamp(10px, 1.95vh, 18px) clamp(34px, 3vw, 46px) clamp(10px, 1.95vh, 18px)
+    clamp(18px, 2vw, 26px);
+  background: linear-gradient(96deg, #ff1162 0%, #f71969 78%, #ff2171 100%);
   color: #ffffff;
-  /* Signature 3D solid black drop shadow matching Mawiri arcade UI */
-  box-shadow: 0 6px 0 #000000, 4px 6px 0 #000000;
-  transform: skewX(-12deg) translateX(6px);
-  z-index: 5;
+  font-size: clamp(18px, min(2.05vw, 3.25vh), 27px);
+  transform: skewX(-12deg);
+  transform-origin: left center;
+  box-shadow: 4px 6px 0 #0a192f;
+  z-index: 6;
 }
 
 .welcome-menu-btn.is-active:hover {
   color: #ffffff;
-  transform: skewX(-12deg) translateX(6px);
+  transform: skewX(-12deg) translateX(3px);
 }
 
-.welcome-menu-btn.is-active svg {
-  opacity: 1;
-  transform: scale(1.08);
+.welcome-menu-btn.is-active .welcome-menu-icon,
+.welcome-menu-btn.is-active:hover .welcome-menu-icon {
+  color: #ffffff;
+  filter: drop-shadow(1px 2px 0 rgba(10, 25, 47, 0.35));
 }
 
-.welcome-menu-badge {
-  margin-left: auto;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: #0a192f;
-  color: #38f6ff;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+.welcome-menu-btn.is-active .welcome-menu-label {
+  transform: none;
+  text-shadow: 2px 2px 0 rgba(10, 25, 47, 0.28);
 }
 
-.welcome-menu-btn.is-active .welcome-menu-badge {
-  background: #facc15;
-  color: #0a192f;
-  border-color: #000000;
-  box-shadow: 1px 1px 0 #000000;
+/* Golden-yellow diagonal speed stripe on the right edge of the active ribbon */
+.welcome-menu-btn.is-active .welcome-menu-slash {
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 12px;
+  width: 14px;
+  background: linear-gradient(180deg, #fde047 0%, #facc15 55%, #f59e0b 100%);
+  box-shadow: 6px 0 0 rgba(250, 204, 21, 0.35);
+  pointer-events: none;
 }
 
 /* ==========================================================================
@@ -331,16 +360,17 @@
 
 .welcome-popout-anchor {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .welcome-popout-card {
   position: absolute;
-  /* Attached seamlessly flush against the right edge of the pink card */
-  left: calc(100% - 6px);
+  /* Attached cleanly to the right edge of the protruding active menu ribbon */
+  left: calc(100% + 58px);
   top: 50%;
-  transform: translateY(-50%) skewX(-12deg);
+  transform: translateY(-50%) skewX(-10deg);
   transform-origin: left center;
   z-index: 30;
   display: flex;
@@ -353,15 +383,15 @@
 @keyframes popoutPunchIn {
   0% {
     opacity: 0;
-    transform: translateY(-50%) skewX(-12deg) translateX(-18px) scale(0.92);
+    transform: translateY(-50%) skewX(-10deg) translateX(-18px) scale(0.92);
   }
   60% {
     opacity: 1;
-    transform: translateY(-50%) skewX(-12deg) translateX(4px) scale(1.02);
+    transform: translateY(-50%) skewX(-10deg) translateX(4px) scale(1.02);
   }
   100% {
     opacity: 1;
-    transform: translateY(-50%) skewX(-12deg) translateX(0) scale(1);
+    transform: translateY(-50%) skewX(-10deg) translateX(0) scale(1);
   }
 }
 
@@ -377,6 +407,7 @@
   font-style: italic;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  white-space: nowrap;
   padding: 5px 22px 5px 16px;
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
   box-shadow: 3px -2px 0 #000000;
@@ -389,9 +420,10 @@
 .welcome-popout-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 22px 8px 16px;
+  gap: 10px;
+  padding: 8px 24px 8px 16px;
   background: #ffffff;
+  white-space: nowrap;
   /* Signature black 3D shadow matching the screenshot */
   box-shadow: 0 7px 0 #000000, 4px 7px 0 #000000;
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 100%, 0 100%);
@@ -409,6 +441,8 @@
   font-style: italic;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
   color: #000000;
   padding: 6px 14px;
   display: inline-flex;
@@ -416,7 +450,7 @@
   gap: 6px;
   cursor: pointer;
   position: relative;
-  transition: all 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transition: transform 0.15s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
 .welcome-chevron-btn:hover {
@@ -910,6 +944,25 @@
   white-space: nowrap;
 }
 
+/* Compact vertical rhythm on short preview viewports (< 620px tall) */
+@media (max-height: 620px) and (min-width: 821px) {
+  .welcome-menu-layer {
+    justify-content: center;
+    padding-top: clamp(92px, 15.5vh, 122px);
+    padding-bottom: 10px;
+  }
+
+  .welcome-menu-btn {
+    padding: 6px 14px 6px 22px;
+    font-size: clamp(14px, 2.3vh, 18px);
+  }
+
+  .welcome-menu-btn.is-active {
+    padding: 7px 30px 7px 18px;
+    font-size: clamp(15px, 2.5vh, 20px);
+  }
+}
+
 /* ==========================================================================
    RESPONSIVE MOBILE / TABLET REFINEMENT
    ========================================================================== */
@@ -926,8 +979,8 @@
 
   .welcome-stage {
     position: relative;
-    height: 36dvh;
-    min-height: 170px;
+    height: 34dvh;
+    min-height: 160px;
     flex-shrink: 0;
   }
 
@@ -951,10 +1004,10 @@
   .welcome-menu-layer {
     position: relative;
     background: #ffffff;
-    padding: 16px 16px 16px;
+    width: 100%;
+    padding: 18px 18px 14px;
     margin-top: -18px;
     clip-path: polygon(0 16px, 100% 0, 100% 100%, 0 100%);
-    max-width: none;
     flex: 1;
     justify-content: center;
     overflow: hidden;
@@ -962,7 +1015,8 @@
 
   .welcome-menu-list {
     width: 100%;
-    gap: clamp(3px, 0.7vh, 6px);
+    max-height: none;
+    justify-content: space-evenly;
   }
 
   .welcome-menu-row,
@@ -976,8 +1030,15 @@
     width: 100%;
     min-width: 0;
     font-size: clamp(14px, 2.1vh, 17px);
-    padding: clamp(5px, 0.9vh, 9px) 16px;
+    padding: clamp(5px, 0.9vh, 9px) 14px clamp(5px, 0.9vh, 9px) 10px;
     margin-left: 0;
+  }
+
+  .welcome-menu-btn.is-active {
+    width: 100%;
+    margin-left: 0;
+    font-size: clamp(15px, 2.25vh, 19px);
+    padding: clamp(6px, 1.05vh, 10px) 28px clamp(6px, 1.05vh, 10px) 14px;
   }
 
   .welcome-popout-card {
@@ -1001,7 +1062,7 @@
   }
 
   .welcome-top-hud {
-    top: calc(36dvh - 50px);
+    top: calc(34dvh - 50px);
     bottom: auto;
     right: 12px;
     max-width: calc(100% - 24px);

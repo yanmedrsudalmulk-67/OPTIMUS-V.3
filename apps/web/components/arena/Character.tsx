@@ -729,15 +729,15 @@ function VinylHeroCharacter({
         false,
       );
     return {
-      // Thin, softly arched, slightly longer eyebrow (centered at 0,0,0 along X) like the reference
+      // Bold, softly arched sculpted eyebrow matching the Hero Gallery 3D render
       brow: mk(
         [
-          [-0.052, -0.006, -0.008],
-          [-0.018, 0.006, 0.002],
-          [0.018, 0.006, 0.002],
-          [0.052, -0.006, -0.008],
+          [-0.056, -0.006, -0.008],
+          [-0.019, 0.007, 0.003],
+          [0.019, 0.007, 0.003],
+          [0.056, -0.006, -0.008],
         ],
-        0.0088,
+        0.0112,
       ),
       // Small, slightly down-turned calm mouth (sits gracefully right below the nose button)
       gentle: mk(
@@ -1084,33 +1084,41 @@ function VinylHeroCharacter({
     // 4. Facial Acting (Eyes, Brows, Mouth, Sweat)
     if (eyeGroupLRef.current) {
       eyeGroupLRef.current.scale.y = Math.max(0.08, s.blink);
-      eyeGroupLRef.current.position.set(-0.12 + s.gazeX, 0.038 + s.gazeY, 0.376);
+      eyeGroupLRef.current.position.set(-0.125 + s.gazeX, 0.042 + s.gazeY, 0.376);
     }
     if (eyeGroupRRef.current) {
       eyeGroupRRef.current.scale.y = Math.max(0.08, s.blink);
-      eyeGroupRRef.current.position.set(0.12 + s.gazeX, 0.038 + s.gazeY, 0.376);
+      eyeGroupRRef.current.position.set(0.125 + s.gazeX, 0.042 + s.gazeY, 0.376);
     }
     // Note: brow geometry lies horizontally along X!
     // Positive rotation.z lifts +X and lowers -X:
     //   For browL (screen left, -X): +browTiltL lifts inner (+X) end -> sweet curious '/' arch!
     //   For browR (screen right, +X): -browTiltR lifts inner (-X) end -> sweet curious '\' arch!
     if (browLRef.current) {
-      browLRef.current.position.y = 0.165 + s.browLiftL;
+      browLRef.current.position.y = 0.168 + s.browLiftL;
       browLRef.current.rotation.z = s.browTiltL;
     }
     if (browRRef.current) {
-      browRRef.current.position.y = 0.165 + s.browLiftR;
+      browRRef.current.position.y = 0.168 + s.browLiftR;
       browRRef.current.rotation.z = s.browTiltR;
     }
 
     const mood: MouthMood = target.mouthMood;
     const useHeroOpenSmile =
-      Boolean(profile.confidentSmile) && (mood === 'gentle' || mood === 'smile' || mood === 'cheer');
-    if (mouthHeroSmileRef.current) mouthHeroSmileRef.current.visible = useHeroOpenSmile;
+      Boolean(profile.confidentSmile) &&
+      (mood === 'gentle' || mood === 'smile' || mood === 'cheer' || mood === 'effort');
+    if (mouthHeroSmileRef.current) {
+      mouthHeroSmileRef.current.visible = useHeroOpenSmile;
+      if (useHeroOpenSmile) {
+        const sx = mood === 'effort' ? 0.92 : mood === 'cheer' ? 1.12 : 1.06;
+        const sy = mood === 'effort' ? 1.08 : mood === 'cheer' ? 1.15 : 1.06;
+        mouthHeroSmileRef.current.scale.set(sx, sy, 1.05);
+      }
+    }
     if (mouthGentleRef.current) mouthGentleRef.current.visible = !useHeroOpenSmile && mood === 'gentle';
     if (mouthSmileRef.current) mouthSmileRef.current.visible = !useHeroOpenSmile && mood === 'smile';
     if (mouthPoutRef.current) mouthPoutRef.current.visible = mood === 'pout';
-    if (mouthEffortRef.current) mouthEffortRef.current.visible = mood === 'effort';
+    if (mouthEffortRef.current) mouthEffortRef.current.visible = !useHeroOpenSmile && mood === 'effort';
     if (mouthCheerRef.current) mouthCheerRef.current.visible = !useHeroOpenSmile && mood === 'cheer';
 
     if (sweatRef.current) {
@@ -1651,29 +1659,36 @@ function VinylHeroCharacter({
                   </group>
                 ))}
 
-              {/* Plump Warm-Peachy Button Nose */}
+              {/* Plump Warm-Peachy Button Nose with Glossy Highlight */}
               <mesh
-                position={[0, -0.038, 0.408]}
+                position={[0, -0.036, 0.412]}
+                scale={[1.14, 1.12, 1.16]}
                 geometry={noseGeo}
                 material={noseSkinMat}
                 castShadow
               />
 
-              {/* Small Expressive Glossy Dark-Espresso Oval Bead Eyes + Crisp Top-Left Catchlights */}
-              <group ref={eyeGroupLRef} position={[-0.12, 0.038, 0.376]} rotation={[0, -0.16, 0]}>
-                <mesh scale={[0.028, 0.044, 0.022]} material={eyeMat}>
-                  <sphereGeometry args={[1, 20, 14]} />
+              {/* Expressive Glossy Dark-Espresso Oval Eyes + Dual Catchlights (Hero Gallery proportions) */}
+              <group ref={eyeGroupLRef} position={[-0.125, 0.042, 0.376]} rotation={[0, -0.16, 0]}>
+                <mesh scale={[0.038, 0.056, 0.026]} material={eyeMat}>
+                  <sphereGeometry args={[1, 22, 16]} />
                 </mesh>
-                <mesh position={[-0.007, 0.013, 0.019]} material={catchlightMat}>
-                  <sphereGeometry args={[0.0065, 10, 8]} />
+                <mesh position={[-0.01, 0.018, 0.022]} material={catchlightMat}>
+                  <sphereGeometry args={[0.0092, 12, 10]} />
+                </mesh>
+                <mesh position={[0.009, -0.015, 0.022]} material={catchlightMat}>
+                  <sphereGeometry args={[0.0044, 10, 8]} />
                 </mesh>
               </group>
-              <group ref={eyeGroupRRef} position={[0.12, 0.038, 0.376]} rotation={[0, 0.16, 0]}>
-                <mesh scale={[0.028, 0.044, 0.022]} material={eyeMat}>
-                  <sphereGeometry args={[1, 20, 14]} />
+              <group ref={eyeGroupRRef} position={[0.125, 0.042, 0.376]} rotation={[0, 0.16, 0]}>
+                <mesh scale={[0.038, 0.056, 0.026]} material={eyeMat}>
+                  <sphereGeometry args={[1, 22, 16]} />
                 </mesh>
-                <mesh position={[-0.007, 0.013, 0.019]} material={catchlightMat}>
-                  <sphereGeometry args={[0.0065, 10, 8]} />
+                <mesh position={[-0.01, 0.018, 0.022]} material={catchlightMat}>
+                  <sphereGeometry args={[0.0092, 12, 10]} />
+                </mesh>
+                <mesh position={[0.009, -0.015, 0.022]} material={catchlightMat}>
+                  <sphereGeometry args={[0.0044, 10, 8]} />
                 </mesh>
               </group>
 

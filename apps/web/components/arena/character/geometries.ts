@@ -45,7 +45,7 @@ const geoCache = new Map<string, THREE.BufferGeometry>();
  * and baked smooth airbrushed vertex-color blush on cheeks, nose bridge, and chin.
  */
 export function getSculptedHeadGeometry(skinHex: string, blushHex: string): THREE.BufferGeometry {
-  const key = `head-v3:${skinHex}:${blushHex}`;
+  const key = `head-v4:${skinHex}:${blushHex}`;
   const cached = geoCache.get(key);
   if (cached) return cached;
 
@@ -56,7 +56,7 @@ export function getSculptedHeadGeometry(skinHex: string, blushHex: string): THRE
 
   const skinColor = new THREE.Color(skinHex);
   const blushColor = new THREE.Color(blushHex);
-  const shadowWarmth = skinColor.clone().lerp(blushColor, 0.25);
+  const shadowWarmth = skinColor.clone().lerp(blushColor, 0.34);
   const tmpColor = new THREE.Color();
 
   const rx = 0.452;
@@ -88,18 +88,18 @@ export function getSculptedHeadGeometry(skinHex: string, blushHex: string): THRE
 
     // Seamless vertex-baked airbrushed blush on cheeks, nose bridge, and lower chin
     const leftCheek = Math.exp(
-      -(Math.pow((nx + 0.52) / 0.28, 2) + Math.pow((ny + 0.2) / 0.22, 2)),
+      -(Math.pow((nx + 0.5) / 0.3, 2) + Math.pow((ny + 0.18) / 0.24, 2)),
     );
     const rightCheek = Math.exp(
-      -(Math.pow((nx - 0.52) / 0.28, 2) + Math.pow((ny + 0.2) / 0.22, 2)),
+      -(Math.pow((nx - 0.5) / 0.3, 2) + Math.pow((ny + 0.18) / 0.24, 2)),
     );
     const noseGlow = Math.exp(-(Math.pow(nx / 0.18, 2) + Math.pow((ny + 0.04) / 0.16, 2)));
-    const frontMask = smoothstep(0.15, 0.72, nz);
-    const chinGlow = smoothstep(-0.45, -0.95, ny) * 0.2;
+    const frontMask = smoothstep(0.12, 0.7, nz);
+    const chinGlow = smoothstep(-0.42, -0.95, ny) * 0.26;
 
     const blushWeight = Math.min(
-      0.38,
-      (leftCheek + rightCheek) * frontMask * 0.3 + noseGlow * frontMask * 0.16,
+      0.48,
+      (leftCheek + rightCheek) * frontMask * 0.38 + noseGlow * frontMask * 0.2,
     );
 
     tmpColor.copy(skinColor).lerp(shadowWarmth, chinGlow).lerp(blushColor, blushWeight);

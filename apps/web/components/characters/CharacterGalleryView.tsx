@@ -1,43 +1,32 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import dynamic from 'next/dynamic';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
   ArrowLeft,
   ArrowRight,
+  BookOpen,
   Check,
   ChevronLeft,
   ChevronRight,
   FlaskConical,
+  Gamepad2,
   Heart,
   HeartPulse,
-  Lightbulb,
   Pill,
-  Rotate3D,
+  RotateCw,
   ShieldPlus,
-  Sparkles,
   Stethoscope,
   Truck,
   Users,
   X,
   Zap,
 } from 'lucide-react';
-import { CHARACTERS, type CharacterDefinition, type Team } from '../../../../packages/shared/src';
+import { CHARACTERS, type Team } from '../../../../packages/shared/src';
 import { playSound } from '../../lib/audio';
 import './character-gallery.css';
-
-const CharacterPreview = dynamic(() => import('../arena/CharacterPreview'), {
-  ssr: false,
-  loading: () => (
-    <div className="cg-loading" role="status">
-      <span />
-      Menyiapkan hero 3D…
-    </div>
-  ),
-});
 
 export interface CharacterGalleryProps {
   selectedId?: string;
@@ -48,7 +37,7 @@ export interface CharacterGalleryProps {
   backHref?: string;
 }
 
-export function ProfessionIcon({ id, size = 20 }: { id: string; size?: number }) {
+export function ProfessionIcon({ id, size = 22 }: { id: string; size?: number }) {
   const Icon =
     id === 'midwife'
       ? Heart
@@ -65,15 +54,49 @@ export function ProfessionIcon({ id, size = 20 }: { id: string; size?: number })
                 : id.startsWith('nurse')
                   ? HeartPulse
                   : Stethoscope;
-  return <Icon size={size} aria-hidden="true" />;
+  return <Icon size={size} strokeWidth={2.3} aria-hidden="true" />;
 }
 
 const attributes = [
-  { key: 'care', label: 'Care', icon: HeartPulse, color: '#34d399' },
-  { key: 'teamwork', label: 'Teamwork', icon: Users, color: '#38bdf8' },
-  { key: 'knowledge', label: 'Knowledge', icon: Lightbulb, color: '#facc15' },
-  { key: 'resilience', label: 'Resilience', icon: Zap, color: '#818cf8' },
+  {
+    key: 'care',
+    label: 'Care',
+    icon: Heart,
+    color: '#10b981',
+    gradient: 'linear-gradient(180deg, #6ee7b7 0%, #10b981 55%, #059669 100%)',
+    iconColor: '#ff2e93',
+    strokeColor: '#ff7eb6',
+  },
+  {
+    key: 'teamwork',
+    label: 'Teamwork',
+    icon: Users,
+    color: '#38bdf8',
+    gradient: 'linear-gradient(180deg, #7dd3fc 0%, #38bdf8 55%, #0284c7 100%)',
+    iconColor: '#38f6ff',
+    strokeColor: '#0c4a6e',
+  },
+  {
+    key: 'knowledge',
+    label: 'Knowledge',
+    icon: BookOpen,
+    color: '#facc15',
+    gradient: 'linear-gradient(180deg, #fef08a 0%, #facc15 55%, #ca8a04 100%)',
+    iconColor: '#facc15',
+    strokeColor: '#78350f',
+  },
+  {
+    key: 'resilience',
+    label: 'Resilience',
+    icon: Zap,
+    color: '#a855f7',
+    gradient: 'linear-gradient(180deg, #e9d5ff 0%, #c084fc 50%, #9333ea 100%)',
+    iconColor: '#c084fc',
+    strokeColor: '#e9d5ff',
+  },
 ] as const;
+
+const VISIBLE_CARDS = 5;
 
 export default function CharacterGalleryView({
   selectedId = 'doctor-m',
@@ -91,6 +114,9 @@ export default function CharacterGalleryView({
   const [showSlidePopup, setShowSlidePopup] = useState(false);
   const [busy, setBusy] = useState(false);
   const [cardKey, setCardKey] = useState(0);
+  const [turntableAngle, setTurntableAngle] = useState(0);
+  const dragStartX = useRef<number | null>(null);
+  const dragBaseAngle = useRef<number>(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const isModal = Boolean(onClose);
 
@@ -99,6 +125,13 @@ export default function CharacterGalleryView({
     CHARACTERS.findIndex((c) => c.id === activeId),
   );
   const hero = CHARACTERS[heroIndex] || CHARACTERS[0];
+
+  // Keep a clean 5-card window so 5 complete portrait cards (e.g. 01..05) are always shown without clipping
+  const windowStart = Math.min(
+    Math.max(0, heroIndex - 2),
+    Math.max(0, CHARACTERS.length - VISIBLE_CARDS),
+  );
+  const visibleCharacters = CHARACTERS.slice(windowStart, windowStart + VISIBLE_CARDS);
 
   useEffect(() => {
     if (!isModal) return;
@@ -115,6 +148,7 @@ export default function CharacterGalleryView({
   const choose = useCallback((id: string) => {
     setActiveId(id);
     setCardKey((k) => k + 1);
+    setTurntableAngle(0);
     playSound('select');
   }, []);
 
@@ -127,6 +161,28 @@ export default function CharacterGalleryView({
     const prevIdx = (heroIndex - 1 + CHARACTERS.length) % CHARACTERS.length;
     choose(CHARACTERS[prevIdx].id);
   }, [choose, heroIndex]);
+
+  // Interactive 360 turntable drag on character stage
+  const handleStagePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    dragStartX.current = e.clientX;
+    dragBaseAngle.current = turntableAngle;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handleStagePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (dragStartX.current === null) return;
+    const deltaX = e.clientX - dragStartX.current;
+    setTurntableAngle(dragBaseAngle.current + deltaX * 0.85);
+  };
+
+  const handleStagePointerUp = () => {
+    dragStartX.current = null;
+  };
+
+  const handleSpin360 = () => {
+    playSound('select');
+    setTurntableAngle((prev) => prev + 360);
+  };
 
   // Keyboard navigation: Left/Right switches hero, Enter opens slide pop-up, Escape closes
   useEffect(() => {
@@ -167,7 +223,6 @@ export default function CharacterGalleryView({
     } catch {
       /* ignore if disabled */
     }
-    // Trigger signature pop up slide animation!
     setShowSlidePopup(true);
   }
 
@@ -190,24 +245,34 @@ export default function CharacterGalleryView({
       className="cg-cinematic-shell"
       style={
         {
-          '--hero-accent': hero.accent || '#e11d62',
+          '--hero-accent': hero.accent || '#38bdf8',
         } as CSSProperties
       }
     >
-      {/* 1. SIGNATURE CINEMATIC DIAGONAL SPLIT WEDGE (BIG HERO 6 STYLE) */}
-      <div className="cg-diagonal-wedge" aria-hidden="true" />
-      <div className="cg-cyber-grid" aria-hidden="true" />
-      <div className="cg-particles-drift" aria-hidden="true" />
+      {/* 1. EXACT GOLDEN-HOUR RSUD AL-MULK HOSPITAL COURTYARD & HOLOGRAPHIC PODIUM BACKGROUND */}
+      <div className="cg-bg-stage" aria-hidden="true">
+        <img
+          src="/images/gallery-hospital-bg.jpg"
+          alt=""
+          className="cg-bg-img"
+          draggable={false}
+        />
+        <div className="cg-bg-overlay" />
+      </div>
 
-      {/* 2. TOP HEADER HUD */}
+      {/* 2. TOP HEADER HUD MATCHING REFERENCE IMAGE */}
       <header className="cg-top-hud">
-        <Link href={backHref} className="cg-brand-pill" aria-label="Beranda Medical Tug of War">
-          <div className="cg-brand-icon">
-            <Activity size={20} />
+        <Link href={backHref} className="cg-logo-lockup" aria-label="Beranda Medical Tug of War">
+          <div className="cg-logo-crest" aria-hidden="true">
+            <Gamepad2 size={32} strokeWidth={2.4} className="cg-crest-gamepad" />
+            <Activity size={24} strokeWidth={3} className="cg-crest-ecg" />
           </div>
-          <div className="cg-brand-info">
-            <span className="cg-brand-title">MEDICAL TUG OF WAR</span>
-            <span className="cg-brand-sub">RSUD AL-MULK • HERO SHOWCASE</span>
+          <div className="cg-logo-texts">
+            <span className="cg-logo-main">MEDICAL</span>
+            <div className="cg-logo-sub-wrap">
+              <span className="cg-logo-sub">TUG OF WAR</span>
+            </div>
+            <span className="cg-logo-tag">RSUD AL-MULK • QUIZ BATTLE</span>
           </div>
         </Link>
 
@@ -216,6 +281,7 @@ export default function CharacterGalleryView({
             <span className="cg-live-dot" />
             HERO GALLERY ARCHIVE
           </span>
+          <span className="cg-header-divider" aria-hidden="true" />
           {onClose ? (
             <button
               type="button"
@@ -224,230 +290,259 @@ export default function CharacterGalleryView({
               disabled={busy}
               aria-label="Tutup galeri"
             >
-              <X size={16} />
+              <X size={17} strokeWidth={2.6} />
               Tutup
             </button>
           ) : (
             <Link className="cg-back-btn" href={backHref}>
-              <ArrowLeft size={16} />
+              <ArrowLeft size={17} strokeWidth={2.6} />
               Kembali
             </Link>
           )}
         </div>
       </header>
 
-      {/* 3. MAIN STAGE LAYOUT (LEFT: 3D HERO + HUD RETICLES, RIGHT: CHARACTER DOSSIER) */}
-      <main className="cg-showcase-grid">
-        {/* LEFT COLUMN: 3D CHARACTER WITH SCI-FI / MEDICAL TECH RETICLES */}
-        <section className="cg-hero-display" aria-label="Tampilan 3D Karakter">
-          {/* Tech Reticles & Telemetry Points (Big Hero 6 style) */}
-          <div className="cg-reticles-overlay" aria-hidden="true">
-            {/* Chest / Pulse Telemetry Point */}
-            <div className="cg-hud-point is-chest">
-              <span className="cg-target-ring" />
-              <span className="cg-hud-line" />
-              <div className="cg-hud-data">
-                <b>PULSE TELEMETRY</b>
-                <span>ECG 78 BPM • SYNC READY</span>
-              </div>
+      {/* 3. LEFT STAGE: FULL-BODY CHARACTER LOCKED ON THE HOLOGRAPHIC PODIUM + TELEMETRY CALLOUTS */}
+      <section className="cg-left-stage" aria-label="Tampilan Ilustrasi Karakter">
+        {/* Pulse Telemetry Hexagonal Callout */}
+        <div className="cg-hud-point is-chest" aria-hidden="true">
+          <div className="cg-hud-callout">
+            <HeartPulse size={34} strokeWidth={2.1} className="cg-hud-raw-icon" />
+            <div className="cg-hud-data">
+              <b>PULSE TELEMETRY</b>
+              <span>ECG 78 BPM - SYNC READY</span>
             </div>
-
-            {/* Specialty / ID Badge Point */}
-            <div className="cg-hud-point is-badge">
-              <span className="cg-target-ring" />
-              <span className="cg-hud-line" />
-              <div className="cg-hud-data">
-                <b>SPECIALTY PROTOCOL</b>
-                <span>{hero.profession.toUpperCase()}</span>
-              </div>
-            </div>
-
-            {/* Orbiting concentric background rings */}
-            <div className="cg-orbit-pulse" />
           </div>
+          <span className="cg-hud-connector is-angled">
+            <i className="cg-origin-node" />
+            <i className="cg-target-node" />
+          </span>
+        </div>
 
-          {/* 3D Character Canvas */}
-          <div className="cg-model-wrapper" key={hero.id}>
-            <CharacterPreview
-              characterId={hero.id}
-              team={team}
-              background="transparent"
-              selected
-              showHint={false}
+        {/* Specialty Protocol Hexagonal Callout */}
+        <div className="cg-hud-point is-badge" aria-hidden="true">
+          <div className="cg-hud-callout">
+            <ShieldPlus size={34} strokeWidth={2.1} className="cg-hud-raw-icon" />
+            <div className="cg-hud-data">
+              <b>SPECIALTY PROTOCOL</b>
+              <span>{hero.profession.toUpperCase()}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Full-Body Character Standing on the Holographic Pedestal */}
+        <div
+          className="cg-hero-stage-center"
+          key={hero.id}
+          onPointerDown={handleStagePointerDown}
+          onPointerMove={handleStagePointerMove}
+          onPointerUp={handleStagePointerUp}
+          onPointerCancel={handleStagePointerUp}
+          title="Geser untuk memutar hero 360°"
+        >
+          <div
+            className="cg-hero-art-frame"
+            style={{
+              transform: `perspective(1100px) rotateY(${turntableAngle}deg)`,
+            }}
+          >
+            <img
+              src={hero.fullBodyImagePath || hero.poseImagePath || hero.thumbnailPath}
+              alt={hero.name}
+              className="cg-hero-pose-img"
+              draggable={false}
             />
           </div>
 
-          {/* Stage Bottom Indicator */}
-          <div className="cg-hero-meta-badge">
+          {/* Grounded Dual-Shoe Contact Shadow + Cyan Holographic Ring Reflection */}
+          <div className="cg-shoe-contact-shadows" aria-hidden="true">
+            <span className="cg-shoe-shadow is-left" />
+            <span className="cg-shoe-shadow is-right" />
+          </div>
+          <div className="cg-podium-foot-glow" aria-hidden="true" />
+        </div>
+
+        {/* Bottom-Left Slanted Glass Hero Index Badge */}
+        <button
+          type="button"
+          className="cg-hero-meta-badge"
+          onClick={handleSpin360}
+          aria-label={`${hero.name} - Putar hero 360 derajat`}
+        >
+          <div className="cg-meta-inner">
             <div className="cg-hero-index-num">
               <span>{String(heroIndex + 1).padStart(2, '0')}</span>
-              <small>/ {String(CHARACTERS.length).padStart(2, '0')}</small>
+              <small>/{String(CHARACTERS.length).padStart(2, '0')}</small>
             </div>
+            <span className="cg-meta-divider" aria-hidden="true" />
             <div className="cg-hero-rotation-hint">
               <strong>{hero.name}</strong>
               <span>
-                <Rotate3D size={15} /> Geser untuk memutar hero 360°
+                <RotateCw size={14} strokeWidth={2.5} /> Geser untuk memutar hero 360°
               </span>
             </div>
           </div>
-        </section>
+        </button>
+      </section>
 
-        {/* RIGHT COLUMN: HERO DOSSIER & PROFILE (SLIDES SMOOTHLY ON SELECTION) */}
-        <section className="cg-hero-dossier" key={`dossier-${cardKey}`}>
-          <div className="cg-dossier-header">
-            <div className="cg-dossier-pill">
-              <Sparkles size={14} />
-              MEDICAL HERO // RSUD AL-MULK
-            </div>
-            <span className="cg-hero-code">HERO-{String(heroIndex + 1).padStart(3, '0')}</span>
+      {/* 4. RIGHT STAGE: HERO DOSSIER, ATTRIBUTE BARS, ACTIONS & 5-CARD PORTRAIT CAROUSEL */}
+      <section className="cg-hero-dossier" key={`dossier-${cardKey}`} aria-label="Profil Karakter">
+        <div className="cg-dossier-header">
+          <div className="cg-dossier-pill">
+            <Activity size={17} strokeWidth={2.6} />
+            <span>MEDICAL HERO // RSUD AL-MULK</span>
+          </div>
+          <div className="cg-hero-code">
+            <span>HERO-{String(heroIndex + 1).padStart(3, '0')}</span>
+          </div>
+        </div>
+
+        <div className="cg-dossier-main">
+          <div className="cg-dossier-title-row">
+            <h1 className="cg-dossier-name" data-text={hero.title}>
+              {hero.title}
+            </h1>
+            <span className="cg-title-flare" aria-hidden="true" />
           </div>
 
-          <div className="cg-dossier-main">
-            <h1 className="cg-dossier-name">{hero.title}</h1>
-            <div className="cg-dossier-profession-row">
-              <span className="cg-dossier-profession">
-                <ProfessionIcon id={hero.id} size={18} />
-                {hero.profession}
-              </span>
-              <span className="cg-dossier-team-badge">
-                {team === 'A' ? 'TIM HIJAU' : 'TIM BIRU'}
-              </span>
-            </div>
+          <div className="cg-dossier-profession-row">
+            <span className="cg-dossier-profession">
+              <ProfessionIcon id={hero.id} size={22} />
+              {hero.profession}
+            </span>
+            <span className={`cg-dossier-team-badge ${team === 'A' ? 'is-green' : 'is-blue'}`}>
+              {team === 'A' ? 'Tim Hijau' : 'Tim Biru'}
+            </span>
+          </div>
 
-            <div className="cg-dossier-bio-wrap">
-              <p className="cg-dossier-bio">{hero.description}</p>
-              <div className="cg-bio-tech-line" aria-hidden="true">
-                <span className="cg-tech-notch" />
-              </div>
-            </div>
+          <p className="cg-dossier-bio">{hero.description}</p>
 
-            {/* ATTRIBUTE BARS (FUTURISTIC MEDICAL TELEMETRY GAUGES) */}
-            <div className="cg-stats-cluster">
-              {attributes.map((attr) => (
-                <div className="cg-stat-row" key={attr.key}>
-                  <div className="cg-stat-label">
-                    <attr.icon size={15} style={{ color: attr.color }} />
-                    <span>{attr.label}</span>
-                  </div>
-                  <div
-                    className="cg-stat-bar-track"
-                    role="progressbar"
-                    aria-label={attr.label}
-                    aria-valuenow={hero.attributes[attr.key]}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  >
-                    <div
-                      className="cg-stat-bar-fill"
-                      style={{
-                        width: `${hero.attributes[attr.key]}%`,
-                        background: attr.color,
-                        boxShadow: `0 0 10px ${attr.color}80`,
-                      }}
-                    />
-                  </div>
-                  <strong className="cg-stat-val">{hero.attributes[attr.key]}</strong>
+          {/* ATTRIBUTE BARS (CHAMFERED HOLOGRAPHIC GLASS PANEL) */}
+          <div className="cg-stats-cluster">
+            {attributes.map((attr) => (
+              <div className="cg-stat-row" key={attr.key}>
+                <div className="cg-stat-label">
+                  <attr.icon
+                    size={20}
+                    fill={attr.iconColor}
+                    color={attr.strokeColor}
+                    strokeWidth={1.8}
+                    className="cg-stat-solid-icon"
+                    style={{ filter: `drop-shadow(0 0 7px ${attr.iconColor})` }}
+                  />
+                  <span>{attr.label}</span>
                 </div>
-              ))}
-            </div>
+                <div
+                  className="cg-stat-bar-track"
+                  role="progressbar"
+                  aria-label={attr.label}
+                  aria-valuenow={hero.attributes[attr.key]}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                >
+                  <div
+                    className="cg-stat-bar-fill"
+                    style={{
+                      width: `${hero.attributes[attr.key]}%`,
+                      background: attr.gradient,
+                      boxShadow: `0 0 14px ${attr.color}b0`,
+                    }}
+                  />
+                </div>
+                <strong className="cg-stat-val">{hero.attributes[attr.key]}</strong>
+              </div>
+            ))}
+          </div>
 
-            {/* PRIMARY CALL TO ACTION BUTTON */}
-            <div className="cg-action-row">
+          {/* PRIMARY CALL TO ACTION BUTTON + TEAM PILLS */}
+          <div className="cg-action-row">
+            <button
+              type="button"
+              className="cg-primary-select-btn"
+              onClick={handleConfirmSelect}
+            >
+              <span>PILIH KARAKTER</span>
+              <div className="cg-btn-arrow">
+                <ArrowRight size={18} strokeWidth={3} />
+              </div>
+            </button>
+
+            <div className="cg-team-toggle-group">
               <button
                 type="button"
-                className="cg-primary-select-btn"
-                onClick={handleConfirmSelect}
+                className={`cg-team-btn is-green ${team === 'A' ? 'is-selected' : ''}`}
+                onClick={() => {
+                  setTeam('A');
+                  playSound('select');
+                }}
+                title="Pratinjau Tim Hijau"
               >
-                <span>PILIH KARAKTER</span>
-                <div className="cg-btn-arrow">
-                  <ArrowRight size={18} />
-                </div>
+                <i /> Tim Hijau
               </button>
-
-              {/* Team color preview toggle */}
-              <div className="cg-team-toggle-group">
-                <button
-                  type="button"
-                  className={`cg-team-btn is-green ${team === 'A' ? 'is-selected' : ''}`}
-                  onClick={() => {
-                    setTeam('A');
-                    playSound('select');
-                  }}
-                  title="Pratinjau Tim Hijau"
-                >
-                  <i /> Tim Hijau
-                </button>
-                <button
-                  type="button"
-                  className={`cg-team-btn is-blue ${team === 'B' ? 'is-selected' : ''}`}
-                  onClick={() => {
-                    setTeam('B');
-                    playSound('select');
-                  }}
-                  title="Pratinjau Tim Biru"
-                >
-                  <i /> Tim Biru
-                </button>
-              </div>
+              <button
+                type="button"
+                className={`cg-team-btn is-blue ${team === 'B' ? 'is-selected' : ''}`}
+                onClick={() => {
+                  setTeam('B');
+                  playSound('select');
+                }}
+                title="Pratinjau Tim Biru"
+              >
+                <i /> Tim Biru
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* 4. BOTTOM HORIZONTAL CIRCULAR AVATAR SELECTOR (BIG HERO 6 STYLE) */}
-          <div className="cg-bottom-avatar-row" aria-label="Pilih Karakter Lainnya">
-            <button
-              type="button"
-              className="cg-avatar-nav-btn"
-              onClick={handlePrev}
-              aria-label="Karakter sebelumnya"
-            >
-              <ChevronLeft size={20} />
-            </button>
+        {/* 5. BOTTOM 5-CARD ROUNDED-SQUARE PORTRAIT CAROUSEL WITH PENTAGONAL CHEVRON SHIELDS */}
+        <div className="cg-bottom-avatar-row" aria-label="Pilih Karakter Lainnya">
+          <button
+            type="button"
+            className="cg-avatar-nav-btn is-prev"
+            onClick={handlePrev}
+            aria-label="Karakter sebelumnya"
+          >
+            <ChevronLeft size={28} strokeWidth={3} />
+          </button>
 
-            <div className="cg-avatar-list">
-              {CHARACTERS.map((c, idx) => {
-                const isActive = c.id === hero.id;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className={`cg-avatar-btn ${isActive ? 'is-active' : ''}`}
-                    onClick={() => choose(c.id)}
-                    aria-label={`Pilih ${c.name}`}
-                    title={c.name}
-                  >
-                    {/* Concentric pulsing target ring on active hero */}
-                    {isActive && (
-                      <span className="cg-avatar-target-ring" aria-hidden="true">
-                        <span className="cg-ring-bracket is-left" />
-                        <span className="cg-ring-bracket is-right" />
-                      </span>
-                    )}
-                    <img
-                      src={c.thumbnailPath}
-                      alt={c.name}
-                      className="cg-avatar-img"
-                      draggable={false}
-                    />
-                    <span className="cg-avatar-num">{String(idx + 1).padStart(2, '0')}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="cg-avatar-nav-btn"
-              onClick={handleNext}
-              aria-label="Karakter berikutnya"
-            >
-              <ChevronRight size={20} />
-            </button>
+          <div className="cg-avatar-list">
+            {visibleCharacters.map((c) => {
+              const globalIdx = CHARACTERS.findIndex((item) => item.id === c.id);
+              const isActive = c.id === hero.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`cg-avatar-btn ${isActive ? 'is-active' : ''}`}
+                  onClick={() => choose(c.id)}
+                  aria-label={`Pilih ${c.name}`}
+                  title={c.name}
+                >
+                  <img
+                    src={c.poseImagePath || c.thumbnailPath}
+                    alt={c.name}
+                    className="cg-avatar-img"
+                    draggable={false}
+                  />
+                  <span className="cg-avatar-num">{String(globalIdx + 1).padStart(2, '0')}</span>
+                </button>
+              );
+            })}
           </div>
-        </section>
-      </main>
+
+          <button
+            type="button"
+            className="cg-avatar-nav-btn is-next"
+            onClick={handleNext}
+            aria-label="Karakter berikutnya"
+          >
+            <ChevronRight size={28} strokeWidth={3} />
+          </button>
+        </div>
+      </section>
 
       {/* ========================================================================
-          5. ANIMATED POP-UP SLIDE CONFIRMATION (WHEN HERO IS SELECTED)
+          6. ANIMATED POP-UP SLIDE CONFIRMATION (WHEN HERO IS SELECTED)
           ======================================================================== */}
       {showSlidePopup && (
         <div
@@ -461,7 +556,6 @@ export default function CharacterGalleryView({
             className="cg-slide-popup-card"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top Close Button */}
             <button
               type="button"
               className="cg-popup-close-btn"
@@ -471,22 +565,19 @@ export default function CharacterGalleryView({
               <X size={20} />
             </button>
 
-            {/* Header Badge */}
             <div className="cg-popup-badge">
               <Check size={18} strokeWidth={3} />
               <span>HERO BERHASIL DIPILIH!</span>
             </div>
 
-            {/* Hero Card Visual */}
             <div className="cg-popup-hero-preview">
               <div className="cg-popup-avatar-frame">
                 <img
-                  src={hero.thumbnailPath}
+                  src={hero.poseImagePath || hero.thumbnailPath}
                   alt={hero.name}
                   className="cg-popup-avatar"
                   draggable={false}
                 />
-                <span className="cg-popup-glow-ring" />
               </div>
 
               <div className="cg-popup-hero-titles">
@@ -498,7 +589,6 @@ export default function CharacterGalleryView({
               </div>
             </div>
 
-            {/* Team Assignment Selector */}
             <div className="cg-popup-team-picker">
               <span className="cg-team-picker-label">PILIHAN TIM:</span>
               <div className="cg-team-picker-pills">
@@ -525,7 +615,6 @@ export default function CharacterGalleryView({
               </div>
             </div>
 
-            {/* Short Stats Radar Summary */}
             <div className="cg-popup-stats-summary">
               <div className="cg-popup-stat">
                 <span className="label">Care</span>
@@ -541,11 +630,10 @@ export default function CharacterGalleryView({
               </div>
               <div className="cg-popup-stat">
                 <span className="label">Resilience</span>
-                <span className="val" style={{ color: '#818cf8' }}>{hero.attributes.resilience}</span>
+                <span className="val" style={{ color: '#c084fc' }}>{hero.attributes.resilience}</span>
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="cg-popup-actions">
               <button
                 type="button"
