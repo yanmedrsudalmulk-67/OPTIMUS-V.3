@@ -1,0 +1,1341 @@
+import crypto from 'node:crypto';
+import type { Server } from 'socket.io';
+import type { Prisma } from '@prisma/client';
+import { prisma } from '../../../../packages/database/client';
+import { calculateAward, calculateRound, winnerAtEnd } from '../../../../packages/game-engine/src';
+import {
+  CHARACTERS,
+  defaultTeamCharacters,
+  type RoomState,
+  type Question,
+  type Player,
+  type Team,
+  type TeamController,
+  type TeamCharacterSlot,
+  type RoundResult,
+} from '../../../../packages/shared/src';
+export { defaultTeamCharacters };
+import {
+  settings as parseSettings,
+  matchSchema,
+  quickMatchSchema,
+  joinSchema,
+  teamUpdateSchema,
+} from '../validation';
+import { hashToken } from '../auth';
+
+interface Answer {
+  answer: number;
+  responseTimeMs: number;
+}
+interface Internal {
+  state: RoomState;
+  snapshots: Question[];
+  answers: Record<string, Record<string, Answer>>;
+  scored: string[];
+  streaks: Record<string, number>;
+  remainingMs: number;
+  quickTokenHash?: string;
+}
+
+const json = (value: unknown) => JSON.parse(JSON.stringify(value));
+const revealed = new Set([
+  'ANSWER_REVEAL',
+  'PULL_ANIMATION',
+  'ROUND_RESULT',
+  'NEXT_QUESTION',
+  'FINISHED',
+]);
+const lobby = (s: RoomState) => s.phase === 'WAITING' || s.phase === 'READY';
+
+export class GameService {
+  private rooms = new Map<string, Internal>();
+  private timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private queues = new Map<string, Promise<unknown>>();
+  private teamSockets = new Map<string, Set<string>>(); // key: `${code}_${team}`
+  private quickTokens = new Map<string, string>(); // key: code -> tokenHash
+
+  constructor(private io: Server) {}
+
+  verifyQuickToken(code: string, token?: string) {
+    const room = this.get(code);
+    const expectedHash = room.quickTokenHash || this.quickTokens.get(code);
+    if (!expectedHash || !token) {
+      throw new Error('Token kendali pertandingan cepat tidak valid');
+    }
+    const providedHash = hashToken(token);
+    const a = Buffer.from(expectedHash, 'hex');
+    const b = Buffer.from(providedHash, 'hex');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      throw new Error('Token kendali pertandingan cepat tidak valid');
+    }
+  }
+
+  hasTeamConnection(code: string, team: Team, socketId: string) {
+    return this.teamSockets.get(`${code}_${team}`)?.has(socketId) ?? false;
+  }
+
+  async initialize() {
+    // A source-only update can introduce heroes without running the full quiz seed.
+    // Empty updates preserve installed metadata, including user-supplied GLB assets.
+    await prisma.$transaction(
+      CHARACTERS.map((character) =>
+        prisma.character.upsert({
+          where: { id: character.id },
+          update: {},
+          create: {
+            id: character.id,
+            name: character.name,
+            profession: character.profession,
+            modelPath: character.modelPath ?? null,
+            thumbnailPath: character.thumbnailPath,
+            animationConfig: json({
+              procedural: !character.modelPath,
+              ...character.animationConfig,
+              attributes: character.attributes,
+              description: character.description,
+              title: character.title,
+              color: character.color,
+              accessory: character.accessory,
+            }),
+          },
+        }),
+      ),
+    );
+    const rows = await prisma.match.findMany({
+      include: {
+        answers: true,
+        players: true,
+        teams: { include: { characters: true } },
+        teamAnswers: true,
+      },
+    });
+
+    for (const row of rows) {
+      const room = row.state as unknown as Internal;
+      if (!room?.state?.code) continue;
+
+      room.answers = {};
+      for (const answer of row.answers) {
+        (room.answers[answer.matchQuestionId] ||= {})[answer.playerId] = {
+          answer: answer.selectedAnswer,
+          responseTimeMs: answer.responseTimeMs,
+        };
+      }
+      for (const teamAns of row.teamAnswers) {
+        (room.answers[teamAns.matchQuestionId] ||= {})[teamAns.matchTeamId] = {
+          answer: teamAns.selectedAnswer,
+          responseTimeMs: teamAns.responseTimeMs,
+        };
+      }
+
+      // Ensure teams structure exists
+      if (!room.state.teams) {
+        room.state.teams = {
+          A: {
+            id: `team_A_${row.id}`,
+            team: 'A',
+            name: room.state.teamAName || 'Tim Emerald',
+            connected: false,
+            ready: false,
+            characters: defaultTeamCharacters('A'),
+            score: 0,
+            power: 0,
+            correctCount: 0,
+            answered: false,
+          },
+          B: {
+            id: `team_B_${row.id}`,
+            team: 'B',
+            name: room.state.teamBName || 'Tim Sapphire',
+            connected: false,
+            ready: false,
+            characters: defaultTeamCharacters('B'),
+            score: 0,
+            power: 0,
+            correctCount: 0,
+            answered: false,
+          },
+        };
+      }
+
+      if (room.quickTokenHash) {
+        this.quickTokens.set(row.code, room.quickTokenHash);
+      } else {
+        room.state.teams.A.connected = false;
+        room.state.teams.B.connected = false;
+      }
+      room.state.teams.A.answered =
+        !!room.answers[room.state.question?.id || '']?.[room.state.teams.A.id];
+      room.state.teams.B.answered =
+        !!room.answers[room.state.question?.id || '']?.[room.state.teams.B.id];
+
+      this.syncPlayers(room);
+      this.rooms.set(row.code, room);
+
+      if (!lobby(room.state) && room.state.phase !== 'FINISHED') {
+        room.remainingMs = room.state.paused
+          ? Math.max(1, room.remainingMs)
+          : Math.max(100, (room.state.deadlineAt || Date.now()) - Date.now());
+        room.state.paused = true;
+        room.state.deadlineAt = null;
+      }
+      this.updateLobby(room);
+      await this.persist(room);
+    }
+  }
+
+  syncPlayers(room: Internal) {
+    const s = room.state;
+    const tA = s.teams?.A;
+    const tB = s.teams?.B;
+
+    const charsA = tA?.characters || defaultTeamCharacters('A');
+    const charsB = tB?.characters || defaultTeamCharacters('B');
+
+    s.players = [
+      ...charsA.map((c, i) => ({
+        id: `A_${i}`,
+        name: c.name || `Hero A${i + 1}`,
+        team: 'A' as Team,
+        characterId: c.characterId || 'doctor-m',
+        connected: Boolean(tA?.connected),
+        ready: Boolean(tA?.ready),
+        correctCount: tA?.correctCount || 0,
+        power: tA?.power || 0,
+        score: tA?.score || 0,
+        answered: Boolean(tA?.answered),
+      })),
+      ...charsB.map((c, i) => ({
+        id: `B_${i}`,
+        name: c.name || `Hero B${i + 1}`,
+        team: 'B' as Team,
+        characterId: c.characterId || 'doctor-f',
+        connected: Boolean(tB?.connected),
+        ready: Boolean(tB?.ready),
+        correctCount: tB?.correctCount || 0,
+        power: tB?.power || 0,
+        score: tB?.score || 0,
+        answered: Boolean(tB?.answered),
+      })),
+    ];
+  }
+
+  serialize(code: string): RoomState {
+    const room = this.get(code);
+    this.syncPlayers(room);
+    const state = json(room.state) as RoomState;
+    state.serverTime = Date.now();
+    if (!revealed.has(state.phase)) {
+      delete state.correctAnswer;
+      delete state.explanation;
+    }
+    return state;
+  }
+
+  all() {
+    return [...this.rooms.values()]
+      .sort((a, b) => b.state.createdAt.localeCompare(a.state.createdAt))
+      .map((r) => this.serialize(r.state.code));
+  }
+
+  getById(id: string) {
+    const found = [...this.rooms.values()].find((r) => r.state.id === id);
+    if (!found) throw new Error('Pertandingan tidak ditemukan');
+    return this.serialize(found.state.code);
+  }
+
+  private get(code: string) {
+    const r = this.rooms.get(code);
+    if (!r) throw new Error('Room tidak ditemukan');
+    return r;
+  }
+
+  run<T>(code: string, fn: () => Promise<T>): Promise<T> {
+    const before = this.queues.get(code) || Promise.resolve();
+    const task = before
+      .catch(() => {})
+      .then(async () => {
+        const existing = this.rooms.get(code);
+        const checkpoint = existing ? (json(existing) as Internal) : null;
+        try {
+          return await fn();
+        } catch (error) {
+          if (checkpoint) {
+            this.stopTimer(code);
+            this.rooms.set(code, checkpoint);
+            if (
+              checkpoint.state.deadlineAt &&
+              !checkpoint.state.paused &&
+              checkpoint.state.phase !== 'FINISHED'
+            ) {
+              this.schedule(checkpoint, Math.max(1, checkpoint.state.deadlineAt - Date.now()));
+            }
+          }
+          throw error;
+        }
+      });
+    this.queues.set(code, task);
+    void task
+      .finally(() => {
+        if (this.queues.get(code) === task) this.queues.delete(code);
+      })
+      .catch(() => {});
+    return task;
+  }
+
+  private broadcast(room: Internal) {
+    const s = this.serialize(room.state.code);
+    this.io.to(room.state.code).emit('room:state', s);
+  }
+
+  private async persist(room: Internal, extra: Prisma.PrismaPromise<unknown>[] = []) {
+    const s = room.state;
+    this.syncPlayers(room);
+
+    await prisma.$transaction([
+      prisma.match.update({
+        where: { id: s.id },
+        data: {
+          phase: s.phase,
+          paused: s.paused,
+          locked: s.locked,
+          ropePosition: s.ropePosition,
+          winner: s.winner,
+          teamAName: s.teamAName,
+          teamBName: s.teamBName,
+          state: json(room),
+          startedAt: s.startedAt ? new Date(s.startedAt) : null,
+          finishedAt: s.finishedAt ? new Date(s.finishedAt) : null,
+        },
+      }),
+      ...extra,
+    ]);
+    this.broadcast(room);
+  }
+
+  private teamPresentationWrites(room: Internal, team: Team) {
+    const controller = room.state.teams[team];
+    return [
+      prisma.matchTeam.updateMany({
+        where: { matchId: room.state.id, teamSide: team },
+        data: { teamName: controller.name, readyStatus: controller.ready },
+      }),
+      ...controller.characters.map((character) =>
+        prisma.matchTeamCharacter.upsert({
+          where: {
+            matchTeamId_slotNumber: { matchTeamId: controller.id, slotNumber: character.slot },
+          },
+          create: {
+            matchTeamId: controller.id,
+            slotNumber: character.slot,
+            characterId: character.characterId,
+            characterDisplayName: character.name,
+          },
+          update: {
+            characterId: character.characterId,
+            characterDisplayName: character.name,
+          },
+        }),
+      ),
+    ];
+  }
+
+  async getPublicCatalog() {
+    const [packages, settingRow] = await Promise.all([
+      prisma.questionPackage.findMany({
+        where: { active: true },
+        include: { questions: { where: { active: true }, select: { id: true } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.gameSetting.findUnique({ where: { id: 'default' } }),
+    ]);
+    return {
+      packages: packages
+        .filter((p) => p.questions.length > 0)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          questionCount: p.questions.length,
+        })),
+      settings: parseSettings(settingRow?.value),
+    };
+  }
+
+  private async buildAndPersistRoom(params: {
+    title: string;
+    teamAName: string;
+    teamBName: string;
+    packageId: string;
+    settings?: unknown;
+    teamACharacters?: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+    teamBCharacters?: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+    quickMode?: boolean;
+  }): Promise<{ room: Internal; quickToken?: string }> {
+    const pack = await prisma.questionPackage.findUnique({
+      where: { id: params.packageId },
+      include: { questions: { where: { active: true }, orderBy: { sortOrder: 'asc' } } },
+    });
+    if (!pack || !pack.active || !pack.questions.length) {
+      throw new Error('Paket harus memiliki soal aktif');
+    }
+
+    const config = parseSettings(params.settings);
+    let qs = pack.questions.map((q) => ({ ...q, options: q.options as string[] }));
+    if (config.shuffle) {
+      for (let i = qs.length - 1; i > 0; i--) {
+        const j = crypto.randomInt(i + 1);
+        [qs[i], qs[j]] = [qs[j], qs[i]];
+      }
+    }
+    const initialCount = Math.min(qs.length, config.questionCount);
+    if (!config.suddenDeath) qs = qs.slice(0, initialCount);
+
+    const id = crypto.randomUUID();
+    let code = '';
+    do {
+      code = Array.from(
+        { length: 6 },
+        () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[crypto.randomInt(32)],
+      ).join('');
+    } while (this.rooms.has(code) || (await prisma.match.findUnique({ where: { code } })));
+
+    const snapshots = qs.map((q) => ({ ...q, id: crypto.randomUUID() })) as Question[];
+
+    const teamAId = crypto.randomUUID();
+    const teamBId = crypto.randomUUID();
+    const charsA = params.teamACharacters || defaultTeamCharacters('A');
+    const charsB = params.teamBCharacters || defaultTeamCharacters('B');
+    const readyFlag = Boolean(params.quickMode);
+    const quickToken = params.quickMode ? crypto.randomBytes(32).toString('hex') : undefined;
+    const quickTokenHash = quickToken ? hashToken(quickToken) : undefined;
+
+    const teams: { A: TeamController; B: TeamController } = {
+      A: {
+        id: teamAId,
+        team: 'A',
+        name: params.teamAName || 'Tim Hijau',
+        connected: readyFlag,
+        ready: readyFlag,
+        characters: charsA,
+        score: 0,
+        power: 0,
+        correctCount: 0,
+        answered: false,
+      },
+      B: {
+        id: teamBId,
+        team: 'B',
+        name: params.teamBName || 'Tim Biru',
+        connected: readyFlag,
+        ready: readyFlag,
+        characters: charsB,
+        score: 0,
+        power: 0,
+        correctCount: 0,
+        answered: false,
+      },
+    };
+
+    const state: RoomState = {
+      id,
+      code,
+      title: params.title,
+      packageId: pack.id,
+      packageName: pack.name,
+      teamAName: teams.A.name,
+      teamBName: teams.B.name,
+      phase: readyFlag ? 'READY' : 'WAITING',
+      paused: false,
+      locked: false,
+      settings: config,
+      teams,
+      players: [],
+      questionIndex: 0,
+      questionCount: initialCount,
+      question: null,
+      deadlineAt: null,
+      serverTime: Date.now(),
+      ropePosition: 0,
+      teamAPower: 0,
+      teamBPower: 0,
+      winner: null,
+      rounds: [],
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      finishedAt: null,
+    };
+
+    const room: Internal = {
+      state,
+      snapshots,
+      answers: {},
+      scored: [],
+      streaks: {},
+      remainingMs: 0,
+      ...(quickTokenHash ? { quickTokenHash } : {}),
+    };
+
+    this.syncPlayers(room);
+
+    await prisma.match.create({
+      data: {
+        id,
+        code,
+        title: params.title,
+        packageId: pack.id,
+        packageName: pack.name,
+        teamAName: state.teamAName,
+        teamBName: state.teamBName,
+        phase: state.phase,
+        settings: json(config),
+        state: json(room),
+        snapshots: json(snapshots),
+        teams: {
+          create: [
+            {
+              id: teamAId,
+              teamSide: 'A',
+              teamName: state.teamAName,
+              controllerSessionId: crypto.randomBytes(32).toString('hex'),
+              readyStatus: readyFlag,
+              connectedStatus: readyFlag,
+              characters: {
+                create: teams.A.characters.map((c) => ({
+                  slotNumber: c.slot,
+                  characterId: c.characterId,
+                  characterDisplayName: c.name,
+                })),
+              },
+            },
+            {
+              id: teamBId,
+              teamSide: 'B',
+              teamName: state.teamBName,
+              controllerSessionId: crypto.randomBytes(32).toString('hex'),
+              readyStatus: readyFlag,
+              connectedStatus: readyFlag,
+              characters: {
+                create: teams.B.characters.map((c) => ({
+                  slotNumber: c.slot,
+                  characterId: c.characterId,
+                  characterDisplayName: c.name,
+                })),
+              },
+            },
+          ],
+        },
+        questions: {
+          create: snapshots.map((q, i) => ({
+            id: q.id,
+            sourceQuestionId: qs[i].id,
+            snapshot: json(q),
+            questionOrder: i,
+            status: 'WAITING',
+          })),
+        },
+      },
+    });
+
+    this.rooms.set(code, room);
+    if (quickTokenHash) this.quickTokens.set(code, quickTokenHash);
+    return { room, quickToken };
+  }
+
+  async create(input: unknown) {
+    const data = matchSchema.parse(input);
+    const { room } = await this.buildAndPersistRoom({
+      title: data.title,
+      teamAName: data.teamAName,
+      teamBName: data.teamBName,
+      packageId: data.packageId,
+      settings: data.settings,
+      quickMode: false,
+    });
+    return this.serialize(room.state.code);
+  }
+
+  async createQuickMatch(input: unknown) {
+    const data = quickMatchSchema.parse(input || {});
+    let targetPackageId = data.packageId;
+    if (!targetPackageId) {
+      const firstActive = await prisma.questionPackage.findFirst({
+        where: { active: true, questions: { some: { active: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!firstActive) {
+        throw new Error('Belum ada paket soal aktif yang tersedia di Bank Soal');
+      }
+      targetPackageId = firstActive.id;
+    }
+    const settingRow = await prisma.gameSetting.findUnique({ where: { id: 'default' } });
+    const mergedSettings = {
+      ...(settingRow?.value && typeof settingRow.value === 'object' ? settingRow.value : {}),
+      ...(data.settings || {}),
+    };
+
+    const { room, quickToken } = await this.buildAndPersistRoom({
+      title: data.title || 'Medical Tug Battle',
+      teamAName: data.teamAName || 'Tim Hijau',
+      teamBName: data.teamBName || 'Tim Biru',
+      packageId: targetPackageId,
+      settings: mergedSettings,
+      teamACharacters: data.teamACharacters as
+        | [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]
+        | undefined,
+      teamBCharacters: data.teamBCharacters as
+        | [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]
+        | undefined,
+      quickMode: true,
+    });
+
+    const state =
+      data.autoStart === false
+        ? this.serialize(room.state.code)
+        : await this.startMatch(room.state.code);
+
+    return { state, quickToken };
+  }
+
+  async join(input: unknown, socketId: string) {
+    const raw = joinSchema.parse(input);
+    const team = raw.team;
+    const code = raw.code;
+
+    return this.run(code, async () => {
+      const room = this.get(code);
+      const teamObj = room.state.teams[team];
+      let token = raw.token as string | undefined;
+
+      const teamKey = `${code}_${team}`;
+      let connections = this.teamSockets.get(teamKey);
+      if (!connections) {
+        connections = new Set();
+        this.teamSockets.set(teamKey, connections);
+      }
+
+      if (token) {
+        const hashed = hashToken(token);
+        const matchTeam = await prisma.matchTeam.findFirst({
+          where: { matchId: room.state.id, teamSide: team, controllerSessionId: hashed },
+        });
+        if (!matchTeam || matchTeam.id !== teamObj.id)
+          throw new Error('Sesi pengendali tim tidak valid');
+      }
+
+      if (!token) {
+        if (!lobby(room.state) || room.state.locked) {
+          throw new Error('Pertandingan sudah berlangsung atau lobby dikunci');
+        }
+        if (teamObj.connected && connections.size > 0) {
+          throw new Error(
+            `Tim ${team === 'A' ? 'A (Hijau)' : 'B (Biru)'} sudah memiliki pengendali yang terhubung`,
+          );
+        }
+        token = crypto.randomBytes(32).toString('hex');
+      }
+
+      // A token resumes identity only. Old localStorage snapshots must not undo
+      // confirmed roster/name edits, in the lobby or during an active match.
+      const editingLobby = lobby(room.state) && !raw.token;
+      teamObj.connected = true;
+      if (editingLobby && raw.teamName) {
+        const trimmed = raw.teamName.trim().slice(0, 40);
+        if (trimmed) {
+          teamObj.name = trimmed;
+          if (team === 'A') room.state.teamAName = trimmed;
+          else room.state.teamBName = trimmed;
+        }
+      }
+
+      if (editingLobby && raw.characters) {
+        if (raw.characters.some((c) => c.characterId !== teamObj.characters[c.slot].characterId)) {
+          teamObj.ready = false;
+        }
+        teamObj.characters = raw.characters as [
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+        ];
+      } else if (editingLobby && raw.characterId) {
+        // Single character selection backwards compatibility: assign to slot 0
+        if (raw.characterId !== teamObj.characters[0].characterId) teamObj.ready = false;
+        teamObj.characters[0] = {
+          slot: 0,
+          characterId: raw.characterId,
+          name: raw.name ? raw.name.trim().slice(0, 30) : teamObj.characters[0].name,
+        };
+      }
+
+      this.syncPlayers(room);
+      this.updateLobby(room);
+
+      const hashedToken = hashToken(token);
+      await this.persist(room, [
+        prisma.matchTeam.upsert({
+          where: { matchId_teamSide: { matchId: room.state.id, teamSide: team } },
+          create: {
+            id: teamObj.id,
+            matchId: room.state.id,
+            teamSide: team,
+            teamName: teamObj.name,
+            controllerSessionId: hashedToken,
+            connectedStatus: true,
+            readyStatus: teamObj.ready,
+          },
+          update: {
+            teamName: teamObj.name,
+            controllerSessionId: hashedToken,
+            connectedStatus: true,
+            readyStatus: teamObj.ready,
+          },
+        }),
+        ...this.teamPresentationWrites(room, team),
+      ]);
+      connections.add(socketId);
+
+      return {
+        token,
+        team,
+        teamId: teamObj.id,
+        playerId: teamObj.id,
+        state: this.serialize(code),
+      };
+    });
+  }
+
+  async authenticateTeam(token: string, code?: string) {
+    const hashed = hashToken(token);
+    const matchTeam = await prisma.matchTeam.findFirst({
+      where: { controllerSessionId: hashed },
+      include: { match: true },
+    });
+    if (!matchTeam) throw new Error('Sesi pengendali tim tidak valid');
+
+    const room = [...this.rooms.values()].find((r) => r.state.id === matchTeam.matchId);
+    if (!room || (code && room.state.code !== code)) {
+      throw new Error('Pertandingan tidak ditemukan');
+    }
+
+    return {
+      team: matchTeam.teamSide as Team,
+      teamId: matchTeam.id,
+      code: room.state.code,
+    };
+  }
+
+  async reconnect(token: string, socketId: string) {
+    const identity = await this.authenticateTeam(token);
+    const r = this.get(identity.code);
+    const teamObj = r.state.teams[identity.team];
+
+    const result = await this.join(
+      {
+        code: identity.code,
+        team: identity.team,
+        teamName: teamObj.name,
+        characters: teamObj.characters,
+        token,
+      },
+      socketId,
+    );
+    return { ...identity, ...result };
+  }
+
+  async disconnect(teamId: string, code: string, socketId: string) {
+    await this.run(code, async () => {
+      const room = this.get(code);
+      const team: Team = room.state.teams.A.id === teamId ? 'A' : 'B';
+      if (room.state.teams[team].id !== teamId) return;
+      const teamKey = `${code}_${team}`;
+      const connections = this.teamSockets.get(teamKey);
+
+      connections?.delete(socketId);
+      if (connections?.size) return;
+
+      room.state.teams[team].connected = false;
+      this.syncPlayers(room);
+      this.updateLobby(room);
+      await this.persist(room, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: room.state.id, teamSide: team },
+          data: { connectedStatus: false },
+        }),
+      ]);
+    });
+  }
+
+  private updateLobby(room: Internal) {
+    if (lobby(room.state)) {
+      const tA = room.state.teams.A;
+      const tB = room.state.teams.B;
+      const bothConnected = tA.connected && tB.connected;
+      const bothReady = tA.ready && tB.ready;
+      const charactersValid = tA.characters?.length === 3 && tB.characters?.length === 3;
+
+      room.state.phase = bothConnected && bothReady && charactersValid ? 'READY' : 'WAITING';
+    }
+  }
+
+  async ready(code: string, teamOrPlayerId: string, value: boolean) {
+    return this.run(code, async () => {
+      const r = this.get(code);
+      if (!lobby(r.state)) throw new Error('Pertandingan sudah dimulai');
+
+      const team: Team =
+        teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      r.state.teams[team].ready = value;
+
+      this.syncPlayers(r);
+      this.updateLobby(r);
+      await this.persist(r, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: r.state.id, teamSide: team },
+          data: { readyStatus: value },
+        }),
+      ]);
+      return this.serialize(code);
+    });
+  }
+
+  async select(code: string, teamOrPlayerId: string, characterId: string, name?: string) {
+    return this.run(code, async () => {
+      const r = this.get(code);
+      if (!lobby(r.state)) throw new Error('Pertandingan sudah dimulai');
+      if (!CHARACTERS.some((c) => c.id === characterId)) throw new Error('Karakter tidak valid');
+
+      const team: Team =
+        teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      const teamObj = r.state.teams[team];
+
+      // Update slot 0 by default when called with single character
+      teamObj.characters[0].characterId = characterId;
+      if (name) teamObj.characters[0].name = name;
+      teamObj.ready = false;
+
+      this.syncPlayers(r);
+      this.updateLobby(r);
+      await this.persist(r, this.teamPresentationWrites(r, team));
+      return this.serialize(code);
+    });
+  }
+
+  async updateTeam(
+    code: string,
+    team: Team,
+    payload: {
+      teamName?: string;
+      characters?: TeamCharacterSlot[];
+      characterNames?: { slot: number; name: string }[];
+      ready?: boolean;
+    },
+  ) {
+    const update = teamUpdateSchema.parse(payload);
+    return this.run(code, async () => {
+      const r = this.get(code);
+      const teamObj = r.state.teams[team];
+      const characterChanged =
+        update.characters?.some((c) => c.characterId !== teamObj.characters[c.slot].characterId) ??
+        false;
+      if (!lobby(r.state) && (characterChanged || update.ready !== undefined)) {
+        throw new Error('Karakter dan status Ready dikunci setelah pertandingan dimulai');
+      }
+      if (update.teamName !== undefined) {
+        teamObj.name = update.teamName;
+        if (team === 'A') r.state.teamAName = update.teamName;
+        else r.state.teamBName = update.teamName;
+      }
+      if (update.characters) {
+        teamObj.characters = update.characters as [
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+          TeamCharacterSlot,
+        ];
+      }
+      for (const character of update.characterNames ?? []) {
+        teamObj.characters[character.slot].name = character.name;
+      }
+      if (characterChanged) {
+        teamObj.ready = false;
+      } else if (update.ready !== undefined) {
+        teamObj.ready = update.ready;
+      }
+
+      this.syncPlayers(r);
+      this.updateLobby(r);
+      await this.persist(r, this.teamPresentationWrites(r, team));
+      return this.serialize(code);
+    });
+  }
+
+  async leave(code: string, teamOrPlayerId: string) {
+    return this.run(code, async () => {
+      const r = this.get(code);
+      if (!lobby(r.state))
+        throw new Error('Slot tidak dapat dilepas saat pertandingan berlangsung');
+
+      const team: Team =
+        teamOrPlayerId === 'B' || r.state.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      r.state.teams[team].connected = false;
+      r.state.teams[team].ready = false;
+
+      this.syncPlayers(r);
+      this.updateLobby(r);
+      await this.persist(r, [
+        prisma.matchTeam.updateMany({
+          where: { matchId: r.state.id, teamSide: team },
+          data: {
+            connectedStatus: false,
+            readyStatus: false,
+            controllerSessionId: crypto.randomBytes(32).toString('hex'),
+          },
+        }),
+      ]);
+      this.teamSockets.delete(`${code}_${team}`);
+      return this.serialize(code);
+    });
+  }
+
+  private stopTimer(code: string) {
+    const timer = this.timers.get(code);
+    if (timer) clearTimeout(timer);
+    this.timers.delete(code);
+  }
+
+  private schedule(room: Internal, ms: number) {
+    this.stopTimer(room.state.code);
+    room.remainingMs = ms;
+    room.state.deadlineAt = Date.now() + ms;
+    const deadline = room.state.deadlineAt;
+    const phase = room.state.phase;
+
+    if (!room.state.paused) {
+      this.timers.set(
+        room.state.code,
+        setTimeout(() => {
+          void this.run(room.state.code, async () => {
+            if (room.state.deadlineAt === deadline && room.state.phase === phase) {
+              await this.transition(room);
+            }
+          }).catch((e) => console.error('Phase transition failed', e));
+        }, ms),
+      );
+    }
+  }
+
+  private async beginQuestion(room: Internal) {
+    const s = room.state;
+    const q = room.snapshots[s.questionIndex];
+    if (!q) {
+      await this.finish(room);
+      return;
+    }
+
+    s.phase = 'QUESTION_ACTIVE';
+    s.question = {
+      id: q.id,
+      text: q.text,
+      options: q.options,
+      imageUrl: q.imageUrl,
+      duration: s.settings.duration || q.duration,
+      points: q.points,
+    };
+    delete s.correctAnswer;
+    delete s.explanation;
+
+    s.teams.A.answered = false;
+    s.teams.B.answered = false;
+    delete s.teams.A.lastAnswer;
+    delete s.teams.B.lastAnswer;
+    delete s.teams.A.lastCorrect;
+    delete s.teams.B.lastCorrect;
+
+    this.syncPlayers(room);
+
+    const duration = (s.settings.duration || q.duration) * 1000;
+    this.schedule(room, duration);
+
+    await this.persist(room, [
+      prisma.matchQuestion.update({
+        where: { id: q.id },
+        data: {
+          status: 'QUESTION_ACTIVE',
+          startedAt: new Date(),
+          deadlineAt: new Date(s.deadlineAt!),
+        },
+      }),
+    ]);
+  }
+
+  async answer(code: string, teamOrPlayerId: string, questionId: string, answer: number) {
+    return this.run(code, async () => {
+      const room = this.get(code);
+      const s = room.state;
+      const team: Team = teamOrPlayerId === 'B' || s.teams.B.id === teamOrPlayerId ? 'B' : 'A';
+      const teamObj = s.teams[team];
+
+      if (
+        s.paused ||
+        s.phase !== 'QUESTION_ACTIVE' ||
+        s.question?.id !== questionId ||
+        !s.deadlineAt ||
+        Date.now() >= s.deadlineAt
+      ) {
+        throw new Error('Waktu menjawab sudah berakhir');
+      }
+
+      if (teamObj.answered || room.answers[questionId]?.[team]) {
+        throw new Error(`Tim ${team} sudah mengirimkan jawaban`);
+      }
+
+      const responseTimeMs = Math.max(0, s.question.duration * 1000 - (s.deadlineAt - Date.now()));
+      const q = room.snapshots[s.questionIndex];
+      const isCorrect = answer === q.correctAnswer;
+
+      const extraWrites: Prisma.PrismaPromise<unknown>[] = [
+        prisma.teamAnswer.create({
+          data: {
+            matchId: s.id,
+            matchQuestionId: questionId,
+            matchTeamId: teamObj.id,
+            selectedAnswer: answer,
+            isCorrect,
+            responseTimeMs,
+          },
+        }),
+      ];
+
+      (room.answers[questionId] ||= {})[team] = { answer, responseTimeMs };
+      (room.answers[questionId] ||= {})[teamObj.id] = { answer, responseTimeMs };
+
+      teamObj.answered = true;
+      teamObj.lastAnswer = answer;
+
+      this.syncPlayers(room);
+      await this.persist(room, extraWrites);
+
+      // Auto close when both teams have answered
+      if ((s.settings.autoClose ?? true) && s.teams.A.answered && s.teams.B.answered) {
+        this.stopTimer(code);
+        this.timers.set(
+          code,
+          setTimeout(() => {
+            void this.run(code, async () => {
+              const current = this.get(code);
+              if (current.state.phase === 'QUESTION_ACTIVE' && !current.state.paused) {
+                await this.reveal(current);
+              }
+            }).catch((e) => console.error('Auto-close failed', e));
+          }, 0),
+        );
+      }
+
+      return { accepted: true, team, answer };
+    });
+  }
+
+  async submitBotAnswer(code: string, team: Team, questionId: string) {
+    const room = this.get(code);
+    const q = room.snapshots[room.state.questionIndex];
+    if (!q || q.id !== questionId) throw new Error('Pertanyaan tidak sesuai');
+    const smartHit = crypto.randomInt(100) < 68;
+    const wrong = [0, 1, 2, 3].filter((idx) => idx !== q.correctAnswer);
+    const chosen = smartHit ? q.correctAnswer : wrong[crypto.randomInt(wrong.length)];
+    return this.answer(code, team, questionId, chosen);
+  }
+
+  private async reveal(room: Internal) {
+    const s = room.state;
+    const q = room.snapshots[s.questionIndex];
+    if (room.scored.includes(q.id)) return;
+    room.scored.push(q.id);
+
+    s.phase = 'ANSWER_REVEAL';
+    s.correctAnswer = q.correctAnswer;
+    s.explanation = q.explanation;
+    s.teamAPower = 0;
+    s.teamBPower = 0;
+
+    const extra: Prisma.PrismaPromise<unknown>[] = [];
+
+    // Calculate score & power for Team A and Team B
+    for (const team of ['A', 'B'] as Team[]) {
+      const tObj = s.teams[team];
+      const ansRecord = room.answers[q.id]?.[team] || room.answers[q.id]?.[tObj.id];
+      const correct = Boolean(ansRecord && ansRecord.answer === q.correctAnswer);
+
+      tObj.lastAnswer = ansRecord?.answer;
+      tObj.lastCorrect = correct;
+
+      const award = calculateAward({
+        correct,
+        points: q.points,
+        baseCorrectPower: s.settings.baseCorrectPower,
+        responseTimeMs: ansRecord?.responseTimeMs || 0,
+        durationMs: (s.settings.duration || q.duration) * 1000,
+        streak: room.streaks[team] || 0,
+        speedBonus: s.settings.speedBonus,
+        comboBonus: s.settings.comboBonus,
+      });
+
+      room.streaks[team] = correct ? (room.streaks[team] || 0) + 1 : 0;
+      tObj.correctCount += correct ? 1 : 0;
+      tObj.power += award.power;
+      tObj.score += award.points;
+
+      if (team === 'A') s.teamAPower = award.power;
+      else s.teamBPower = award.power;
+
+      if (ansRecord) {
+        extra.push(
+          prisma.teamAnswer.updateMany({
+            where: { matchTeamId: tObj.id, matchQuestionId: q.id },
+            data: { pointsAwarded: award.points, powerAwarded: award.power },
+          }),
+        );
+      }
+    }
+
+    const pull = calculateRound({
+      ropePosition: s.ropePosition,
+      teamAPower: s.teamAPower,
+      teamBPower: s.teamBPower,
+      pullMultiplier: s.settings.pullMultiplier,
+      winThreshold: s.settings.winThreshold,
+    });
+
+    const result: RoundResult = {
+      questionIndex: s.questionIndex,
+      teamAPower: s.teamAPower,
+      teamBPower: s.teamBPower,
+      ropeBefore: pull.ropeBefore,
+      ropeAfter: pull.ropeAfter,
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation,
+    };
+    s.rounds.push(result);
+
+    this.schedule(room, (s.settings.revealSeconds ?? 2) * 1000);
+    this.syncPlayers(room);
+
+    extra.push(
+      prisma.matchRound.create({
+        data: {
+          matchId: s.id,
+          matchQuestionId: q.id,
+          teamAPower: s.teamAPower,
+          teamBPower: s.teamBPower,
+          ropeBefore: pull.ropeBefore,
+          ropeAfter: pull.ropeAfter,
+        },
+      }),
+      prisma.matchQuestion.update({ where: { id: q.id }, data: { status: 'REVEALED' } }),
+    );
+
+    await this.persist(room, extra);
+  }
+
+  private async finish(room: Internal) {
+    this.stopTimer(room.state.code);
+    room.state.phase = 'FINISHED';
+    room.state.paused = false;
+    room.state.locked = true;
+    room.state.deadlineAt = null;
+    room.state.winner = winnerAtEnd(room.state.ropePosition);
+    room.state.finishedAt = new Date().toISOString();
+    this.syncPlayers(room);
+    await this.persist(room);
+    this.io.to(room.state.code).emit('match:finished', this.serialize(room.state.code));
+  }
+
+  private async transition(room: Internal) {
+    const s = room.state;
+    if (s.paused || s.phase === 'FINISHED') return;
+
+    switch (s.phase) {
+      case 'COUNTDOWN':
+        await this.beginQuestion(room);
+        return;
+      case 'QUESTION_ACTIVE':
+        await this.reveal(room);
+        return;
+      case 'ANSWER_REVEAL':
+        s.phase = 'PULL_ANIMATION';
+        s.ropePosition = s.rounds.at(-1)?.ropeAfter || 0;
+        this.schedule(room, (s.settings.pullSeconds ?? 2) * 1000);
+        break;
+      case 'PULL_ANIMATION':
+        s.phase = 'ROUND_RESULT';
+        this.schedule(room, (s.settings.resultSeconds ?? 1) * 1000);
+        break;
+      case 'ROUND_RESULT':
+        if (
+          s.settings.suddenDeath &&
+          s.ropePosition === 0 &&
+          s.questionIndex + 1 >= s.questionCount &&
+          s.questionCount < room.snapshots.length
+        ) {
+          s.questionCount++;
+        }
+
+        if (
+          Math.abs(s.ropePosition) >= s.settings.winThreshold ||
+          s.questionIndex + 1 >= s.questionCount
+        ) {
+          await this.finish(room);
+          return;
+        }
+
+        s.phase = 'NEXT_QUESTION';
+        this.schedule(room, 300);
+        break;
+      case 'NEXT_QUESTION':
+        s.questionIndex++;
+        await this.beginQuestion(room);
+        return;
+      default:
+        return;
+    }
+
+    this.syncPlayers(room);
+    await this.persist(room);
+  }
+
+  async startMatch(code: string) {
+    return this.run(code, async () => {
+      const r = this.get(code);
+      const s = r.state;
+
+      if (!lobby(s)) throw new Error('Pertandingan sudah dimulai');
+
+      const tA = s.teams.A;
+      const tB = s.teams.B;
+      if (!tA.connected || !tB.connected) {
+        throw new Error('Kedua tim (Tim A dan Tim B) harus terhubung');
+      }
+      if (!tA.ready || !tB.ready) {
+        throw new Error('Kedua tim harus menekan tombol READY');
+      }
+      if (tA.characters.length !== 3 || tB.characters.length !== 3) {
+        throw new Error('Setiap tim harus memilih tepat 3 hero');
+      }
+
+      s.phase = 'COUNTDOWN';
+      s.locked = true;
+      s.startedAt = new Date().toISOString();
+      this.schedule(r, s.settings.countdownSeconds * 1000);
+
+      this.syncPlayers(r);
+      await this.persist(r);
+      return this.serialize(code);
+    });
+  }
+
+  async host(code: string, action: string, payload: any = {}) {
+    if (action === 'start-match') {
+      return this.startMatch(code);
+    }
+
+    return this.run(code, async () => {
+      const r = this.get(code);
+      const s = r.state;
+      const extra: Prisma.PrismaPromise<unknown>[] = [];
+
+      switch (action) {
+        case 'pause-match':
+          if (lobby(s) || s.phase === 'FINISHED' || s.paused) {
+            throw new Error('Pertandingan tidak dapat dijeda');
+          }
+          r.remainingMs = Math.max(0, (s.deadlineAt || Date.now()) - Date.now());
+          this.stopTimer(code);
+          s.deadlineAt = null;
+          s.paused = true;
+          break;
+
+        case 'resume-match':
+          if (!s.paused) throw new Error('Pertandingan tidak sedang dijeda');
+          s.paused = false;
+          this.schedule(r, Math.max(1, r.remainingMs));
+          break;
+
+        case 'next-question':
+          if (s.paused) throw new Error('Lanjutkan pertandingan terlebih dahulu');
+          if (
+            !['ANSWER_REVEAL', 'PULL_ANIMATION', 'ROUND_RESULT', 'NEXT_QUESTION'].includes(s.phase)
+          ) {
+            throw new Error('Tunggu sampai jawaban diungkapkan');
+          }
+          this.stopTimer(code);
+          await this.transition(r);
+          return this.serialize(code);
+
+        case 'end-match':
+          if (s.phase === 'FINISHED') return this.serialize(code);
+          await this.finish(r);
+          return this.serialize(code);
+
+        case 'reset-match':
+          if (!lobby(s) && s.phase !== 'FINISHED') {
+            throw new Error('Akhiri pertandingan sebelum mereset');
+          }
+          this.stopTimer(code);
+          s.phase = r.quickTokenHash ? 'READY' : 'WAITING';
+          s.paused = false;
+          s.locked = false;
+          s.question = null;
+          s.questionIndex = 0;
+          s.deadlineAt = null;
+          s.ropePosition = 0;
+          s.teamAPower = 0;
+          s.teamBPower = 0;
+          s.winner = null;
+          s.rounds = [];
+          s.startedAt = null;
+          s.finishedAt = null;
+          delete s.correctAnswer;
+          delete s.explanation;
+          r.answers = {};
+          r.scored = [];
+          r.streaks = {};
+
+          s.teams.A.connected = Boolean(r.quickTokenHash) || s.teams.A.connected;
+          s.teams.A.ready = Boolean(r.quickTokenHash);
+          s.teams.A.score = 0;
+          s.teams.A.power = 0;
+          s.teams.A.correctCount = 0;
+          s.teams.A.answered = false;
+
+          s.teams.B.connected = Boolean(r.quickTokenHash) || s.teams.B.connected;
+          s.teams.B.ready = Boolean(r.quickTokenHash);
+          s.teams.B.score = 0;
+          s.teams.B.power = 0;
+          s.teams.B.correctCount = 0;
+          s.teams.B.answered = false;
+
+          extra.push(
+            prisma.teamAnswer.deleteMany({ where: { matchId: s.id } }),
+            prisma.playerAnswer.deleteMany({ where: { matchId: s.id } }),
+            prisma.matchRound.deleteMany({ where: { matchId: s.id } }),
+            prisma.matchQuestion.updateMany({
+              where: { matchId: s.id },
+              data: { status: 'WAITING', startedAt: null, deadlineAt: null },
+            }),
+          );
+          break;
+
+        case 'lock-lobby':
+          if (!lobby(s)) throw new Error('Pertandingan sudah dimulai');
+          s.locked = payload.locked === undefined ? !s.locked : payload.locked;
+          break;
+
+        default:
+          throw new Error('Aksi host tidak dikenal');
+      }
+
+      this.syncPlayers(r);
+      await this.persist(r, extra);
+      return this.serialize(code);
+    });
+  }
+}

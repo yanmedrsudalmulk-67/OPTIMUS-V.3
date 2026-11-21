@@ -1,0 +1,14 @@
+.git
+node_modules
+**/node_modules
+.next
+**/.next
+.npm-cache
+.data
+.env*
+launcher/local.env
+AKUN-ADMIN.txt
+test-results
+playwright-report
+**/uploads
+*.zip

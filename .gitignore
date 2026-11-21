@@ -1,0 +1,26 @@
+node_modules/
+.next/
+.env
+.env.local
+*.log
+.data/
+test-results/
+playwright-report/
+coverage/
+apps/realtime-server/uploads/
+*.tsbuildinfo
+
+.npm-cache/
+launcher/local.env
+AKUN-ADMIN.txt
+
+# Local SQLite databases
+*.db
+*.db-journal
+packages/database/prisma/*.db
+packages/database/prisma/*.db-journal
+
+# Runtime cache
+.runtime/
+scratch/
+*.lnk

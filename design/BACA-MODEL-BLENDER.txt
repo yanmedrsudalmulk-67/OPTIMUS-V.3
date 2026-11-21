@@ -1,0 +1,16 @@
+DOCTOR HERO - CONTOH MODEL BLENDER
+
+Doctor-Hero.blend adalah satu contoh hero dokter dalam pose statis, diekspor
+dari geometri dan material model 3D yang digunakan game. Buka di Blender 4.3
+atau lebih baru. Bagian tubuh, pakaian, aksesori, dan material tetap dapat
+dipilih dan diedit. Adegan juga berisi kamera dan pencahayaan untuk pratinjau.
+Doctor-Hero-preview.png adalah contoh render dari file ini.
+
+File ini belum memiliki armature atau animasi Blender. Di aplikasi, karakter
+masih memakai animasi prosedural Three.js yang sudah ada. Mengubah .blend
+ini tidak otomatis mengubah game; model perlu diekspor ke GLB dan diintegrasikan
+ke registry, serta diberi rig/animasi yang sesuai jika ingin menggantikan model
+beranimasi di dalam game.
+
+Contoh ini mencakup satu karakter dokter, bukan kesepuluh hero. Aset orisinal
+ini merupakan model stylized yang mengacu pada suasana gambar referensi.
