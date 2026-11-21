@@ -137,6 +137,49 @@ export function registerSockets(io: Server, game: GameService) {
       }),
     );
 
+    register('quick:submit-answer', async (payload) => {
+      const code = codeSchema.parse(payload?.code);
+      const token = z.string().min(10).max(200).parse(payload?.quickToken);
+      game.verifyQuickToken(code, token);
+      const team = z.enum(['A', 'B']).parse(payload?.team);
+      return game.answer(
+        code,
+        team,
+        z.string().max(100).parse(payload?.questionId),
+        z.number().int().min(0).max(3).parse(payload?.answer),
+      );
+    });
+
+    register('quick:bot-answer', async (payload) => {
+      const code = codeSchema.parse(payload?.code);
+      const token = z.string().min(10).max(200).parse(payload?.quickToken);
+      game.verifyQuickToken(code, token);
+      const team = z.enum(['A', 'B']).parse(payload?.team);
+      return game.submitBotAnswer(code, team, z.string().max(100).parse(payload?.questionId));
+    });
+
+    register('quick:host-action', async (payload) => {
+      const code = codeSchema.parse(payload?.code);
+      const token = z.string().min(10).max(200).parse(payload?.quickToken);
+      game.verifyQuickToken(code, token);
+      const action = z
+        .enum([
+          'start-match',
+          'pause-match',
+          'resume-match',
+          'next-question',
+          'end-match',
+          'reset-match',
+          'rematch',
+        ])
+        .parse(payload?.action);
+      if (action === 'rematch') {
+        await game.host(code, 'reset-match', {});
+        return game.host(code, 'start-match', {});
+      }
+      return game.host(code, action, payload);
+    });
+
     for (const action of [
       'start-match',
       'pause-match',

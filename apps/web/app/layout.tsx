@@ -17,15 +17,21 @@ import '@fontsource/dm-sans/latin-400.css';
 import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/dm-sans/latin-700.css';
 import './globals.css';
+import AutoShutdownListener from '../components/system/AutoShutdownListener';
+
 export const metadata: Metadata = {
   title: 'Medical Tug of War — Healthcare Heroes Quiz Battle',
   description:
     'Satukan pengetahuan. Kuatkan tim. Arena kuis tarik tambang 3D untuk para pahlawan kesehatan.',
 };
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>
+        <AutoShutdownListener />
+        {children}
+      </body>
     </html>
   );
 }

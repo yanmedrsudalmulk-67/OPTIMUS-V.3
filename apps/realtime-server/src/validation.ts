@@ -105,6 +105,16 @@ export const matchSchema = z.object({
   packageId: z.string().min(1),
   settings: settingsSchema.partial().optional(),
 });
+export const quickMatchSchema = z.object({
+  title: z.string().trim().min(1).max(150).optional(),
+  teamAName: z.string().trim().min(1).max(40).optional(),
+  teamBName: z.string().trim().min(1).max(40).optional(),
+  packageId: z.string().optional(),
+  teamACharacters: characterSlotsSchema.optional(),
+  teamBCharacters: characterSlotsSchema.optional(),
+  settings: settingsSchema.partial().optional(),
+  autoStart: z.boolean().optional(),
+});
 export function errorMessage(error: unknown) {
   if (error instanceof z.ZodError)
     return error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');

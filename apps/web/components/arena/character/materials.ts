@@ -17,6 +17,7 @@ export interface HeroVisualProfile {
   hairSheen: string;
   hairStyle: HairStyle;
   top: string;
+  tunicTrim?: string;
   coat?: string;
   pants: string;
   shortsStyle?: boolean;
@@ -24,6 +25,7 @@ export interface HeroVisualProfile {
   shoeSole: string;
   glove?: string;
   pouch?: string;
+  pouchBody?: string;
   capColor?: string;
   hijabColor?: string;
   hijabInner?: string;
@@ -98,13 +100,15 @@ export const HERO_PROFILES: Record<string, HeroVisualProfile> = {
     hair: '#4d2e1e',
     hairSheen: '#7a4c35',
     hairStyle: 'hijab-draped',
-    hijabColor: '#cf7b99',
-    hijabInner: '#f3e7eb',
-    top: '#f2e6e9',
-    pants: '#5d4761',
-    shoeUpper: '#ecdab2',
-    shoeSole: '#f5eedc',
-    pouch: '#b55f7e',
+    hijabColor: '#078f5f',
+    hijabInner: '#f8fafc',
+    top: '#ffffff',
+    tunicTrim: '#078f5f',
+    pants: '#078f5f',
+    shoeUpper: '#f4ebd9',
+    shoeSole: '#ffffff',
+    pouch: '#078f5f',
+    pouchBody: '#ffffff',
     hasWatch: true,
   },
   pharmacist: {

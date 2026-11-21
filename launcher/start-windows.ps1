@@ -16,14 +16,18 @@ try {
     & "$PSScriptRoot\..\scripts\buat-shortcut-desktop.ps1" | Out-Null
   }
 
-  Start-Process 'http://localhost:3005'
-  if (Test-Path 'AKUN-ADMIN.txt') {
-    Start-Process notepad.exe -ArgumentList 'AKUN-ADMIN.txt'
+  # Fast start using production if built, otherwise dev
+  $cmd = "start"
+  if (-not (Test-Path 'apps/web/.next')) {
+    $cmd = "dev"
   }
 
-  Write-Host 'Game berjalan di http://localhost:3005. Jangan tutup jendela ini selama bermain.' -ForegroundColor Green
-  Write-Host 'Untuk menghentikan game, tekan Ctrl+C di jendela ini atau jalankan HENTIKAN-WINDOWS.bat.' -ForegroundColor Gray
-  npm run dev
+  # Start server and launch browser
+  Start-Process 'http://localhost:3005'
+
+  Write-Host 'Game berjalan di http://localhost:3005.' -ForegroundColor Green
+  Write-Host 'Untuk menghentikan game, jalankan HENTIKAN-WINDOWS.bat.' -ForegroundColor Gray
+  npm run $cmd
 } catch {
   Write-Host $_.Exception.Message -ForegroundColor Red
   pause

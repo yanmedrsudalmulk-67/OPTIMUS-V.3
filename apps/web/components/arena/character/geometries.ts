@@ -1397,28 +1397,51 @@ export function getHairStyleGeometries(style: HairStyle): {
   }
 
   if (style === 'hijab-draped') {
-    const ok = `${cachePrefix}:outer-v6`;
-    const ik = `${cachePrefix}:inner-v6`;
+    const ok = `${cachePrefix}:outer-v7`;
+    const ik = `${cachePrefix}:inner-v7`;
     if (!geoCache.has(ok) || !geoCache.has(ik)) {
-      const inner = new THREE.SphereGeometry(1, 40, 28);
-      const ipos = inner.attributes.position;
-      for (let i = 0; i < ipos.count; i++) {
-        const nx = ipos.getX(i);
-        const ny = ipos.getY(i);
-        const nz = ipos.getZ(i);
-        const x = nx * 0.426;
-        let y = ny * 0.448 + 0.012;
-        let z = nz * (nz > 0 ? 0.418 : 0.39) - 0.014;
-        if (nz > 0.04 && ny < 0.36) {
-          const push = (0.36 - ny) * smoothstep(0.04, 0.44, nz);
-          y += push * 0.72;
-          z -= push * 0.52;
+      // 1. Forehead inner underscarf band (ciput) - sits neatly across forehead above eyebrows,
+      // strictly restricted to front face so it NEVER pokes out the top or back!
+      const segX = 24;
+      const segY = 6;
+      const ipositions: number[] = [];
+      const iindices: number[] = [];
+
+      for (let j = 0; j <= segY; j++) {
+        const v = j / segY;
+        for (let i = 0; i <= segX; i++) {
+          const u = i / segX;
+          const theta = (u - 0.5) * 2.3; // -1.15 to +1.15 rad (~-66 to +66 deg)
+          const cosT = Math.cos(theta);
+          const sinT = Math.sin(theta);
+
+          const x = 0.446 * sinT;
+          const y = 0.205 + 0.065 * v - 0.012 * sinT * sinT;
+          const z = 0.422 * cosT - 0.005;
+
+          ipositions.push(x, y, z);
         }
-        ipos.setXYZ(i, x, y, z);
       }
+
+      for (let j = 0; j < segY; j++) {
+        for (let i = 0; i < segX; i++) {
+          const a = j * (segX + 1) + i;
+          const b = j * (segX + 1) + i + 1;
+          const c = (j + 1) * (segX + 1) + i + 1;
+          const d = (j + 1) * (segX + 1) + i;
+          iindices.push(a, b, c, a, c, d);
+          // Double-sided faces so underside won't cull
+          iindices.push(a, c, b, a, d, c);
+        }
+      }
+
+      const inner = new THREE.BufferGeometry();
+      inner.setAttribute('position', new THREE.Float32BufferAttribute(ipositions, 3));
+      inner.setIndex(iindices);
       inner.computeVertexNormals();
       geoCache.set(ik, inner);
 
+      // 2. Outer hijab hood (covers cranium, temples, sides, and back of head)
       const parts: THREE.BufferGeometry[] = [];
       const hood = new THREE.SphereGeometry(1, 48, 36);
       const hpos = hood.attributes.position;
@@ -1444,19 +1467,20 @@ export function getHairStyleGeometries(style: HairStyle): {
       hood.computeVertexNormals();
       parts.push(hood);
 
-      const cowl = new THREE.SphereGeometry(1, 36, 24);
-      const cpos = cowl.attributes.position;
-      for (let i = 0; i < cpos.count; i++) {
-        const nx = cpos.getX(i);
-        const ny = cpos.getY(i);
-        const nz = cpos.getZ(i);
-        const x = nx * 0.345;
-        const y = ny * 0.095 - 0.455 - (nz > 0 ? 0.04 * nz : 0);
-        const z = nz * 0.268 + 0.015;
-        cpos.setXYZ(i, x, y, z);
-      }
-      cowl.computeVertexNormals();
-      parts.push(cowl);
+      // 3. Plush double-folded neck cowl scarf loop matching turnaround reference image!
+      // Upper cowl roll (folded plush collar under the chin)
+      const cowlTop = new THREE.TorusGeometry(0.245, 0.062, 16, 36);
+      cowlTop.rotateX(Math.PI / 2 + 0.14);
+      cowlTop.scale(1.12, 1, 0.94);
+      cowlTop.translate(0, -0.415, 0.025);
+      parts.push(cowlTop);
+
+      // Lower cowl roll (drapes softly over the shirt collar)
+      const cowlBottom = new THREE.TorusGeometry(0.275, 0.066, 16, 36);
+      cowlBottom.rotateX(Math.PI / 2 + 0.12);
+      cowlBottom.scale(1.15, 1, 0.96);
+      cowlBottom.translate(0, -0.485, 0.015);
+      parts.push(cowlBottom);
 
       const merged = mergeCleanGeometries(parts);
       geoCache.set(ok, merged);
@@ -1565,16 +1589,36 @@ export function getHairStyleGeometries(style: HairStyle): {
  * left hip (+X, viewer's right) + plump rounded flap pouch with button snap!
  */
 export function getCrossbodyPouchGeometries(): {
-  strapAndBag: THREE.BufferGeometry;
+  strap: THREE.BufferGeometry;
+  bagBody: THREE.BufferGeometry;
+  flap: THREE.BufferGeometry;
+  flapTrim: THREE.BufferGeometry;
   button: THREE.BufferGeometry;
+  strapAndBag: THREE.BufferGeometry;
 } {
-  const bagKey = 'crossbody-bag-v5';
-  const btnKey = 'crossbody-btn-v5';
-  if (geoCache.has(bagKey) && geoCache.has(btnKey)) {
-    return { strapAndBag: geoCache.get(bagKey)!, button: geoCache.get(btnKey)! };
+  const strapKey = 'crossbody-strap-v7';
+  const bodyKey = 'crossbody-body-v7';
+  const flapKey = 'crossbody-flap-v7';
+  const trimKey = 'crossbody-trim-v7';
+  const btnKey = 'crossbody-btn-v7';
+  const bagKey = 'crossbody-merged-v7';
+  if (
+    geoCache.has(strapKey) &&
+    geoCache.has(bodyKey) &&
+    geoCache.has(flapKey) &&
+    geoCache.has(trimKey) &&
+    geoCache.has(btnKey) &&
+    geoCache.has(bagKey)
+  ) {
+    return {
+      strap: geoCache.get(strapKey)!,
+      bagBody: geoCache.get(bodyKey)!,
+      flap: geoCache.get(flapKey)!,
+      flapTrim: geoCache.get(trimKey)!,
+      button: geoCache.get(btnKey)! ,
+      strapAndBag: geoCache.get(bagKey)!,
+    };
   }
-
-  const parts: THREE.BufferGeometry[] = [];
 
   const strapCurve = new THREE.CatmullRomCurve3(
     [
@@ -1591,7 +1635,6 @@ export function getCrossbodyPouchGeometries(): {
     true,
   );
   const strap = new THREE.TubeGeometry(strapCurve, 48, 0.024, 10, true);
-  parts.push(strap);
 
   const bagShape = new THREE.Shape();
   const bw = 0.122;
@@ -1605,11 +1648,7 @@ export function getCrossbodyPouchGeometries(): {
   bagShape.lineTo(-bw + br, bh);
   bagShape.quadraticCurveTo(-bw, bh, -bw, bh - br);
   bagShape.lineTo(-bw, -bh + br);
-  bagShape.quadraticCurveTo(-bw, -bh, -bw + prClamp(br), -bh);
-
-  function prClamp(v: number) {
-    return v;
-  }
+  bagShape.quadraticCurveTo(-bw, -bh, -bw + br, -bh);
 
   const bagBody = new THREE.ExtrudeGeometry(bagShape, {
     depth: 0.078,
@@ -1619,6 +1658,9 @@ export function getCrossbodyPouchGeometries(): {
     bevelSegments: 5,
     curveSegments: 14,
   });
+  bagBody.rotateY(0.46);
+  bagBody.rotateZ(-0.06);
+  bagBody.translate(0.242, 0.035, 0.242);
 
   const flapShape = new THREE.Shape();
   flapShape.moveTo(-bw, 0.01);
@@ -1636,14 +1678,21 @@ export function getCrossbodyPouchGeometries(): {
     curveSegments: 14,
   });
   flap.translate(0, 0.01, 0.088);
+  flap.rotateY(0.46);
+  flap.rotateZ(-0.06);
+  flap.translate(0.242, 0.035, 0.242);
 
-  const bagGroup = mergeCleanGeometries([bagBody, flap]);
-  bagGroup.rotateY(0.46);
-  bagGroup.rotateZ(-0.06);
-  bagGroup.translate(0.242, 0.035, 0.242);
-  parts.push(bagGroup);
-
-  const merged = mergeCleanGeometries(parts);
+  const trimCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-bw, 0.01, 0.104),
+    new THREE.Vector3(-bw * 0.5, -0.032, 0.106),
+    new THREE.Vector3(0, -0.048, 0.108),
+    new THREE.Vector3(bw * 0.5, -0.032, 0.106),
+    new THREE.Vector3(bw, 0.01, 0.104),
+  ]);
+  const flapTrim = new THREE.TubeGeometry(trimCurve, 20, 0.009, 8, false);
+  flapTrim.rotateY(0.46);
+  flapTrim.rotateZ(-0.06);
+  flapTrim.translate(0.242, 0.035, 0.242);
 
   const btn = new THREE.SphereGeometry(0.021, 16, 12);
   btn.scale(1, 1, 0.6);
@@ -1651,9 +1700,23 @@ export function getCrossbodyPouchGeometries(): {
   btn.translate(0.298, 0.028, 0.342);
   btn.computeVertexNormals();
 
-  geoCache.set(bagKey, merged);
+  const merged = mergeCleanGeometries([strap.clone(), bagBody.clone(), flap.clone()]);
+
+  geoCache.set(strapKey, strap);
+  geoCache.set(bodyKey, bagBody);
+  geoCache.set(flapKey, flap);
+  geoCache.set(trimKey, flapTrim);
   geoCache.set(btnKey, btn);
-  return { strapAndBag: merged, button: btn };
+  geoCache.set(bagKey, merged);
+
+  return {
+    strap,
+    bagBody,
+    flap,
+    flapTrim,
+    button: btn,
+    strapAndBag: merged,
+  };
 }
 
 /** Draped stethoscope around collar/chest. */

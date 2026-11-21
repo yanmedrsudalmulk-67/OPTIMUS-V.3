@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
   ArrowLeft,
@@ -10,7 +11,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Cross,
   FlaskConical,
   Heart,
   HeartPulse,
@@ -18,6 +18,7 @@ import {
   Pill,
   Rotate3D,
   ShieldPlus,
+  Sparkles,
   Stethoscope,
   Truck,
   Users,
@@ -33,7 +34,7 @@ const CharacterPreview = dynamic(() => import('../arena/CharacterPreview'), {
   loading: () => (
     <div className="cg-loading" role="status">
       <span />
-      Menyiapkan hero…
+      Menyiapkan hero 3D…
     </div>
   ),
 });
@@ -47,7 +48,7 @@ export interface CharacterGalleryProps {
   backHref?: string;
 }
 
-export function ProfessionIcon({ id, size = 24 }: { id: string; size?: number }) {
+export function ProfessionIcon({ id, size = 20 }: { id: string; size?: number }) {
   const Icon =
     id === 'midwife'
       ? Heart
@@ -73,53 +74,6 @@ const attributes = [
   { key: 'knowledge', label: 'Knowledge', icon: Lightbulb, color: '#facc15' },
   { key: 'resilience', label: 'Resilience', icon: Zap, color: '#818cf8' },
 ] as const;
-// Put six different professions on the first spread, then preserve registry order.
-const firstSpread = ['doctor-m', 'nurse-f', 'midwife', 'pharmacist', 'analyst', 'ambulance'];
-const heroes = [
-  ...firstSpread.map((id) => CHARACTERS.find((c) => c.id === id)!).filter(Boolean),
-  ...CHARACTERS.filter((c) => !firstSpread.includes(c.id)),
-];
-
-function PortraitCard({
-  hero,
-  selected,
-  onSelect,
-}: {
-  hero: CharacterDefinition;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className={`cg-hero-card ${selected ? 'is-selected' : ''}`}
-      style={{ '--hero-accent': hero.accent } as CSSProperties}
-      onClick={onSelect}
-      aria-label={`${hero.name}, ${hero.profession}`}
-      aria-pressed={selected}
-    >
-      <span className="cg-card-backdrop" aria-hidden="true">
-        <Cross />
-      </span>
-      <img src={hero.thumbnailPath} alt="" width={360} height={440} draggable={false} />
-      <span className="cg-card-caption">
-        <span className="cg-profession-icon">
-          <ProfessionIcon id={hero.id} size={25} />
-        </span>
-        <span>
-          <strong>{hero.title}</strong>
-          <small>{hero.name}</small>
-        </span>
-      </span>
-      {selected && (
-        <span className="cg-card-check">
-          <Check size={14} />
-          <span className="cg-sr-only">Dipilih</span>
-        </span>
-      )}
-    </button>
-  );
-}
 
 export default function CharacterGalleryView({
   selectedId = 'doctor-m',
@@ -129,127 +83,191 @@ export default function CharacterGalleryView({
   title,
   backHref = '/',
 }: CharacterGalleryProps) {
+  const router = useRouter();
   const [activeId, setActiveId] = useState(
     CHARACTERS.some((c) => c.id === selectedId) ? selectedId : CHARACTERS[0].id,
   );
-  const [page, setPage] = useState(
-    Math.floor(
-      Math.max(
-        0,
-        heroes.findIndex((c) => c.id === selectedId),
-      ) / 6,
-    ),
-  );
   const [team, setTeam] = useState<Team>(initialTeam);
-  const [confirmed, setConfirmed] = useState(false);
+  const [showSlidePopup, setShowSlidePopup] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [cardKey, setCardKey] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   const isModal = Boolean(onClose);
-  const hero = CHARACTERS.find((c) => c.id === activeId) || CHARACTERS[0];
-  const pageCount = Math.ceil(heroes.length / 6);
+
+  const heroIndex = Math.max(
+    0,
+    CHARACTERS.findIndex((c) => c.id === activeId),
+  );
+  const hero = CHARACTERS[heroIndex] || CHARACTERS[0];
 
   useEffect(() => {
     if (!isModal) return;
     const node = dialog.current;
-    const focused = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;
     node?.showModal();
     document.body.style.overflow = 'hidden';
     return () => {
       node?.close();
       document.body.style.overflow = overflow;
-      focused?.focus();
     };
   }, [isModal]);
 
-  function choose(id: string) {
-    if (busy) return;
+  const choose = useCallback((id: string) => {
     setActiveId(id);
-    setConfirmed(false);
-    setError('');
+    setCardKey((k) => k + 1);
     playSound('select');
-  }
-  async function confirm() {
-    setBusy(true);
-    setError('');
-    try {
-      if (onConfirm) await onConfirm(hero.id);
-      else {
-        try {
-          localStorage.setItem('medical:preferredHero', hero.id);
-        } catch {
-          /* Browsing remains available with storage disabled. */
+  }, []);
+
+  const handleNext = useCallback(() => {
+    const nextIdx = (heroIndex + 1) % CHARACTERS.length;
+    choose(CHARACTERS[nextIdx].id);
+  }, [choose, heroIndex]);
+
+  const handlePrev = useCallback(() => {
+    const prevIdx = (heroIndex - 1 + CHARACTERS.length) % CHARACTERS.length;
+    choose(CHARACTERS[prevIdx].id);
+  }, [choose, heroIndex]);
+
+  // Keyboard navigation: Left/Right switches hero, Enter opens slide pop-up, Escape closes
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (showSlidePopup) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setShowSlidePopup(false);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          handleContinueGame();
         }
-        setConfirmed(true);
+        return;
       }
-      playSound('ready');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Karakter belum tersimpan. Coba kembali.');
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleConfirmSelect();
+      } else if (e.key === 'Escape') {
+        if (onClose) onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleNext, handlePrev, onClose, showSlidePopup]);
+
+  function handleConfirmSelect() {
+    playSound('ready');
+    try {
+      localStorage.setItem('medical:preferredHero', hero.id);
+      localStorage.setItem('medical:preferredTeam', team);
+    } catch {
+      /* ignore if disabled */
+    }
+    // Trigger signature pop up slide animation!
+    setShowSlidePopup(true);
+  }
+
+  async function handleContinueGame() {
+    setBusy(true);
+    try {
+      if (onConfirm) {
+        await onConfirm(hero.id);
+        if (onClose) onClose();
+      } else {
+        router.push('/play');
+      }
     } finally {
       setBusy(false);
     }
   }
 
   const content = (
-    <section
-      className="cg-shell"
-      style={{ '--active-accent': hero.accent } as CSSProperties}
-      aria-label="Galeri karakter"
+    <div
+      className="cg-cinematic-shell"
+      style={
+        {
+          '--hero-accent': hero.accent || '#e11d62',
+        } as CSSProperties
+      }
     >
-      <header className="cg-header">
-        <Link href="/" className="cg-brand" aria-label="Medical Tug of War beranda">
-          <Activity size={44} />
-          <span>
-            MEDICAL
-            <br />
-            TUG OF WAR<small>Healthcare Heroes Quiz Battle</small>
-          </span>
+      {/* 1. SIGNATURE CINEMATIC DIAGONAL SPLIT WEDGE (BIG HERO 6 STYLE) */}
+      <div className="cg-diagonal-wedge" aria-hidden="true" />
+      <div className="cg-cyber-grid" aria-hidden="true" />
+      <div className="cg-particles-drift" aria-hidden="true" />
+
+      {/* 2. TOP HEADER HUD */}
+      <header className="cg-top-hud">
+        <Link href={backHref} className="cg-brand-pill" aria-label="Beranda Medical Tug of War">
+          <div className="cg-brand-icon">
+            <Activity size={20} />
+          </div>
+          <div className="cg-brand-info">
+            <span className="cg-brand-title">MEDICAL TUG OF WAR</span>
+            <span className="cg-brand-sub">RSUD AL-MULK • HERO SHOWCASE</span>
+          </div>
         </Link>
-        <div className="cg-header-right">
-          <span className="cg-edition">
-            <span />
-            HEALTHCARE HEROES COLLECTION
+
+        <div className="cg-header-actions">
+          <span className="cg-hud-tag">
+            <span className="cg-live-dot" />
+            HERO GALLERY ARCHIVE
           </span>
           {onClose ? (
             <button
               type="button"
-              className="cg-back"
+              className="cg-back-btn"
               onClick={onClose}
               disabled={busy}
               aria-label="Tutup galeri"
             >
-              <X size={18} />
-              Kembali ke tim
+              <X size={16} />
+              Tutup
             </button>
           ) : (
-            <Link className="cg-back" href={backHref}>
-              <ArrowLeft size={17} />
+            <Link className="cg-back-btn" href={backHref}>
+              <ArrowLeft size={16} />
               Kembali
             </Link>
           )}
         </div>
       </header>
-      <div className="cg-layout">
-        <div className="cg-stage">
-          <div className="cg-stage-scene" aria-hidden="true">
-            <span className="cg-hospital">
-              <i />
-              <i />
-              <i />
-              <b>+</b>
-            </span>
-            <span className="cg-orbit cg-orbit-one" />
-            <span className="cg-orbit cg-orbit-two" />
-            <Cross className="cg-float cg-float-one" />
-            <Cross className="cg-float cg-float-two" />
-            <span className="cg-stage-lines" />
+
+      {/* 3. MAIN STAGE LAYOUT (LEFT: 3D HERO + HUD RETICLES, RIGHT: CHARACTER DOSSIER) */}
+      <main className="cg-showcase-grid">
+        {/* LEFT COLUMN: 3D CHARACTER WITH SCI-FI / MEDICAL TECH RETICLES */}
+        <section className="cg-hero-display" aria-label="Tampilan 3D Karakter">
+          {/* Tech Reticles & Telemetry Points (Big Hero 6 style) */}
+          <div className="cg-reticles-overlay" aria-hidden="true">
+            {/* Chest / Pulse Telemetry Point */}
+            <div className="cg-hud-point is-chest">
+              <span className="cg-target-ring" />
+              <span className="cg-hud-line" />
+              <div className="cg-hud-data">
+                <b>PULSE TELEMETRY</b>
+                <span>ECG 78 BPM • SYNC READY</span>
+              </div>
+            </div>
+
+            {/* Specialty / ID Badge Point */}
+            <div className="cg-hud-point is-badge">
+              <span className="cg-target-ring" />
+              <span className="cg-hud-line" />
+              <div className="cg-hud-data">
+                <b>SPECIALTY PROTOCOL</b>
+                <span>{hero.profession.toUpperCase()}</span>
+              </div>
+            </div>
+
+            {/* Orbiting concentric background rings */}
+            <div className="cg-orbit-pulse" />
           </div>
-          <span className="cg-stage-label">
-            <span />
-            LIVE HERO PREVIEW
-          </span>
-          <div className="cg-model" data-hero={hero.id}>
+
+          {/* 3D Character Canvas */}
+          <div className="cg-model-wrapper" key={hero.id}>
             <CharacterPreview
               characterId={hero.id}
               team={team}
@@ -258,153 +276,301 @@ export default function CharacterGalleryView({
               showHint={false}
             />
           </div>
-          <div className="cg-stage-footer">
-            <span className="cg-hero-number">
-              {String(heroes.findIndex((c) => c.id === hero.id) + 1).padStart(2, '0')}
-              <small>/ {CHARACTERS.length}</small>
-            </span>
-            <div>
+
+          {/* Stage Bottom Indicator */}
+          <div className="cg-hero-meta-badge">
+            <div className="cg-hero-index-num">
+              <span>{String(heroIndex + 1).padStart(2, '0')}</span>
+              <small>/ {String(CHARACTERS.length).padStart(2, '0')}</small>
+            </div>
+            <div className="cg-hero-rotation-hint">
               <strong>{hero.name}</strong>
               <span>
-                <Rotate3D size={16} />
-                Geser untuk memutar hero
+                <Rotate3D size={15} /> Geser untuk memutar hero 360°
               </span>
             </div>
           </div>
-        </div>
-        <div className="cg-heading">
-          <span className="cg-kicker">{title || 'TEMUKAN PAHLAWAN DALAM DIRIMU'}</span>
-          <h1>
-            CHARACTER <em>GALLERY</em>
-          </h1>
-          <p>
-            Choose Your Healthcare Hero <Activity size={45} />
-          </p>
-        </div>
-        <section className="cg-info" aria-live="polite" aria-atomic="true">
-          <div className="cg-info-top">
-            <span className="cg-role-tag">
-              <Cross size={16} />
-              MEDICAL HERO
-            </span>
-            <span className="cg-info-index">
-              {String(heroes.findIndex((c) => c.id === hero.id) + 1).padStart(2, '0')}
-            </span>
+        </section>
+
+        {/* RIGHT COLUMN: HERO DOSSIER & PROFILE (SLIDES SMOOTHLY ON SELECTION) */}
+        <section className="cg-hero-dossier" key={`dossier-${cardKey}`}>
+          <div className="cg-dossier-header">
+            <div className="cg-dossier-pill">
+              <Sparkles size={14} />
+              MEDICAL HERO // RSUD AL-MULK
+            </div>
+            <span className="cg-hero-code">HERO-{String(heroIndex + 1).padStart(3, '0')}</span>
           </div>
-          <div className="cg-description" key={hero.id}>
-            <h2>{hero.title}</h2>
-            <p className="cg-profession">
-              {hero.profession}
-              <Activity size={37} />
-            </p>
-            <p className="cg-tagline">
-              Care <i /> Support <i /> Make a Difference
-            </p>
-            <p className="cg-bio">{hero.description}</p>
-          </div>
-          <div className="cg-attributes">
-            {attributes.map((attr) => (
-              <div className="cg-attribute" key={attr.key}>
-                <attr.icon size={20} />
-                <div>
-                  <span>{attr.label}</span>
+
+          <div className="cg-dossier-main">
+            <h1 className="cg-dossier-name">{hero.title}</h1>
+            <div className="cg-dossier-profession-row">
+              <span className="cg-dossier-profession">
+                <ProfessionIcon id={hero.id} size={18} />
+                {hero.profession}
+              </span>
+              <span className="cg-dossier-team-badge">
+                {team === 'A' ? 'TIM HIJAU' : 'TIM BIRU'}
+              </span>
+            </div>
+
+            <div className="cg-dossier-bio-wrap">
+              <p className="cg-dossier-bio">{hero.description}</p>
+              <div className="cg-bio-tech-line" aria-hidden="true">
+                <span className="cg-tech-notch" />
+              </div>
+            </div>
+
+            {/* ATTRIBUTE BARS (FUTURISTIC MEDICAL TELEMETRY GAUGES) */}
+            <div className="cg-stats-cluster">
+              {attributes.map((attr) => (
+                <div className="cg-stat-row" key={attr.key}>
+                  <div className="cg-stat-label">
+                    <attr.icon size={15} style={{ color: attr.color }} />
+                    <span>{attr.label}</span>
+                  </div>
                   <div
+                    className="cg-stat-bar-track"
                     role="progressbar"
                     aria-label={attr.label}
                     aria-valuenow={hero.attributes[attr.key]}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    className="cg-track"
                   >
-                    <i style={{ width: `${hero.attributes[attr.key]}%`, background: attr.color }} />
+                    <div
+                      className="cg-stat-bar-fill"
+                      style={{
+                        width: `${hero.attributes[attr.key]}%`,
+                        background: attr.color,
+                        boxShadow: `0 0 10px ${attr.color}80`,
+                      }}
+                    />
                   </div>
+                  <strong className="cg-stat-val">{hero.attributes[attr.key]}</strong>
                 </div>
-                <strong>{hero.attributes[attr.key]}</strong>
+              ))}
+            </div>
+
+            {/* PRIMARY CALL TO ACTION BUTTON */}
+            <div className="cg-action-row">
+              <button
+                type="button"
+                className="cg-primary-select-btn"
+                onClick={handleConfirmSelect}
+              >
+                <span>PILIH KARAKTER</span>
+                <div className="cg-btn-arrow">
+                  <ArrowRight size={18} />
+                </div>
+              </button>
+
+              {/* Team color preview toggle */}
+              <div className="cg-team-toggle-group">
+                <button
+                  type="button"
+                  className={`cg-team-btn is-green ${team === 'A' ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setTeam('A');
+                    playSound('select');
+                  }}
+                  title="Pratinjau Tim Hijau"
+                >
+                  <i /> Tim Hijau
+                </button>
+                <button
+                  type="button"
+                  className={`cg-team-btn is-blue ${team === 'B' ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setTeam('B');
+                    playSound('select');
+                  }}
+                  title="Pratinjau Tim Biru"
+                >
+                  <i /> Tim Biru
+                </button>
               </div>
-            ))}
+            </div>
           </div>
-          <p className="cg-stat-note">Profil hero · skor ditentukan oleh jawaban tim.</p>
-          {error && (
-            <p className="cg-error" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="cg-confirm" type="button" onClick={confirm} disabled={busy}>
-            {busy ? 'MENYIMPAN…' : confirmed ? 'HERO TERPILIH' : 'PILIH KARAKTER'}
-            <span>{confirmed ? <Check size={22} /> : <ArrowRight size={22} />}</span>
-          </button>
-          {confirmed && !onConfirm && (
-            <div className="cg-confirmed" role="status">
-              {hero.name} siap menemani timmu.
-              <Link href="/join">
-                Gabung pertandingan <ArrowRight size={14} />
-              </Link>
+
+          {/* 4. BOTTOM HORIZONTAL CIRCULAR AVATAR SELECTOR (BIG HERO 6 STYLE) */}
+          <div className="cg-bottom-avatar-row" aria-label="Pilih Karakter Lainnya">
+            <button
+              type="button"
+              className="cg-avatar-nav-btn"
+              onClick={handlePrev}
+              aria-label="Karakter sebelumnya"
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            <div className="cg-avatar-list">
+              {CHARACTERS.map((c, idx) => {
+                const isActive = c.id === hero.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`cg-avatar-btn ${isActive ? 'is-active' : ''}`}
+                    onClick={() => choose(c.id)}
+                    aria-label={`Pilih ${c.name}`}
+                    title={c.name}
+                  >
+                    {/* Concentric pulsing target ring on active hero */}
+                    {isActive && (
+                      <span className="cg-avatar-target-ring" aria-hidden="true">
+                        <span className="cg-ring-bracket is-left" />
+                        <span className="cg-ring-bracket is-right" />
+                      </span>
+                    )}
+                    <img
+                      src={c.thumbnailPath}
+                      alt={c.name}
+                      className="cg-avatar-img"
+                      draggable={false}
+                    />
+                    <span className="cg-avatar-num">{String(idx + 1).padStart(2, '0')}</span>
+                  </button>
+                );
+              })}
             </div>
-          )}
-          {!onConfirm && (
-            <div className="cg-team-colors" aria-label="Warna tim preview">
-              <span>Warna tim</span>
-              <button type="button" onClick={() => setTeam('A')} aria-pressed={team === 'A'}>
-                <i className="cg-green" />
-                Green
-              </button>
-              <button type="button" onClick={() => setTeam('B')} aria-pressed={team === 'B'}>
-                <i className="cg-blue" />
-                Blue
-              </button>
-            </div>
-          )}
+
+            <button
+              type="button"
+              className="cg-avatar-nav-btn"
+              onClick={handleNext}
+              aria-label="Karakter berikutnya"
+            >
+              <ChevronRight size={20} />
+            </button>
+          </div>
         </section>
-        <section className="cg-roster" aria-label="Daftar karakter">
-          <div className="cg-grid">
-            {heroes.slice(page * 6, page * 6 + 6).map((c) => (
-              <PortraitCard
-                key={c.id}
-                hero={c}
-                selected={hero.id === c.id}
-                onSelect={() => choose(c.id)}
-              />
-            ))}
-          </div>
-          <nav className="cg-pagination" aria-label="Halaman karakter">
-            <span>
-              {heroes.length} HERO <i /> SATU SEMANGAT
-            </span>
-            <div>
+      </main>
+
+      {/* ========================================================================
+          5. ANIMATED POP-UP SLIDE CONFIRMATION (WHEN HERO IS SELECTED)
+          ======================================================================== */}
+      {showSlidePopup && (
+        <div
+          className="cg-slide-popup-backdrop"
+          onClick={() => setShowSlidePopup(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Konfirmasi Pilihan Hero"
+        >
+          <div
+            className="cg-slide-popup-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Close Button */}
+            <button
+              type="button"
+              className="cg-popup-close-btn"
+              onClick={() => setShowSlidePopup(false)}
+              aria-label="Tutup"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Header Badge */}
+            <div className="cg-popup-badge">
+              <Check size={18} strokeWidth={3} />
+              <span>HERO BERHASIL DIPILIH!</span>
+            </div>
+
+            {/* Hero Card Visual */}
+            <div className="cg-popup-hero-preview">
+              <div className="cg-popup-avatar-frame">
+                <img
+                  src={hero.thumbnailPath}
+                  alt={hero.name}
+                  className="cg-popup-avatar"
+                  draggable={false}
+                />
+                <span className="cg-popup-glow-ring" />
+              </div>
+
+              <div className="cg-popup-hero-titles">
+                <span className="cg-popup-role-tag">{hero.profession.toUpperCase()}</span>
+                <h2 className="cg-popup-hero-name">{hero.name}</h2>
+                <span className="cg-popup-title-tag">
+                  {hero.title} • RSUD AL-MULK
+                </span>
+              </div>
+            </div>
+
+            {/* Team Assignment Selector */}
+            <div className="cg-popup-team-picker">
+              <span className="cg-team-picker-label">PILIHAN TIM:</span>
+              <div className="cg-team-picker-pills">
+                <button
+                  type="button"
+                  className={`cg-team-pill is-green ${team === 'A' ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setTeam('A');
+                    playSound('select');
+                  }}
+                >
+                  <i /> TIM HIJAU
+                </button>
+                <button
+                  type="button"
+                  className={`cg-team-pill is-blue ${team === 'B' ? 'is-active' : ''}`}
+                  onClick={() => {
+                    setTeam('B');
+                    playSound('select');
+                  }}
+                >
+                  <i /> TIM BIRU
+                </button>
+              </div>
+            </div>
+
+            {/* Short Stats Radar Summary */}
+            <div className="cg-popup-stats-summary">
+              <div className="cg-popup-stat">
+                <span className="label">Care</span>
+                <span className="val" style={{ color: '#34d399' }}>{hero.attributes.care}</span>
+              </div>
+              <div className="cg-popup-stat">
+                <span className="label">Teamwork</span>
+                <span className="val" style={{ color: '#38bdf8' }}>{hero.attributes.teamwork}</span>
+              </div>
+              <div className="cg-popup-stat">
+                <span className="label">Knowledge</span>
+                <span className="val" style={{ color: '#facc15' }}>{hero.attributes.knowledge}</span>
+              </div>
+              <div className="cg-popup-stat">
+                <span className="label">Resilience</span>
+                <span className="val" style={{ color: '#818cf8' }}>{hero.attributes.resilience}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="cg-popup-actions">
               <button
                 type="button"
-                aria-label="Halaman karakter sebelumnya"
-                disabled={page === 0 || busy}
-                onClick={() => setPage((p) => p - 1)}
+                className="cg-popup-confirm-btn"
+                onClick={handleContinueGame}
+                disabled={busy}
               >
-                <ChevronLeft size={18} />
+                <span>{busy ? 'MENYIAPKAN…' : 'LANJUT KE ARENA'}</span>
+                <ArrowRight size={20} />
               </button>
-              <span>
-                {page + 1} / {pageCount}
-              </span>
+
               <button
                 type="button"
-                aria-label="Halaman karakter berikutnya"
-                disabled={page === pageCount - 1 || busy}
-                onClick={() => setPage((p) => p + 1)}
+                className="cg-popup-cancel-btn"
+                onClick={() => setShowSlidePopup(false)}
               >
-                <ChevronRight size={18} />
+                GANTI KARAKTER LAIN
               </button>
             </div>
-          </nav>
-        </section>
-      </div>
-      <footer className="cg-footer">
-        <span>
-          <ShieldPlus size={15} />
-          PENGETAHUAN. KEPEDULIAN. KERJA SAMA.
-        </span>
-        <span>
-          2 TIM <i /> 6 HERO <i /> 1 TUJUAN
-        </span>
-      </footer>
-    </section>
+          </div>
+        </div>
+      )}
+    </div>
   );
+
   return onClose ? (
     <dialog
       ref={dialog}

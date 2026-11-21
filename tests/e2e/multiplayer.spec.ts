@@ -223,15 +223,31 @@ test('two controllers configure six heroes, rename live teams and complete a bat
   }
 });
 
-test('welcome arena and mobile join navigation are interactive', async ({ page }) => {
+test('welcome screen arcade navigation, direct start game, and room join work cleanly', async ({
+  page,
+}) => {
   await page.goto('/');
+  await expect(page.getByRole('button', { name: /START GAME/i })).toBeVisible();
+  await page.getByRole('button', { name: 'LIVE 3D ARENA', exact: true }).click();
   await expect(page.locator('canvas')).toBeVisible();
-  await page.getByRole('button', { name: 'Fantasy Battlefield', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Fantasy Battlefield', exact: true })).toHaveClass(
-    'selected',
-  );
+  await page.getByRole('button', { name: 'Hospital Battle', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Fantasy Battlefield', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'CONTINUE', exact: true }).click();
   await page.getByLabel('KODE ROOM', { exact: true }).fill('TEST42');
-  await page.getByRole('button', { name: 'Masuk arena', exact: true }).click();
+  await page.getByRole('button', { name: 'JOIN', exact: true }).click();
   await expect(page).toHaveURL(/\/join\/TEST42/);
   await expect(page.locator('.error-message[role="alert"]')).toBeVisible();
+});
+
+test('quick play flows directly from START GAME through 2-team character select into live 3D battle', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /START GAME/i }).click();
+  await expect(page).toHaveURL(/\/play$/);
+  await expect(page.locator('canvas')).toBeVisible();
+  await page.getByRole('button', { name: /MULAI GAME!/i }).click();
+  await expect(page).toHaveURL(/\/battle\/[A-Z0-9]{6}/);
+  await expect(page.locator('canvas')).toBeVisible();
+  await expect(page.locator('.qb-buzzer-btn').first()).toBeEnabled({ timeout: 15000 });
 });

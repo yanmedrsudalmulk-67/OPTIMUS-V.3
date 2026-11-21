@@ -220,12 +220,20 @@ function VinylHeroCharacter({
     () => (profile.pouch ? getFabricMaterial(profile.pouch, 0.84) : null),
     [profile.pouch],
   );
+  const pouchBodyMat = useMemo(() => {
+    const c = profile.pouchBody || profile.pouch;
+    return c ? getFabricMaterial(c, 0.84) : pouchMat;
+  }, [profile.pouchBody, profile.pouch, pouchMat]);
   const pouchBtnMat = useMemo(
     () =>
       getStandardPartMaterial(profile.pouch || '#4c7036', {
         roughness: 0.55,
       }),
     [profile.pouch],
+  );
+  const trimMat = useMemo(
+    () => (profile.tunicTrim ? getFabricMaterial(profile.tunicTrim, 0.86) : null),
+    [profile.tunicTrim],
   );
   const headwearMat = useMemo(() => {
     const c = profile.hijabColor || profile.capColor;
@@ -747,6 +755,37 @@ function VinylHeroCharacter({
             {/* Cozy A-line / pear-bell tee or scrub tunic */}
             <mesh geometry={tunicGeo} material={topMat} castShadow receiveShadow />
 
+            {/* Healthcare scrub vertical center seam, collar trim, and pocket trims (Midwife signature!) */}
+            {profile.tunicTrim && trimMat && (
+              <group>
+                {/* Vertical seam / zipper stripe down chest center */}
+                <mesh position={[0, 0.28, 0.312]} rotation={[0.07, 0, 0]} material={trimMat} castShadow>
+                  <boxGeometry args={[0.024, 0.58, 0.014]} />
+                </mesh>
+                {/* Crew collar green trim ring */}
+                <mesh position={[0, 0.62, 0.008]} scale={[1.07, 1, 0.89]} material={trimMat}>
+                  <torusGeometry args={[0.178, 0.015, 14, 32]} />
+                </mesh>
+                {/* Lower left & right patch pockets with crisp green trim */}
+                <group position={[-0.19, 0.11, 0.306]} rotation={[0, 0.2, 0]}>
+                  <mesh position={[0, -0.04, 0]} material={topMat} castShadow>
+                    <boxGeometry args={[0.115, 0.088, 0.012]} />
+                  </mesh>
+                  <mesh position={[0, 0.01, 0.002]} material={trimMat} castShadow>
+                    <boxGeometry args={[0.118, 0.02, 0.016]} />
+                  </mesh>
+                </group>
+                <group position={[0.19, 0.11, 0.306]} rotation={[0, -0.2, 0]}>
+                  <mesh position={[0, -0.04, 0]} material={topMat} castShadow>
+                    <boxGeometry args={[0.115, 0.088, 0.012]} />
+                  </mesh>
+                  <mesh position={[0, 0.01, 0.002]} material={trimMat} castShadow>
+                    <boxGeometry args={[0.118, 0.02, 0.016]} />
+                  </mesh>
+                </group>
+              </group>
+            )}
+
             {/* Optional open tailored medical coat / cardigan */}
             {coatGeo && coatMat && (
               <mesh geometry={coatGeo} material={coatMat} castShadow receiveShadow />
@@ -795,12 +834,27 @@ function VinylHeroCharacter({
             <group ref={accessoryGroupRef}>
               {pouchGeos && pouchMat && (
                 <group>
+                  <mesh geometry={pouchGeos.strap} material={pouchMat} castShadow receiveShadow />
                   <mesh
-                    geometry={pouchGeos.strapAndBag}
-                    material={pouchMat}
+                    geometry={pouchGeos.bagBody}
+                    material={pouchBodyMat ?? pouchMat}
                     castShadow
                     receiveShadow
                   />
+                  <mesh
+                    geometry={pouchGeos.flap}
+                    material={pouchBodyMat ?? pouchMat}
+                    castShadow
+                    receiveShadow
+                  />
+                  {pouchGeos.flapTrim && (
+                    <mesh
+                      geometry={pouchGeos.flapTrim}
+                      material={pouchMat}
+                      castShadow
+                      receiveShadow
+                    />
+                  )}
                   <mesh geometry={pouchGeos.button} material={pouchBtnMat} />
                 </group>
               )}
@@ -826,7 +880,7 @@ function VinylHeroCharacter({
                 </group>
               )}
 
-              {/* Crisp Medical ID Card with Team Color Header Stripe */}
+              {/* Crisp Medical ID Card with Team Color or Green Specialty Header Stripe */}
               <group
                 position={[-0.22, 0.36, profile.coat ? 0.335 : 0.296]}
                 rotation={[-0.08, -0.32, 0.03]}
@@ -834,7 +888,7 @@ function VinylHeroCharacter({
                 <mesh material={badgeCardMat} castShadow>
                   <boxGeometry args={[0.1, 0.125, 0.015]} />
                 </mesh>
-                <mesh position={[0, 0.038, 0.008]} material={teamMat}>
+                <mesh position={[0, 0.038, 0.008]} material={trimMat ?? teamMat}>
                   <boxGeometry args={[0.084, 0.022, 0.006]} />
                 </mesh>
                 <mesh
@@ -871,6 +925,16 @@ function VinylHeroCharacter({
                     castShadow
                     receiveShadow
                   />
+                  {/* Green sleeve cuff band for healthcare scrub tunic (Midwife signature!) */}
+                  {profile.tunicTrim && trimMat && (
+                    <mesh
+                      position={[0, -0.228, 0]}
+                      rotation={[Math.PI / 2, 0, 0]}
+                      material={trimMat}
+                    >
+                      <torusGeometry args={[0.184, 0.009, 10, 28]} />
+                    </mesh>
+                  )}
                   <primitive object={rig.lowerBone}>
                     {/* Snug chunky dark smartwatch on character's LEFT wrist (sign === +1, viewer's RIGHT — exact match to reference image!) */}
                     {sign === 1 && profile.hasWatch && (

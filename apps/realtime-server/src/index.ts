@@ -60,6 +60,10 @@ app.get('/api/health', async (_req, res) => {
   res.json({ status: 'ok', database: 'connected', service: 'medical-tug-of-war' });
 });
 app.use('/api/auth', authRouter);
+app.get('/api/public/packages', async (_req, res) => res.json(await game.getPublicCatalog()));
+app.post('/api/quick-matches', async (req, res) =>
+  res.status(201).json(await game.createQuickMatch(req.body)),
+);
 app.get('/api/rooms/:code', (req, res) =>
   res.json(game.serialize(codeSchema.parse(req.params.code))),
 );

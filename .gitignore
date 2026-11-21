@@ -22,3 +22,5 @@ packages/database/prisma/*.db-journal
 
 # Runtime cache
 .runtime/
+scratch/
+*.lnk

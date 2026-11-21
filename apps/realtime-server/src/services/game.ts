@@ -18,6 +18,7 @@ export { defaultTeamCharacters };
 import {
   settings as parseSettings,
   matchSchema,
+  quickMatchSchema,
   joinSchema,
   teamUpdateSchema,
 } from '../validation';
@@ -34,6 +35,7 @@ interface Internal {
   scored: string[];
   streaks: Record<string, number>;
   remainingMs: number;
+  quickTokenHash?: string;
 }
 
 const json = (value: unknown) => JSON.parse(JSON.stringify(value));
@@ -51,8 +53,23 @@ export class GameService {
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private queues = new Map<string, Promise<unknown>>();
   private teamSockets = new Map<string, Set<string>>(); // key: `${code}_${team}`
+  private quickTokens = new Map<string, string>(); // key: code -> tokenHash
 
   constructor(private io: Server) {}
+
+  verifyQuickToken(code: string, token?: string) {
+    const room = this.get(code);
+    const expectedHash = room.quickTokenHash || this.quickTokens.get(code);
+    if (!expectedHash || !token) {
+      throw new Error('Token kendali pertandingan cepat tidak valid');
+    }
+    const providedHash = hashToken(token);
+    const a = Buffer.from(expectedHash, 'hex');
+    const b = Buffer.from(providedHash, 'hex');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      throw new Error('Token kendali pertandingan cepat tidak valid');
+    }
+  }
 
   hasTeamConnection(code: string, team: Team, socketId: string) {
     return this.teamSockets.get(`${code}_${team}`)?.has(socketId) ?? false;
@@ -142,8 +159,12 @@ export class GameService {
         };
       }
 
-      room.state.teams.A.connected = false;
-      room.state.teams.B.connected = false;
+      if (room.quickTokenHash) {
+        this.quickTokens.set(row.code, room.quickTokenHash);
+      } else {
+        room.state.teams.A.connected = false;
+        room.state.teams.B.connected = false;
+      }
       room.state.teams.A.answered =
         !!room.answers[room.state.question?.id || '']?.[room.state.teams.A.id];
       room.state.teams.B.answered =
@@ -320,17 +341,47 @@ export class GameService {
     ];
   }
 
-  async create(input: unknown) {
-    const data = matchSchema.parse(input);
+  async getPublicCatalog() {
+    const [packages, settingRow] = await Promise.all([
+      prisma.questionPackage.findMany({
+        where: { active: true },
+        include: { questions: { where: { active: true }, select: { id: true } } },
+        orderBy: { createdAt: 'asc' },
+      }),
+      prisma.gameSetting.findUnique({ where: { id: 'default' } }),
+    ]);
+    return {
+      packages: packages
+        .filter((p) => p.questions.length > 0)
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          questionCount: p.questions.length,
+        })),
+      settings: parseSettings(settingRow?.value),
+    };
+  }
+
+  private async buildAndPersistRoom(params: {
+    title: string;
+    teamAName: string;
+    teamBName: string;
+    packageId: string;
+    settings?: unknown;
+    teamACharacters?: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+    teamBCharacters?: [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
+    quickMode?: boolean;
+  }): Promise<{ room: Internal; quickToken?: string }> {
     const pack = await prisma.questionPackage.findUnique({
-      where: { id: data.packageId },
+      where: { id: params.packageId },
       include: { questions: { where: { active: true }, orderBy: { sortOrder: 'asc' } } },
     });
     if (!pack || !pack.active || !pack.questions.length) {
       throw new Error('Paket harus memiliki soal aktif');
     }
 
-    const config = parseSettings(data.settings);
+    const config = parseSettings(params.settings);
     let qs = pack.questions.map((q) => ({ ...q, options: q.options as string[] }));
     if (config.shuffle) {
       for (let i = qs.length - 1; i > 0; i--) {
@@ -354,15 +405,20 @@ export class GameService {
 
     const teamAId = crypto.randomUUID();
     const teamBId = crypto.randomUUID();
+    const charsA = params.teamACharacters || defaultTeamCharacters('A');
+    const charsB = params.teamBCharacters || defaultTeamCharacters('B');
+    const readyFlag = Boolean(params.quickMode);
+    const quickToken = params.quickMode ? crypto.randomBytes(32).toString('hex') : undefined;
+    const quickTokenHash = quickToken ? hashToken(quickToken) : undefined;
 
     const teams: { A: TeamController; B: TeamController } = {
       A: {
         id: teamAId,
         team: 'A',
-        name: data.teamAName || 'Tim Emerald',
-        connected: false,
-        ready: false,
-        characters: defaultTeamCharacters('A'),
+        name: params.teamAName || 'Tim Hijau',
+        connected: readyFlag,
+        ready: readyFlag,
+        characters: charsA,
         score: 0,
         power: 0,
         correctCount: 0,
@@ -371,10 +427,10 @@ export class GameService {
       B: {
         id: teamBId,
         team: 'B',
-        name: data.teamBName || 'Tim Sapphire',
-        connected: false,
-        ready: false,
-        characters: defaultTeamCharacters('B'),
+        name: params.teamBName || 'Tim Biru',
+        connected: readyFlag,
+        ready: readyFlag,
+        characters: charsB,
         score: 0,
         power: 0,
         correctCount: 0,
@@ -385,12 +441,12 @@ export class GameService {
     const state: RoomState = {
       id,
       code,
-      title: data.title,
+      title: params.title,
       packageId: pack.id,
       packageName: pack.name,
-      teamAName: data.teamAName || 'Tim Emerald',
-      teamBName: data.teamBName || 'Tim Sapphire',
-      phase: 'WAITING',
+      teamAName: teams.A.name,
+      teamBName: teams.B.name,
+      phase: readyFlag ? 'READY' : 'WAITING',
       paused: false,
       locked: false,
       settings: config,
@@ -418,6 +474,7 @@ export class GameService {
       scored: [],
       streaks: {},
       remainingMs: 0,
+      ...(quickTokenHash ? { quickTokenHash } : {}),
     };
 
     this.syncPlayers(room);
@@ -426,7 +483,7 @@ export class GameService {
       data: {
         id,
         code,
-        title: data.title,
+        title: params.title,
         packageId: pack.id,
         packageName: pack.name,
         teamAName: state.teamAName,
@@ -442,8 +499,8 @@ export class GameService {
               teamSide: 'A',
               teamName: state.teamAName,
               controllerSessionId: crypto.randomBytes(32).toString('hex'),
-              readyStatus: false,
-              connectedStatus: false,
+              readyStatus: readyFlag,
+              connectedStatus: readyFlag,
               characters: {
                 create: teams.A.characters.map((c) => ({
                   slotNumber: c.slot,
@@ -457,8 +514,8 @@ export class GameService {
               teamSide: 'B',
               teamName: state.teamBName,
               controllerSessionId: crypto.randomBytes(32).toString('hex'),
-              readyStatus: false,
-              connectedStatus: false,
+              readyStatus: readyFlag,
+              connectedStatus: readyFlag,
               characters: {
                 create: teams.B.characters.map((c) => ({
                   slotNumber: c.slot,
@@ -482,7 +539,63 @@ export class GameService {
     });
 
     this.rooms.set(code, room);
-    return this.serialize(code);
+    if (quickTokenHash) this.quickTokens.set(code, quickTokenHash);
+    return { room, quickToken };
+  }
+
+  async create(input: unknown) {
+    const data = matchSchema.parse(input);
+    const { room } = await this.buildAndPersistRoom({
+      title: data.title,
+      teamAName: data.teamAName,
+      teamBName: data.teamBName,
+      packageId: data.packageId,
+      settings: data.settings,
+      quickMode: false,
+    });
+    return this.serialize(room.state.code);
+  }
+
+  async createQuickMatch(input: unknown) {
+    const data = quickMatchSchema.parse(input || {});
+    let targetPackageId = data.packageId;
+    if (!targetPackageId) {
+      const firstActive = await prisma.questionPackage.findFirst({
+        where: { active: true, questions: { some: { active: true } } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!firstActive) {
+        throw new Error('Belum ada paket soal aktif yang tersedia di Bank Soal');
+      }
+      targetPackageId = firstActive.id;
+    }
+    const settingRow = await prisma.gameSetting.findUnique({ where: { id: 'default' } });
+    const mergedSettings = {
+      ...(settingRow?.value && typeof settingRow.value === 'object' ? settingRow.value : {}),
+      ...(data.settings || {}),
+    };
+
+    const { room, quickToken } = await this.buildAndPersistRoom({
+      title: data.title || 'Medical Tug Battle',
+      teamAName: data.teamAName || 'Tim Hijau',
+      teamBName: data.teamBName || 'Tim Biru',
+      packageId: targetPackageId,
+      settings: mergedSettings,
+      teamACharacters: data.teamACharacters as
+        | [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]
+        | undefined,
+      teamBCharacters: data.teamBCharacters as
+        | [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot]
+        | undefined,
+      quickMode: true,
+    });
+
+    const state =
+      data.autoStart === false
+        ? this.serialize(room.state.code)
+        : await this.startMatch(room.state.code);
+
+    return { state, quickToken };
   }
 
   async join(input: unknown, socketId: string) {
@@ -903,7 +1016,7 @@ export class GameService {
       await this.persist(room, extraWrites);
 
       // Auto close when both teams have answered
-      if (s.settings.autoClose && s.teams.A.answered && s.teams.B.answered) {
+      if ((s.settings.autoClose ?? true) && s.teams.A.answered && s.teams.B.answered) {
         this.stopTimer(code);
         this.timers.set(
           code,
@@ -920,6 +1033,16 @@ export class GameService {
 
       return { accepted: true, team, answer };
     });
+  }
+
+  async submitBotAnswer(code: string, team: Team, questionId: string) {
+    const room = this.get(code);
+    const q = room.snapshots[room.state.questionIndex];
+    if (!q || q.id !== questionId) throw new Error('Pertanyaan tidak sesuai');
+    const smartHit = crypto.randomInt(100) < 68;
+    const wrong = [0, 1, 2, 3].filter((idx) => idx !== q.correctAnswer);
+    const chosen = smartHit ? q.correctAnswer : wrong[crypto.randomInt(wrong.length)];
+    return this.answer(code, team, questionId, chosen);
   }
 
   private async reveal(room: Internal) {
@@ -993,7 +1116,7 @@ export class GameService {
     };
     s.rounds.push(result);
 
-    this.schedule(room, s.settings.revealSeconds * 1000);
+    this.schedule(room, (s.settings.revealSeconds ?? 2) * 1000);
     this.syncPlayers(room);
 
     extra.push(
@@ -1040,11 +1163,11 @@ export class GameService {
       case 'ANSWER_REVEAL':
         s.phase = 'PULL_ANIMATION';
         s.ropePosition = s.rounds.at(-1)?.ropeAfter || 0;
-        this.schedule(room, s.settings.pullSeconds * 1000);
+        this.schedule(room, (s.settings.pullSeconds ?? 2) * 1000);
         break;
       case 'PULL_ANIMATION':
         s.phase = 'ROUND_RESULT';
-        this.schedule(room, s.settings.resultSeconds * 1000);
+        this.schedule(room, (s.settings.resultSeconds ?? 1) * 1000);
         break;
       case 'ROUND_RESULT':
         if (
@@ -1157,7 +1280,7 @@ export class GameService {
             throw new Error('Akhiri pertandingan sebelum mereset');
           }
           this.stopTimer(code);
-          s.phase = 'WAITING';
+          s.phase = r.quickTokenHash ? 'READY' : 'WAITING';
           s.paused = false;
           s.locked = false;
           s.question = null;
@@ -1176,13 +1299,15 @@ export class GameService {
           r.scored = [];
           r.streaks = {};
 
-          s.teams.A.ready = false;
+          s.teams.A.connected = Boolean(r.quickTokenHash) || s.teams.A.connected;
+          s.teams.A.ready = Boolean(r.quickTokenHash);
           s.teams.A.score = 0;
           s.teams.A.power = 0;
           s.teams.A.correctCount = 0;
           s.teams.A.answered = false;
 
-          s.teams.B.ready = false;
+          s.teams.B.connected = Boolean(r.quickTokenHash) || s.teams.B.connected;
+          s.teams.B.ready = Boolean(r.quickTokenHash);
           s.teams.B.score = 0;
           s.teams.B.power = 0;
           s.teams.B.correctCount = 0;

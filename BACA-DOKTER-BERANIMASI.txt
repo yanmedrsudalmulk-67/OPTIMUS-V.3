@@ -1,0 +1,34 @@
+DOKTER BLENDER BERANIMASI - DR. ARGA
+
+Doctor-Hero-Rigged.blend dibuat langsung di Blender dari mesh orisinal.
+Ini satu hero dokter; sembilan profesi lain masih memakai model prosedural game.
+
+Membuka dan mencoba animasi:
+1. Buka Doctor-Hero-Rigged.blend di Blender 4.3 atau lebih baru.
+2. Pilih armature DoctorHero_Rig.
+3. Buka Dope Sheet > Action Editor, lalu pilih action dari dropdown.
+4. Tekan Space untuk memutar timeline (24 FPS).
+
+Action: idle, ready, rope-ready, pulling, struggling, sliding, falling,
+victory, defeat. Rig memiliki 23 bone. Geometri sekitar 60 ribu triangle.
+Rambut, pakaian, tangan, sepatu dan material dapat diedit.
+
+doctor-hero.glb adalah hasil ekspor untuk browser. Dr. Arga di galeri dan
+arena menggunakan file GLB ini, dengan perpindahan animasi dan warna tim.
+Klip rope-ready/pulling menahan posisi tangan dekat tali.
+
+Doctor-Hero-Animation.mp4 adalah contoh gerakan idle, menarik dan menang
+yang dirender dari GLB dengan AnimationMixer yang sama seperti game.
+Doctor-Hero-Rigged-preview.png adalah render dari file Blender.
+
+Untuk membuat ulang seluruh aset dari source, jalankan dari folder game:
+blender -b --factory-startup --python scripts/blender/create_doctor_hero.py
+Perintah ini menimpa file rigged BLEND, GLB dan pratinjau hasil generator.
+Simpan edit Blender manual dengan nama berbeda sebelum menjalankannya.
+
+Edit pada file .blend tidak otomatis masuk game. Ekspor GLB beserta skin
+dan animasinya, lalu ganti apps/web/public/models/doctor-hero.glb.
+Pertahankan arah glTF +Z, tinggi sekitar 2,6 unit dan nama clip di atas.
+
+Model ini adaptasi orisinal dari referensi visual, bukan salinan 100%.
+FPS perangkat fisik belum diukur; uji browser memakai software rendering.

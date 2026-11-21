@@ -34,9 +34,10 @@ if errorlevel 1 (
 )
 
 echo.
-echo [3/3] Memperbarui dependensi dan database lokal...
+echo [3/3] Memperbarui dependensi, database, dan build aplikasi...
 call npm run db:generate >nul 2>&1
 call npm run db:migrate >nul 2>&1
+call npm run build >nul 2>&1
 powershell.exe -ExecutionPolicy Bypass -File scripts\buat-shortcut-desktop.ps1 >nul 2>&1
 
 echo.
