@@ -12,7 +12,6 @@ import {
   Sparkles,
   Sun,
   Swords,
-  Trophy,
   Users,
   Volume2,
   VolumeX,
@@ -30,6 +29,8 @@ import {
   type PublicPackageSummary,
   type QuickMatchSession,
 } from '../lib/gamePrefs';
+import RankingModal from '../components/game/RankingModal';
+import type { PublicLeader } from '../lib/ranking';
 import './home.css';
 
 const Arena = dynamic(() => import('../components/arena/Arena'), {
@@ -39,16 +40,6 @@ const Arena = dynamic(() => import('../components/arena/Arena'), {
 
 type MenuId = 'continue' | 'start' | 'characters' | 'ranking' | 'options' | 'quit';
 type ModalId = 'options' | 'ranking';
-
-type PublicLeader = {
-  id: string;
-  name: string;
-  team: string;
-  score: number;
-  correctCount: number;
-  power: number;
-  matches: number;
-};
 
 export default function HomePage() {
   const router = useRouter();
@@ -700,68 +691,13 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* RANKING / PAPAN PERINGKAT MODAL */}
+      {/* RANKING / PAPAN PERINGKAT ESPORTS MODAL */}
       {modal === 'ranking' && (
-        <div className="welcome-modal-backdrop" onClick={() => setModal(null)}>
-          <div
-            className="welcome-modal"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Papan Peringkat"
-          >
-            <div className="welcome-modal-top">
-              <h2>
-                <Trophy size={20} /> PAPAN PERINGKAT • HALL OF HEROES
-              </h2>
-              <button
-                type="button"
-                className="welcome-modal-close"
-                onClick={() => setModal(null)}
-                aria-label="Tutup papan peringkat"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="welcome-modal-body">
-              {leadersLoading ? (
-                <div className="welcome-rank-empty">Memuat peringkat pemain…</div>
-              ) : leaders.length === 0 ? (
-                <div className="welcome-rank-empty">
-                  <Trophy size={34} />
-                  <strong>Panggung Para Juara Masih Terbuka</strong>
-                  <p>Selesaikan pertandingan untuk mencatatkan skor terbaik tim Anda.</p>
-                </div>
-              ) : (
-                <div className="welcome-rank-list">
-                  {leaders.slice(0, 10).map((player, index) => (
-                    <div key={player.id} className="welcome-rank-row">
-                      <span className={`welcome-rank-num rank-${index + 1}`}>#{index + 1}</span>
-                      <div className="welcome-rank-info">
-                        <strong>{player.name}</strong>
-                        <small>
-                          {player.correctCount} benar • {player.power} power
-                        </small>
-                      </div>
-                      <span className="welcome-rank-score">{player.score} PTS</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="welcome-modal-foot">
-              <Link
-                href="/play"
-                className="welcome-cta-slanted"
-                onClick={() => {
-                  playSound('ready');
-                  setModal(null);
-                }}
-              >
-                MULAI BERTANDING <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-        </div>
+        <RankingModal
+          leaders={leaders}
+          loading={leadersLoading}
+          onClose={() => setModal(null)}
+        />
       )}
 
       {/* OPTIONS MODAL */}

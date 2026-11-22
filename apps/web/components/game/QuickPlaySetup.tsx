@@ -11,6 +11,7 @@ import {
   FileText,
   Heart,
   Layers,
+  Pencil,
   Play,
   Shuffle,
   Sun,
@@ -34,9 +35,14 @@ import {
   type PublicPackageSummary,
   type QuickPlayMode,
 } from '../../lib/gamePrefs';
+import {
+  assignHeroPreservingCustomName,
+  finalizeTeamSlots,
+  sanitizeTeamName,
+  updateSlotCharacterName,
+  type Slots,
+} from '../../lib/ranking';
 import './quick-play.css';
-
-type Slots = [TeamCharacterSlot, TeamCharacterSlot, TeamCharacterSlot];
 
 function HeroRoleEmblem({ heroId }: { heroId: string }) {
   switch (heroId) {
@@ -280,8 +286,10 @@ function EcgWave({ className }: { className?: string }) {
 export default function QuickPlaySetup() {
   const router = useRouter();
   const rosterRef = useRef<HTMLDivElement>(null);
-  const [teamAName, setTeamAName] = useState('TIM HIJAU');
-  const [teamBName, setTeamBName] = useState('TIM BIRU');
+  const teamAInputRef = useRef<HTMLInputElement>(null);
+  const teamBInputRef = useRef<HTMLInputElement>(null);
+  const [teamAName, setTeamAName] = useState('TIM 1');
+  const [teamBName, setTeamBName] = useState('TIM 2');
   const [teamAChars, setTeamAChars] = useState<Slots>(() => defaultTeamCharacters('A'));
   const [teamBChars, setTeamBChars] = useState<Slots>(() => defaultTeamCharacters('B'));
   const [focus, setFocus] = useState<{ team: Team; slot: number }>({ team: 'A', slot: 0 });
@@ -318,18 +326,24 @@ export default function QuickPlaySetup() {
     return slots[focus.slot]?.characterId || CHARACTERS[0].id;
   }, [focus, teamAChars, teamBChars]);
 
+  const updateCharacterName = (team: Team, slotIndex: number, nextName: string) => {
+    if (team === 'A') {
+      setTeamAChars((prev) => updateSlotCharacterName(prev, slotIndex, nextName));
+    } else {
+      setTeamBChars((prev) => updateSlotCharacterName(prev, slotIndex, nextName));
+    }
+  };
+
   const assignHero = (heroId: string, advanceFocus = true) => {
     const def = CHARACTERS.find((c) => c.id === heroId);
     if (!def) return;
     playSound('select');
 
-    const update = (prev: Slots) =>
-      prev.map((item) =>
-        item.slot === focus.slot ? { ...item, characterId: def.id, name: def.name } : item,
-      ) as Slots;
-
-    if (focus.team === 'A') setTeamAChars(update);
-    else setTeamBChars(update);
+    if (focus.team === 'A') {
+      setTeamAChars((prev) => assignHeroPreservingCustomName(prev, focus.slot, def.id));
+    } else {
+      setTeamBChars((prev) => assignHeroPreservingCustomName(prev, focus.slot, def.id));
+    }
 
     if (advanceFocus) {
       if (focus.slot < 2) {
@@ -352,16 +366,20 @@ export default function QuickPlaySetup() {
   const randomizeSquads = () => {
     playSound('click');
     const pool = [...CHARACTERS].sort(() => Math.random() - 0.5);
-    setTeamAChars([
-      { slot: 0, characterId: pool[0].id, name: pool[0].name },
-      { slot: 1, characterId: pool[1].id, name: pool[1].name },
-      { slot: 2, characterId: pool[2].id, name: pool[2].name },
-    ]);
-    setTeamBChars([
-      { slot: 0, characterId: pool[3].id, name: pool[3].name },
-      { slot: 1, characterId: pool[4].id, name: pool[4].name },
-      { slot: 2, characterId: pool[5].id, name: pool[5].name },
-    ]);
+    setTeamAChars((prev) => {
+      let next = prev;
+      next = assignHeroPreservingCustomName(next, 0, pool[0].id);
+      next = assignHeroPreservingCustomName(next, 1, pool[1].id);
+      next = assignHeroPreservingCustomName(next, 2, pool[2].id);
+      return next;
+    });
+    setTeamBChars((prev) => {
+      let next = prev;
+      next = assignHeroPreservingCustomName(next, 0, pool[3].id);
+      next = assignHeroPreservingCustomName(next, 1, pool[4].id);
+      next = assignHeroPreservingCustomName(next, 2, pool[5].id);
+      return next;
+    });
   };
 
   const startBattle = async () => {
@@ -376,15 +394,20 @@ export default function QuickPlaySetup() {
         playMode,
       });
 
+      const resolvedTeamAName = sanitizeTeamName(teamAName, 'Tim 1');
+      const resolvedTeamBName = sanitizeTeamName(teamBName, 'Tim 2');
+      const resolvedTeamAChars = finalizeTeamSlots(teamAChars);
+      const resolvedTeamBChars = finalizeTeamSlots(teamBChars);
+
       const res = await api<{ state: RoomState; quickToken: string }>('/quick-matches', {
         method: 'POST',
         body: JSON.stringify({
-          title: `${teamAName.trim() || 'Tim Hijau'} vs ${teamBName.trim() || 'Tim Biru'}`,
-          teamAName: teamAName.trim() || 'Tim Hijau',
-          teamBName: teamBName.trim() || 'Tim Biru',
+          title: `${resolvedTeamAName} vs ${resolvedTeamBName}`,
+          teamAName: resolvedTeamAName,
+          teamBName: resolvedTeamBName,
           ...(packageId ? { packageId } : {}),
-          teamACharacters: teamAChars,
-          teamBCharacters: teamBChars,
+          teamACharacters: resolvedTeamAChars,
+          teamBCharacters: resolvedTeamBChars,
           settings: {
             arena,
             questionCount,
@@ -421,29 +444,61 @@ export default function QuickPlaySetup() {
 
   const renderComicShield = (team: Team, teamName: string, setTeamName: (v: string) => void, slots: Slots) => {
     const isTeamA = team === 'A';
+    const teamInputRef = isTeamA ? teamAInputRef : teamBInputRef;
+    const displayTeamLabel = teamName.trim() || (isTeamA ? 'Tim 1' : 'Tim 2');
     return (
       <section
         className={`qp-shield-column ${isTeamA ? 'team-a' : 'team-b'}`}
-        aria-label={isTeamA ? 'Pilih karakter Tim Hijau' : 'Pilih karakter Tim Biru'}
+        aria-label={`Pilih karakter ${displayTeamLabel}`}
       >
         {/* Protruding Top Neon Tab */}
         <div className="qp-shield-top-tab">
           <Users size={14} strokeWidth={2.6} />
-          <span>{isTeamA ? 'TIM 1 • EMERALD' : 'TIM 2 • SAPPHIRE'}</span>
+          <span>{isTeamA ? 'TIM 1 • EDIT NAMA' : 'TIM 2 • EDIT NAMA'}</span>
         </div>
 
         {/* Outer Glowing Shield Body */}
         <div className="qp-shield-outer">
           <div className="qp-shield-inner">
-            {/* Metallic Silver/White Angled Team Name Banner */}
+            {/* Metallic Silver/White Angled Editable Team Name Banner */}
             <div className="qp-shield-name-banner">
+              {!isTeamA && (
+                <button
+                  type="button"
+                  className="qp-shield-edit-btn"
+                  aria-label="Edit nama Tim 2"
+                  title="Ubah nama Tim 2"
+                  onClick={() => {
+                    teamInputRef.current?.focus();
+                    teamInputRef.current?.select();
+                  }}
+                >
+                  <Pencil size={15} strokeWidth={2.5} />
+                </button>
+              )}
               <input
-                aria-label={isTeamA ? 'Nama Tim Hijau' : 'Nama Tim Biru'}
+                ref={teamInputRef}
+                aria-label={isTeamA ? 'Nama Tim 1' : 'Nama Tim 2'}
+                placeholder={isTeamA ? 'Tulis Nama Tim 1…' : 'Tulis Nama Tim 2…'}
                 className="qp-shield-name-input"
                 maxLength={40}
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
               />
+              {isTeamA && (
+                <button
+                  type="button"
+                  className="qp-shield-edit-btn"
+                  aria-label="Edit nama Tim 1"
+                  title="Ubah nama Tim 1"
+                  onClick={() => {
+                    teamInputRef.current?.focus();
+                    teamInputRef.current?.select();
+                  }}
+                >
+                  <Pencil size={15} strokeWidth={2.5} />
+                </button>
+              )}
             </div>
 
             {/* 3-Panel Comic Split Collage */}
@@ -456,7 +511,7 @@ export default function QuickPlaySetup() {
                     key={`${team}-panel-${slotItem.slot}`}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Slot ${slotItem.slot + 1} ${isTeamA ? 'Tim Hijau' : 'Tim Biru'}: ${slotItem.name} (${def.title})`}
+                    aria-label={`Slot ${slotItem.slot + 1} ${displayTeamLabel}: ${slotItem.name || def.name} (${def.title})`}
                     className={`qp-comic-panel slot-${slotItem.slot} ${isFocused ? 'is-focused' : ''}`}
                     onClick={() => {
                       setFocus({ team, slot: slotItem.slot });
@@ -479,7 +534,7 @@ export default function QuickPlaySetup() {
                         <img
                           key={def.id}
                           src={def.poseImagePath}
-                          alt={`${def.name} — ${def.profession}`}
+                          alt={`${slotItem.name || def.name} — ${def.profession}`}
                           draggable={false}
                           referrerPolicy="no-referrer"
                           onError={(e) => {
@@ -491,13 +546,33 @@ export default function QuickPlaySetup() {
                         />
                       </div>
 
-                      {/* Skewed Comic Nameplate Badge */}
-                      <div className="qp-comic-nameplate">
+                      {/* Skewed Comic Nameplate Badge with Direct Inline Name Editing */}
+                      <div
+                        className="qp-comic-nameplate"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <div className="qp-comic-emblem">
                           <HeroRoleEmblem heroId={def.id} />
                         </div>
                         <div className="qp-comic-name-meta">
-                          <strong>{slotItem.name}</strong>
+                          <div className="qp-comic-name-edit-row">
+                            <input
+                              type="text"
+                              className="qp-comic-name-input"
+                              maxLength={30}
+                              value={slotItem.name}
+                              placeholder={def.name}
+                              aria-label={`Nama karakter slot ${slotItem.slot + 1} ${isTeamA ? 'Tim 1' : 'Tim 2'}`}
+                              title="Klik untuk ubah nama karakter"
+                              onFocus={() => setFocus({ team, slot: slotItem.slot })}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
+                              onChange={(e) =>
+                                updateCharacterName(team, slotItem.slot, e.target.value)
+                              }
+                            />
+                            <Pencil size={11} className="qp-comic-edit-icon" aria-hidden="true" />
+                          </div>
                           <span>{def.title}</span>
                         </div>
                       </div>
@@ -797,10 +872,11 @@ export default function QuickPlaySetup() {
             <div className="qp-matrix-frame">
               <div className="qp-matrix-tab">DAFTAR KARAKTER</div>
               <div className="qp-matrix-grid">
-                {/* Row 1: Team A (Emerald) */}
+                {/* Row 1: Team A */}
                 {teamAChars.map((slotItem) => {
                   const def = CHARACTERS.find((c) => c.id === slotItem.characterId) || CHARACTERS[0];
                   const isFocused = focus.team === 'A' && focus.slot === slotItem.slot;
+                  const labelTeam = teamAName.trim() || 'Tim 1';
                   return (
                     <button
                       key={`matrix-A-${slotItem.slot}`}
@@ -810,18 +886,19 @@ export default function QuickPlaySetup() {
                         setFocus({ team: 'A', slot: slotItem.slot });
                         playSound('select');
                       }}
-                      title={`Tim Hijau Slot ${slotItem.slot + 1}: ${slotItem.name}`}
-                      aria-label={`Fokus Tim Hijau Slot ${slotItem.slot + 1}: ${slotItem.name}`}
+                      title={`${labelTeam} Slot ${slotItem.slot + 1}: ${slotItem.name || def.name}`}
+                      aria-label={`Fokus ${labelTeam} Slot ${slotItem.slot + 1}: ${slotItem.name || def.name}`}
                     >
-                      <img src={def.thumbnailPath} alt={def.name} draggable={false} />
+                      <img src={def.thumbnailPath} alt={slotItem.name || def.name} draggable={false} />
                     </button>
                   );
                 })}
 
-                {/* Row 2: Team B (Sapphire) */}
+                {/* Row 2: Team B */}
                 {teamBChars.map((slotItem) => {
                   const def = CHARACTERS.find((c) => c.id === slotItem.characterId) || CHARACTERS[0];
                   const isFocused = focus.team === 'B' && focus.slot === slotItem.slot;
+                  const labelTeam = teamBName.trim() || 'Tim 2';
                   return (
                     <button
                       key={`matrix-B-${slotItem.slot}`}
@@ -831,10 +908,10 @@ export default function QuickPlaySetup() {
                         setFocus({ team: 'B', slot: slotItem.slot });
                         playSound('select');
                       }}
-                      title={`Tim Biru Slot ${slotItem.slot + 1}: ${slotItem.name}`}
-                      aria-label={`Fokus Tim Biru Slot ${slotItem.slot + 1}: ${slotItem.name}`}
+                      title={`${labelTeam} Slot ${slotItem.slot + 1}: ${slotItem.name || def.name}`}
+                      aria-label={`Fokus ${labelTeam} Slot ${slotItem.slot + 1}: ${slotItem.name || def.name}`}
                     >
-                      <img src={def.thumbnailPath} alt={def.name} draggable={false} />
+                      <img src={def.thumbnailPath} alt={slotItem.name || def.name} draggable={false} />
                     </button>
                   );
                 })}

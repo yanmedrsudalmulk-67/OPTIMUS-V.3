@@ -1095,6 +1095,17 @@ export class GameService {
           }),
         );
       }
+      extra.push(
+        prisma.matchTeam.updateMany({
+          where: { matchId: s.id, teamSide: team },
+          data: {
+            teamName: tObj.name,
+            score: tObj.score,
+            totalPower: tObj.power,
+            correctCount: tObj.correctCount,
+          },
+        }),
+      );
     }
 
     const pull = calculateRound({
@@ -1145,7 +1156,26 @@ export class GameService {
     room.state.winner = winnerAtEnd(room.state.ropePosition);
     room.state.finishedAt = new Date().toISOString();
     this.syncPlayers(room);
-    await this.persist(room);
+    await this.persist(room, [
+      prisma.matchTeam.updateMany({
+        where: { matchId: room.state.id, teamSide: 'A' },
+        data: {
+          teamName: room.state.teams.A.name,
+          score: room.state.teams.A.score,
+          totalPower: room.state.teams.A.power,
+          correctCount: room.state.teams.A.correctCount,
+        },
+      }),
+      prisma.matchTeam.updateMany({
+        where: { matchId: room.state.id, teamSide: 'B' },
+        data: {
+          teamName: room.state.teams.B.name,
+          score: room.state.teams.B.score,
+          totalPower: room.state.teams.B.power,
+          correctCount: room.state.teams.B.correctCount,
+        },
+      }),
+    ]);
     this.io.to(room.state.code).emit('match:finished', this.serialize(room.state.code));
   }
 
@@ -1314,6 +1344,10 @@ export class GameService {
           s.teams.B.answered = false;
 
           extra.push(
+            prisma.matchTeam.updateMany({
+              where: { matchId: s.id },
+              data: { score: 0, totalPower: 0, correctCount: 0 },
+            }),
             prisma.teamAnswer.deleteMany({ where: { matchId: s.id } }),
             prisma.playerAnswer.deleteMany({ where: { matchId: s.id } }),
             prisma.matchRound.deleteMany({ where: { matchId: s.id } }),

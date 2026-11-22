@@ -330,46 +330,89 @@
   padding: 5px;
 }
 
-/* White/Silver Top Header Banner with Editable Team Name (TIM HIJAU / TIM BIRU) */
+/* White/Silver Top Header Banner with Editable Team Name */
 .qp-shield-name-banner {
   height: clamp(38px, 5.2vh, 50px);
   background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
   display: flex;
   align-items: center;
-  padding: 0 26px;
+  gap: 8px;
+  padding: 0 42px 0 24px;
   flex-shrink: 0;
   border-bottom: 3px solid #06281e;
 }
 
 .qp-shield-column.team-b .qp-shield-name-banner {
   justify-content: flex-end;
+  padding: 0 24px 0 42px;
   border-bottom-color: #06203d;
 }
 
+.qp-shield-edit-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1.5px solid rgba(15, 23, 42, 0.16);
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, color 0.14s ease, transform 0.12s ease;
+}
+
+.qp-shield-column.team-a .qp-shield-edit-btn:hover {
+  background: #059669;
+  border-color: #047857;
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
+.qp-shield-column.team-b .qp-shield-edit-btn:hover {
+  background: #0284c7;
+  border-color: #0369a1;
+  color: #ffffff;
+  transform: scale(1.06);
+}
+
 .qp-shield-name-input {
+  flex: 1;
+  min-width: 0;
   width: 100%;
-  border: 0;
+  border: 1.5px solid transparent;
   background: transparent;
   color: #081c2e;
-  font-size: clamp(20px, 2.2vw, 31px);
+  font-size: clamp(19px, 2.1vw, 29px);
   font-weight: 900;
   font-style: italic;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  line-height: 1;
-  padding: 2px 6px;
+  line-height: 1.05;
+  padding: 2px 8px;
   border-radius: 6px;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.qp-shield-name-input::placeholder {
+  color: rgba(8, 28, 46, 0.42);
+  font-size: 0.72em;
 }
 
 .qp-shield-column.team-b .qp-shield-name-input {
   text-align: right;
 }
 
-.qp-shield-name-input:hover,
+.qp-shield-name-input:hover {
+  background: rgba(15, 23, 42, 0.06);
+  border-color: rgba(15, 23, 42, 0.15);
+}
+
 .qp-shield-name-input:focus {
   outline: none;
-  background: rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.92);
+  border-color: #0284c7;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
 }
 
 /* ==========================================================================
@@ -664,20 +707,30 @@
 }
 
 /* ==========================================================================
-   SKEWED COMIC NAMEPLATE BADGES (Dr. Arga / DOCTOR, Ners Alya / NURSE, etc.)
+   SKEWED COMIC NAMEPLATE BADGES (Direct Inline Character Name Editing)
    ========================================================================== */
 .qp-comic-nameplate {
   position: absolute;
-  z-index: 5;
+  z-index: 6;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 12px 4px 10px;
+  padding: 4px 10px 4px 9px;
   border-radius: 7px;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: text;
+  max-width: 82%;
   box-shadow:
     0 6px 14px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.qp-comic-nameplate:focus-within {
+  border-color: #facc15 !important;
+  box-shadow:
+    0 0 16px rgba(250, 204, 21, 0.72),
+    0 6px 16px rgba(0, 0, 0, 0.65);
 }
 
 .qp-shield-column.team-a .qp-comic-nameplate {
@@ -708,11 +761,13 @@
 .qp-shield-column.team-a .qp-comic-panel.slot-1 .qp-comic-nameplate {
   bottom: 2.5%;
   left: 2.5%;
+  max-width: 44%;
 }
 
 .qp-shield-column.team-a .qp-comic-panel.slot-2 .qp-comic-nameplate {
   bottom: 2.5%;
   right: 8%;
+  max-width: 46%;
 }
 
 .qp-shield-column.team-b .qp-comic-panel.slot-0 .qp-comic-nameplate {
@@ -723,16 +778,18 @@
 .qp-shield-column.team-b .qp-comic-panel.slot-1 .qp-comic-nameplate {
   bottom: 2.5%;
   left: 8%;
+  max-width: 46%;
 }
 
 .qp-shield-column.team-b .qp-comic-panel.slot-2 .qp-comic-nameplate {
   bottom: 2.5%;
   right: 2.2%;
+  max-width: 44%;
 }
 
 .qp-comic-emblem {
-  width: clamp(20px, 1.75vw, 26px);
-  height: clamp(20px, 1.75vw, 26px);
+  width: clamp(19px, 1.65vw, 24px);
+  height: clamp(19px, 1.65vw, 24px);
   display: grid;
   place-items: center;
   color: #ffffff;
@@ -750,17 +807,58 @@
   display: flex;
   flex-direction: column;
   line-height: 1.05;
+  min-width: 0;
   transform: skewX(14deg);
 }
 
-.qp-comic-name-meta strong {
-  font-size: clamp(12.5px, 1.15vw, 17px);
+.qp-comic-name-edit-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.qp-comic-name-input {
+  width: clamp(84px, 8.8vw, 134px);
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.34);
+  background: transparent;
+  padding: 1px 3px;
+  font-family: inherit;
+  font-size: clamp(11.5px, 1.05vw, 15.5px);
   font-weight: 900;
   font-style: italic;
   color: #ffffff;
   letter-spacing: 0.01em;
-  white-space: nowrap;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+  border-radius: 3px;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.qp-comic-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.qp-comic-name-input:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-bottom-color: rgba(250, 204, 21, 0.78);
+}
+
+.qp-comic-name-input:focus {
+  outline: none;
+  background: rgba(8, 22, 42, 0.72);
+  border-bottom: 1.5px solid #facc15;
+}
+
+.qp-comic-edit-icon {
+  color: rgba(255, 255, 255, 0.72);
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.qp-comic-nameplate:focus-within .qp-comic-edit-icon {
+  color: #facc15;
 }
 
 .qp-comic-name-meta span {
@@ -770,6 +868,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
+  margin-top: 2px;
 }
 
 .qp-shield-column.team-a .qp-comic-name-meta span {

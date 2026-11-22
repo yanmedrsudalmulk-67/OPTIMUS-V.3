@@ -170,13 +170,65 @@ async function main() {
   apiApp.use('/auth', authRouter);
   apiApp.get('/public/packages', async (_req, res) => res.json(await game.getPublicCatalog()));
   apiApp.get('/public/leaderboard', async (_req, res) => {
-    const players = await prisma.matchPlayer.findMany({
-      where: { match: { phase: 'FINISHED' } },
-      orderBy: [{ score: 'desc' }, { correctCount: 'desc' }],
-      take: 50,
+    const [teams, players] = await Promise.all([
+      prisma.matchTeam.findMany({
+        where: { match: { phase: 'FINISHED' } },
+        include: {
+          characters: { orderBy: { slotNumber: 'asc' } },
+          match: {
+            select: {
+              id: true,
+              winner: true,
+              finishedAt: true,
+              settings: true,
+              state: true,
+            },
+          },
+        },
+        orderBy: [{ score: 'desc' }, { correctCount: 'desc' }, { totalPower: 'desc' }],
+        take: 60,
+      }),
+      prisma.matchPlayer.findMany({
+        where: { match: { phase: 'FINISHED' } },
+        orderBy: [{ score: 'desc' }, { correctCount: 'desc' }],
+        take: 30,
+      }),
+    ]);
+
+    const teamMatchIds = new Set(teams.map((t) => t.matchId));
+
+    const teamEntries = teams.map((t) => {
+      const savedRoom = t.match.state as {
+        state?: {
+          teams?: Record<string, { score?: number; correctCount?: number; power?: number }>;
+        };
+      } | null;
+      const savedTeam = savedRoom?.state?.teams?.[t.teamSide];
+      const score = t.score > 0 ? t.score : Number(savedTeam?.score || 0);
+      const correctCount =
+        t.correctCount > 0 ? t.correctCount : Number(savedTeam?.correctCount || 0);
+      const power = t.totalPower > 0 ? t.totalPower : Number(savedTeam?.power || 0);
+      const settingsObj = t.match.settings as { arena?: string } | null;
+
+      return {
+        id: t.id,
+        name: t.teamName,
+        team: t.teamSide,
+        score,
+        correctCount,
+        power,
+        matches: 1,
+        wins: t.match.winner === t.teamSide ? 1 : 0,
+        leadCharacterId: t.characters[0]?.characterId || (t.teamSide === 'A' ? 'doctor-m' : 'doctor-f'),
+        characterNames: t.characters.map((c) => c.characterDisplayName).filter(Boolean),
+        arena: settingsObj?.arena || 'hospital',
+        finishedAt: t.match.finishedAt ? t.match.finishedAt.toISOString() : null,
+      };
     });
-    res.json(
-      players.map((p) => ({
+
+    const legacyPlayerEntries = players
+      .filter((p) => !teamMatchIds.has(p.matchId))
+      .map((p) => ({
         id: p.id,
         name: p.name,
         team: p.team,
@@ -184,8 +236,48 @@ async function main() {
         correctCount: p.correctCount,
         power: p.power,
         matches: 1,
-      })),
-    );
+        wins: 0,
+        leadCharacterId: p.characterId,
+        characterNames: [p.name],
+        arena: 'hospital',
+        finishedAt: null,
+      }));
+
+    const byTeam = new Map<string, (typeof teamEntries)[number]>();
+    for (const entry of [...teamEntries, ...legacyPlayerEntries]) {
+      const key = entry.name.trim().toLowerCase() || entry.id;
+      const existing = byTeam.get(key);
+      if (!existing) {
+        byTeam.set(key, { ...entry });
+        continue;
+      }
+      const nextMatches = existing.matches + 1;
+      const nextWins = (existing.wins || 0) + (entry.wins || 0);
+      const isBetter =
+        entry.score > existing.score ||
+        (entry.score === existing.score && entry.correctCount > existing.correctCount) ||
+        (entry.score === existing.score &&
+          entry.correctCount === existing.correctCount &&
+          entry.power > existing.power);
+
+      if (isBetter) {
+        byTeam.set(key, { ...entry, matches: nextMatches, wins: nextWins });
+      } else {
+        existing.matches = nextMatches;
+        existing.wins = nextWins;
+      }
+    }
+
+    const combined = [...byTeam.values()]
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.correctCount !== a.correctCount) return b.correctCount - a.correctCount;
+        if (b.power !== a.power) return b.power - a.power;
+        return (b.finishedAt || '').localeCompare(a.finishedAt || '');
+      })
+      .slice(0, 30);
+
+    res.json(combined);
   });
   apiApp.post('/quick-matches', async (req, res) =>
     res.status(201).json(await game.createQuickMatch(req.body)),
