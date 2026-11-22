@@ -84,21 +84,27 @@ class ErrorBoundary extends Component<
 export default function WebGLBoundary({
   children,
   compact = false,
+  transparentLoading = false,
 }: {
   children: ReactNode;
   compact?: boolean;
+  transparentLoading?: boolean;
 }) {
-  const [supported, setSupported] = useState<boolean | null>(null);
+  const [supported, setSupported] = useState<boolean | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return (
+      typeof window.WebGL2RenderingContext !== 'undefined' ||
+      typeof window.WebGLRenderingContext !== 'undefined'
+    );
+  });
   useEffect(() => {
-    try {
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('webgl2') || canvas.getContext('webgl');
-      setSupported(!!context);
-      if (context) context.getExtension('WEBGL_lose_context')?.loseContext();
-    } catch {
-      setSupported(false);
+    if (supported === null && typeof window !== 'undefined') {
+      setSupported(
+        typeof window.WebGL2RenderingContext !== 'undefined' ||
+          typeof window.WebGLRenderingContext !== 'undefined',
+      );
     }
-  }, []);
+  }, [supported]);
   if (supported === null)
     return (
       <div
@@ -107,8 +113,8 @@ export default function WebGLBoundary({
           minHeight: compact ? 180 : 260,
           display: 'grid',
           placeItems: 'center',
-          color: '#63817a',
-          background: '#e3eee5',
+          color: transparentLoading ? '#f8fafc' : '#63817a',
+          background: transparentLoading ? 'transparent' : '#e3eee5',
           fontSize: 13,
         }}
       >

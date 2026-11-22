@@ -21,7 +21,6 @@ export default function StudioEnvironment({ intensity = 1 }: { intensity?: numbe
     const previous = scene.environment;
     const previousIntensity = scene.environmentIntensity;
     scene.environment = target.texture;
-    scene.environmentIntensity = intensity;
     return () => {
       scene.environment = previous;
       scene.environmentIntensity = previousIntensity;
@@ -29,7 +28,11 @@ export default function StudioEnvironment({ intensity = 1 }: { intensity?: numbe
       pmrem.dispose();
       room.dispose();
     };
-  }, [gl, scene, intensity]);
+  }, [gl, scene]);
+
+  useEffect(() => {
+    scene.environmentIntensity = intensity;
+  }, [scene, intensity]);
 
   return null;
 }

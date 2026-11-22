@@ -244,110 +244,18 @@ export default function Environment({
   const fantasy = theme === 'fantasy';
   return (
     <group>
-      <mesh position={[0, -0.29, 0]} receiveShadow>
-        <cylinderGeometry args={[11.4, 11.7, 0.55, 64]} />
-        <meshStandardMaterial color={fantasy ? '#84977d' : '#a8bd7d'} roughness={1} />
+      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[28, 18]} />
+        <shadowMaterial transparent opacity={0.28} />
       </mesh>
-      <mesh position={[0, -0.58, 0]}>
-        <cylinderGeometry args={[11.65, 11.0, 0.16, 64]} />
-        <meshStandardMaterial color="#708b69" roughness={1} />
-      </mesh>
-      <mesh position={[0, -0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[14.2, 2.7]} />
-        <meshStandardMaterial color={fantasy ? '#ccbfa0' : '#d9d0ad'} roughness={1} />
-      </mesh>
-      <mesh position={[0, 0.008, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[0.055, 3.1]} />
-        <meshStandardMaterial color="#fff8df" />
-      </mesh>
-      {[-7.4, 7.4].map((x) => (
-        <mesh key={x} position={[x, 0.011, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.07, 2.7]} />
-          <meshStandardMaterial color="#f3ecd1" />
-        </mesh>
-      ))}
-      {fantasy ? (
-        <>
-          <group position={[0, 0, -6.8]}>
-            {[-3.1, 0, 3.1].map((x, i) => (
-              <group key={i}>
-                <Box position={[x, 1.3, 0]} size={[1.7, 2.6, 1.7]} color="#a8b2a4" />
-                <mesh position={[x, 3.1, 0]} castShadow>
-                  <coneGeometry args={[1.3, 1.45, 4]} />
-                  <meshStandardMaterial color={i % 2 ? '#50897b' : '#557c97'} />
-                </mesh>
-                <Box position={[x, 1.8, 0.87]} size={[0.42, 0.62, 0.04]} color="#485d5a" />
-              </group>
-            ))}
-            <Box position={[0, 0.7, 0]} size={[7, 1.4, 0.8]} color="#9ca899" />
-          </group>
-          {[
-            [-7.7, 0, -4],
-            [8.4, 0, -2.8],
-            [-6, 0, 4],
-            [6, 0, 4],
-          ].map((p, i) => (
-            <Tree
-              key={i}
-              position={p as [number, number, number]}
-              scale={i > 1 ? 0.8 : 1.25}
-              type="pine"
-            />
-          ))}
-        </>
-      ) : (
-        <>
-          <HospitalBuilding low={quality === 'LOW'} />
-          <mesh position={[0, -0.006, -5.7]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[15, 5.5]} />
-            <meshStandardMaterial color="#a49c8c" roughness={0.66} metalness={0.08} />
-          </mesh>
-          <Festival />
-          <Ambulance />
-          <PapercraftTree position={[-9.1, 0, -4.3]} scale={0.88} seed={1} pulling={phase === 'PULL_ANIMATION'} />
-          <PapercraftTree position={[9.3, 0, -1.8]} scale={0.88} seed={2} pulling={phase === 'PULL_ANIMATION'} />
-          <PapercraftTree position={[-9.4, 0, -0.3]} scale={0.85} seed={3} pulling={phase === 'PULL_ANIMATION'} />
-          <PapercraftTree position={[-8.6, 0, 4.0]} scale={0.52} seed={4} pulling={phase === 'PULL_ANIMATION'} />
-          <PapercraftTree position={[8.7, 0, 3.8]} scale={0.5} seed={5} pulling={phase === 'PULL_ANIMATION'} />
-        </>
+      {!fantasy && (
+        <Crowd
+          low={quality === 'LOW'}
+          phase={phase}
+          paused={paused}
+          behindBarricade
+        />
       )}
-      <Flag position={[-8.3, 0, 1.5]} team="A" />
-      <Flag position={[8.3, 0, 1.5]} team="B" />
-      <Crowd
-        low={quality === 'LOW'}
-        phase={phase}
-        paused={paused}
-        baseHeight={fantasy ? 0 : 0.37}
-      />
-      {[
-        [-8.8, 0, -2.8],
-        [9, 0, 1.6],
-        [-4, 0, 4],
-        [5.6, 0, 3.4],
-        [-8.3, 0, 3],
-      ].map((p, i) => (
-        <mesh
-          key={i}
-          position={[p[0], 0.18, p[2]]}
-          scale={[0.7, 0.4, 0.5]}
-          rotation={[0.15, i, 0.12]}
-          castShadow
-        >
-          <dodecahedronGeometry args={[0.62, 0]} />
-          <meshStandardMaterial color={i % 2 ? '#acb49c' : '#a1ad98'} roughness={1} />
-        </mesh>
-      ))}
-      {quality !== 'LOW' && <Grass />}
-      {[-1, 1].map((sign) => (
-        <group key={sign} position={[sign * 8.8, 0.2, -5.5]}>
-          {[0, 1, 2].map((i) => (
-            <mesh key={i} position={[i * 0.4, 0.12, 0]} scale={[0.5, 0.35, 0.45]} castShadow>
-              <icosahedronGeometry args={[0.55, 1]} />
-              <meshStandardMaterial color={i % 2 ? '#8aad73' : '#719e71'} />
-            </mesh>
-          ))}
-        </group>
-      ))}
     </group>
   );
 }

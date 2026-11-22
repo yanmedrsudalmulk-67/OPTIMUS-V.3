@@ -1351,10 +1351,9 @@
   left: 14px;
   right: 14px;
   z-index: 12;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: start;
-  gap: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   pointer-events: none;
 }
 

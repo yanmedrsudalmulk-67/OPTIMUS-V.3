@@ -289,7 +289,7 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
       <section className="qb-arena-stage">
         <Arena state={state} theme={state.settings.arena} quality={state.settings.quality} />
 
-        {/* TOP ARCADE SCOREBOARD */}
+        {/* TOP ARCADE SCOREBOARD (SCORES ONLY) */}
         <header className="qb-hud-top">
           <div className="qb-team-hud team-a">
             <span className="team-dot" />
@@ -300,19 +300,6 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
               </small>
             </div>
             <span className="qb-power-num">{state.teams.A.power}P</span>
-          </div>
-
-          <div className="qb-center-hud">
-            <div className="qb-timer-pill">
-              <span>
-                SOAL {Math.min(state.questionIndex + 1, state.questionCount)}/{state.questionCount}
-              </span>
-              {state.phase === 'QUESTION_ACTIVE' && <b>{seconds}s</b>}
-              {state.phase === 'COUNTDOWN' && <b>{seconds || 'GO!'}</b>}
-            </div>
-            <div className="qb-balance-top">
-              <Balance state={state} />
-            </div>
           </div>
 
           <div className="qb-team-hud team-b">
@@ -327,51 +314,21 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
           </div>
         </header>
 
-        {/* FLOATING QUICK ACTION CHIPS */}
-        <div className="qb-hud-actions">
-          {quickToken && (
-            <>
-              <button type="button" className="qb-action-chip" onClick={toggleMode}>
-                {mode === 'local' ? <Users size={13} /> : <Bot size={13} />}
-                {mode === 'local' ? '2 Tim Lokal' : 'VS Bot AI'}
-              </button>
-              <button
-                type="button"
-                className="qb-action-chip"
-                disabled={hostBusy || state.phase === 'FINISHED'}
-                onClick={() => void runHostAction(state.paused ? 'resume-match' : 'pause-match')}
-              >
-                {state.paused ? <Play size={13} /> : <Pause size={13} />}
-                {state.paused ? 'Lanjut' : 'Jeda'}
-              </button>
-            </>
-          )}
-          <button type="button" className="qb-action-chip" onClick={() => setShowQr(true)}>
-            <QrCode size={13} /> {code}
-          </button>
-          <button
-            type="button"
-            className="qb-action-chip"
-            aria-label={muted ? 'Aktifkan suara' : 'Matikan suara'}
-            onClick={() => {
-              const next = !muted;
-              setMuted(next);
-              updateMuted(next);
-            }}
-          >
-            {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
-          </button>
-          <button
-            type="button"
-            className="qb-action-chip"
-            aria-label={fullscreen ? 'Keluar layar penuh' : 'Layar penuh'}
-            onClick={() => void toggleFullscreen()}
-          >
-            {fullscreen ? <Minimize size={13} /> : <Maximize size={13} />}
-          </button>
-          <Link href="/" className="qb-action-chip" aria-label="Menu utama">
-            <ArrowLeft size={13} /> Menu
-          </Link>
+        {/* BOTTOM-CENTER BALANCE BAR & BOTTOM-RIGHT SOAL BADGE */}
+        <div className="qb-arena-bottom-hud">
+          <div className="qb-balance-bottom">
+            <Balance state={state} />
+          </div>
+        </div>
+
+        <div className="qb-hud-soal-badge">
+          <div className="qb-timer-pill">
+            <span>
+              SOAL {Math.min(state.questionIndex + 1, state.questionCount)}/{state.questionCount}
+            </span>
+            {state.phase === 'QUESTION_ACTIVE' && <b>{seconds}s</b>}
+            {state.phase === 'COUNTDOWN' && <b>{seconds || 'GO!'}</b>}
+          </div>
         </div>
 
         {/* DRAMATIC ARENA CENTER BANNERS */}
@@ -416,7 +373,6 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
           <div className="qb-deck team-a">
             <div className="qb-deck-head">
               <span>{state.teamAName}</span>
-              <small>Key 1–4</small>
             </div>
             {state.teams.A.answered ? (
               <div className="qb-deck-locked">
@@ -440,7 +396,7 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
                     aria-label={`${state.teamAName} jawab ${letter}`}
                     onClick={() => void submitAnswer('A', idx)}
                   >
-                    {letter} <small>[{TEAM_A_KEYS[idx]}]</small>
+                    {letter}
                   </button>
                 ))}
               </div>
@@ -484,7 +440,6 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
           <div className="qb-deck team-b">
             <div className="qb-deck-head">
               <span>{state.teamBName}</span>
-              <small>{mode === 'bot' ? 'AI Bot' : 'Key 7–0'}</small>
             </div>
             {state.teams.B.answered ? (
               <div className="qb-deck-locked">
@@ -513,7 +468,7 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
                     aria-label={`${state.teamBName} jawab ${letter}`}
                     onClick={() => void submitAnswer('B', idx)}
                   >
-                    {letter} <small>[{TEAM_B_KEYS[idx]}]</small>
+                    {letter}
                   </button>
                 ))}
               </div>

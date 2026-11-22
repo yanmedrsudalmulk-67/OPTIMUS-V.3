@@ -156,11 +156,14 @@ export default function AdminRouter() {
       return;
     }
     let active = true;
-    api<{ id: string; username: string }>('/auth/me')
-      .then((u) => {
-        if (active) {
-          setUser(u);
+    api<{ authenticated: boolean; user: { id: string; username: string } | null }>('/auth/session')
+      .then((res) => {
+        if (!active) return;
+        if (res.authenticated && res.user) {
+          setUser(res.user);
           setLoading(false);
+        } else {
+          router.replace('/admin/login');
         }
       })
       .catch(() => {

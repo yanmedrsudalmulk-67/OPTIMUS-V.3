@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { memo, Suspense, useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import Image from 'next/image';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
@@ -12,7 +13,6 @@ import {
 } from '../../../../packages/shared/src';
 import Character, { type CharacterMotion } from './Character';
 import Environment from './Environment';
-import HospitalSky from './HospitalSky';
 import Rope from './Rope';
 import StudioEnvironment from './StudioEnvironment';
 import WebGLBoundary from './WebGLBoundary';
@@ -25,8 +25,37 @@ export interface ArenaProps {
   className?: string;
 }
 
-function CameraRig({ state }: { state?: RoomState | null }) {
+function imageYToNdcY(
+  imgFrac: number,
+  containerAspect: number,
+  imgAspect: number,
+  objPosY = 0.72,
+): number {
+  const scale = containerAspect > imgAspect ? containerAspect / imgAspect : 1;
+  const screenFrac = imgFrac * scale - objPosY * (scale - 1);
+  return 1 - 2 * screenFrac;
+}
+
+function SceneBackdropSync() {
+  const { gl, scene } = useThree();
+  useEffect(() => {
+    scene.background = null;
+    scene.fog = null;
+    gl.localClippingEnabled = true;
+    gl.setClearColor(0x000000, 0);
+  }, [gl, scene]);
+  return null;
+}
+
+function CameraRig({
+  state,
+  theme,
+}: {
+  state?: RoomState | null;
+  theme: 'hospital' | 'fantasy';
+}) {
   const { size } = useThree();
+  const isFantasy = theme === 'fantasy';
   useFrame(({ camera, clock }, delta) => {
     const movement = state?.settings.cameraMotion !== false;
     const pulling = state?.phase === 'PULL_ANIMATION' && movement;
@@ -34,10 +63,24 @@ function CameraRig({ state }: { state?: RoomState | null }) {
     camera.position.x = THREE.MathUtils.damp(camera.position.x, shake, 5, delta);
 
     const aspect = size.width / Math.max(1, size.height);
-    const fit = Math.max(1, 1.95 / aspect);
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, 11.2 * fit, 6, delta);
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, 3.95 * fit, 6, delta);
-    camera.lookAt(0, 1.35, -0.6);
+    const fit = Math.max(1, 1.75 / aspect);
+    const targetZ = 12.8 * fit;
+    const targetY = 2.65;
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, targetZ, 8, delta);
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, targetY, 8, delta);
+
+    // Lock hero feet (y=0, z=0.05) cleanly inside each 2D arena's glowing floor court
+    const courtNdcY = imageYToNdcY(
+      isFantasy ? 0.815 : 0.822,
+      aspect,
+      isFantasy ? 1672 / 941 : 2.0,
+      0.72,
+    );
+    const tanHalfFov = Math.tan((44 * Math.PI) / 360);
+    const alpha = Math.atan(-courtNdcY * tanHalfFov);
+    const beta = Math.atan2(-camera.position.y, Math.max(1, camera.position.z - 0.05));
+    const lookAtY = camera.position.y + Math.tan(beta + alpha) * (camera.position.z + 0.6);
+    camera.lookAt(0, lookAtY, -0.6);
   });
   return null;
 }
@@ -128,8 +171,9 @@ function NameAnchor({ id, labels }: { id: string; labels: LabelRefs }) {
 }
 
 function useSoftShadowTexture() {
-  return useMemo(() => {
-    if (typeof document === 'undefined') return null;
+  const [texture, setTexture] = useState<THREE.CanvasTexture | null>(null);
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
@@ -144,8 +188,12 @@ function useSoftShadowTexture() {
     }
     const tex = new THREE.CanvasTexture(canvas);
     tex.needsUpdate = true;
-    return tex;
+    setTexture(tex);
+    return () => {
+      tex.dispose();
+    };
   }, []);
+  return texture;
 }
 
 function Contestants({ state, labels }: { state?: RoomState | null; labels: LabelRefs }) {
@@ -214,7 +262,7 @@ function Contestants({ state, labels }: { state?: RoomState | null; labels: Labe
   );
 }
 
-export default function Arena({ state, preview = false, theme, quality, className }: ArenaProps) {
+function ArenaInner({ state, preview = false, theme, quality, className }: ArenaProps) {
   const [lowPower, setLowPower] = useState(false);
   const labels = useRef<Record<string, HTMLDivElement | null>>({});
   useEffect(
@@ -224,6 +272,7 @@ export default function Arena({ state, preview = false, theme, quality, classNam
   const resolved = quality ?? state?.settings.quality ?? 'AUTO';
   const low = resolved === 'LOW' || (resolved === 'AUTO' && lowPower);
   const arenaTheme = theme || state?.settings.arena || 'hospital';
+  const isFantasy = arenaTheme === 'fantasy';
   return (
     <div
       className={className}
@@ -234,75 +283,100 @@ export default function Arena({ state, preview = false, theme, quality, classNam
         minHeight: 380,
         position: 'relative',
         overflow: 'hidden',
-        background:
-          arenaTheme === 'hospital'
-            ? 'linear-gradient(#869bb0,#f5d3a4)'
-            : 'linear-gradient(#dbe9e8,#e4eee2)',
+        background: '#0f172a',
         borderRadius: 'inherit',
       }}
     >
-      <WebGLBoundary>
-        <Canvas
-          shadows={!low}
-          dpr={low ? 1 : [1, 1.75]}
-          camera={{ position: [0, 3.95, 11.2], fov: 44, near: 0.1, far: 80 }}
-          gl={{
-            antialias: !low,
-            powerPreference: low ? 'low-power' : 'high-performance',
-            preserveDrawingBuffer: true,
-          }}
-          onCreated={({ gl }) => {
-            gl.debug.checkShaderErrors = false;
-            gl.toneMapping = THREE.ACESFilmicToneMapping;
-            gl.toneMappingExposure = 0.96;
-            gl.shadowMap.type = THREE.PCFShadowMap;
-          }}
-        >
-          {/* Controlled Studio IBL reflections so clearcoat hair, eyes, and leather pop without washing out shadows */}
-          <StudioEnvironment intensity={0.42} />
-          {arenaTheme === 'hospital' ? (
-            <HospitalSky />
-          ) : (
-            <color attach="background" args={['#d8e6eb']} />
-          )}
-          <fog attach="fog" args={[arenaTheme === 'hospital' ? '#edd0b0' : '#dae9e7', 26, 48]} />
-          <hemisphereLight
-            args={[arenaTheme === 'hospital' ? '#ffe8c8' : '#fff6e4', '#8c6244', 0.55]}
-          />
-          <ambientLight intensity={0.14} />
-          {/* Subtle front fill for eye catchlights */}
-          <directionalLight position={[1.5, 3.4, 10.5]} intensity={0.38} color="#ffe4c4" />
-          {/* High-contrast warm golden studio key light */}
-          <directionalLight
-            position={arenaTheme === 'hospital' ? [-6.5, 10.5, 7.5] : [-6, 12, 6]}
-            color={arenaTheme === 'hospital' ? '#ffdca8' : '#ffffff'}
-            intensity={2.15}
-            castShadow={!low}
-            shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
-            shadow-camera-left={-13}
-            shadow-camera-right={13}
-            shadow-camera-top={12}
-            shadow-camera-bottom={-12}
-            shadow-camera-near={1}
-            shadow-camera-far={35}
-            shadow-bias={-0.0006}
-            shadow-normalBias={0.035}
-          />
-          {/* Cool sky-cyan rim/backlight to sculpt hair curls and lab coat silhouettes like Hero Gallery */}
-          <directionalLight position={[7.5, 6.5, -8.5]} intensity={1.25} color="#7dd3fc" />
-          <Suspense fallback={null}>
-            <Environment
-              theme={arenaTheme}
-              quality={low ? 'LOW' : resolved}
-              phase={state?.phase}
-              paused={state?.paused}
+      <Image
+        src={isFantasy ? '/images/fantasy-battlefield-bg.png' : '/images/hospital-battle-bg.png'}
+        alt={isFantasy ? 'RSUD Al-Mulk Lobby Battlefield' : 'RSUD Al-Mulk Hospital Battle Arena'}
+        fill
+        priority
+        sizes="100vw"
+        referrerPolicy="no-referrer"
+        style={{
+          objectFit: 'cover',
+          objectPosition: 'center 72%',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 0,
+        }}
+      />
+      <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+        <WebGLBoundary transparentLoading>
+          <Canvas
+            shadows={!low}
+            dpr={low ? 1 : [1, 1.75]}
+            camera={{
+              position: [0, 2.65, 12.8],
+              fov: 44,
+              near: 0.1,
+              far: 80,
+            }}
+            gl={{
+              alpha: true,
+              antialias: !low,
+              powerPreference: low ? 'low-power' : 'high-performance',
+              preserveDrawingBuffer: true,
+            }}
+            onCreated={({ gl }) => {
+              gl.debug.checkShaderErrors = false;
+              gl.toneMapping = THREE.ACESFilmicToneMapping;
+              gl.toneMappingExposure = 0.98;
+              gl.shadowMap.type = THREE.PCFShadowMap;
+              gl.localClippingEnabled = true;
+              gl.setClearColor(0x000000, 0);
+            }}
+          >
+            <SceneBackdropSync />
+            {/* Controlled Studio IBL reflections so clearcoat hair, eyes, and leather pop without washing out shadows */}
+            <StudioEnvironment intensity={isFantasy ? 0.5 : 0.48} />
+            <hemisphereLight
+              args={[isFantasy ? '#fff5e4' : '#eef8ff', isFantasy ? '#5a6e6a' : '#6c7a89', 0.6]}
             />
-            <Contestants state={state} labels={labels} />
-          </Suspense>
-          <CameraRig state={state} />
-        </Canvas>
-      </WebGLBoundary>
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+            <ambientLight intensity={0.18} />
+            {/* Subtle front fill for eye catchlights */}
+            <directionalLight
+              position={[1.5, 3.4, 10.5]}
+              intensity={0.46}
+              color="#ffe8cc"
+            />
+            {/* High-contrast warm golden key light matching both 2D backdrops */}
+            <directionalLight
+              position={isFantasy ? [0, 11, 6.5] : [-4.5, 11.5, 7.5]}
+              color={isFantasy ? '#fff0d4' : '#fff2d6'}
+              intensity={2.25}
+              castShadow={!low}
+              shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
+              shadow-camera-left={-13}
+              shadow-camera-right={13}
+              shadow-camera-top={12}
+              shadow-camera-bottom={-12}
+              shadow-camera-near={1}
+              shadow-camera-far={35}
+              shadow-bias={-0.0006}
+              shadow-normalBias={0.035}
+            />
+            {/* Cool emerald/sky rim light to match the stadium floodlights & lobby spotlights */}
+            <directionalLight
+              position={[7.5, 6.5, -8.5]}
+              intensity={1.35}
+              color={isFantasy ? '#5eead4' : '#7dd3fc'}
+            />
+            <Suspense fallback={null}>
+              <Environment
+                theme={arenaTheme}
+                quality={low ? 'LOW' : resolved}
+                phase={state?.phase}
+                paused={state?.paused}
+              />
+              <Contestants state={state} labels={labels} />
+            </Suspense>
+            <CameraRig state={state} theme={arenaTheme} />
+          </Canvas>
+        </WebGLBoundary>
+      </div>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 2 }}>
         {['A', 'B'].flatMap((team) =>
           Array.from({ length: 3 }, (_, i) => {
             const player = state?.players.filter((p) => p.team === team)[i];
@@ -353,3 +427,6 @@ export default function Arena({ state, preview = false, theme, quality, classNam
     </div>
   );
 }
+
+const Arena = memo(ArenaInner);
+export default Arena;

@@ -94,6 +94,14 @@ authRouter.post(
     res.cookie(COOKIE, token, opts).json({ id: admin.id, username: admin.username });
   },
 );
+authRouter.get('/session', async (req, res, next) => {
+  try {
+    const admin = await getAdmin(req.cookies?.[COOKIE]);
+    res.json({ authenticated: Boolean(admin), user: admin });
+  } catch (e) {
+    next(e);
+  }
+});
 authRouter.get('/me', requireAdmin, (_req, res) => res.json(res.locals.admin));
 authRouter.post('/logout', async (req, res) => {
   const token = req.cookies?.[COOKIE];

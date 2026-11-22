@@ -1,14 +1,19 @@
 'use client';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 
 /** A local painted sky: no downloads and no per-frame cost on mobile. */
 export default function HospitalSky() {
-  const texture = useMemo(() => {
+  const scene = useThree((s) => s.scene);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 512;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     const gradient = ctx.createLinearGradient(0, 0, 0, 512);
     gradient.addColorStop(0, '#627e9b');
     gradient.addColorStop(0.38, '#c2a5a2');
@@ -39,8 +44,15 @@ export default function HospitalSky() {
     ctx.filter = 'none';
     const map = new THREE.CanvasTexture(canvas);
     map.colorSpace = THREE.SRGBColorSpace;
-    return map;
-  }, []);
-  useEffect(() => () => texture.dispose(), [texture]);
-  return <primitive object={texture} attach="background" />;
+    const previous = scene.background;
+    scene.background = map;
+    return () => {
+      if (scene.background === map) {
+        scene.background = previous;
+      }
+      map.dispose();
+    };
+  }, [scene]);
+
+  return null;
 }
