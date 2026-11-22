@@ -260,32 +260,23 @@
   width: 100%;
   border: 0;
   background: transparent;
-  padding: clamp(8px, 1.65vh, 15px) clamp(14px, 1.6vw, 22px) clamp(8px, 1.65vh, 15px)
-    clamp(22px, 2.4vw, 34px);
-  font-family: 'Plus Jakarta Sans', Outfit, -apple-system, sans-serif;
-  font-size: clamp(16px, min(1.75vw, 2.85vh), 23px);
-  font-weight: 900;
+  padding: clamp(10px, 1.85vh, 17px) clamp(16px, 1.8vw, 24px) clamp(10px, 1.85vh, 17px)
+    clamp(28px, 2.8vw, 42px);
+  font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, sans-serif;
+  font-size: clamp(20px, min(2.1vw, 3.45vh), 28px);
+  font-weight: 800;
   font-style: italic;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   text-decoration: none;
-  color: #0e1e38;
+  color: #0b1b36;
+  -webkit-text-stroke: 0.65px currentColor;
+  text-shadow: 1px 2px 0 rgba(10, 25, 47, 0.08);
   display: flex;
   align-items: center;
-  gap: clamp(12px, 1.3vw, 18px);
   text-align: left;
   cursor: pointer;
-  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.welcome-menu-icon {
-  width: clamp(28px, min(2.6vw, 4.2vh), 36px);
-  height: clamp(28px, min(2.6vw, 4.2vh), 36px);
-  color: #2c4365;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  filter: drop-shadow(1px 1px 0 rgba(11, 25, 46, 0.16));
+  transition: transform 0.14s cubic-bezier(0.22, 1, 0.36, 1), color 0.14s ease;
 }
 
 .welcome-menu-label {
@@ -303,22 +294,20 @@
 
 .welcome-menu-btn:hover {
   color: #ff125d;
-  transform: translateX(5px);
-}
-
-.welcome-menu-btn:hover .welcome-menu-icon {
-  color: #ff125d;
+  transform: translateX(6px);
 }
 
 /* Signature hot-pink protruding parallelogram ribbon with golden-yellow right accent & dark 3D shadow */
 .welcome-menu-btn.is-active {
-  width: calc(100% + 52px);
+  width: calc(100% + 54px);
   margin-left: 10px;
-  padding: clamp(10px, 1.95vh, 18px) clamp(34px, 3vw, 46px) clamp(10px, 1.95vh, 18px)
-    clamp(18px, 2vw, 26px);
+  padding: clamp(12px, 2.1vh, 20px) clamp(38px, 3.2vw, 50px) clamp(12px, 2.1vh, 20px)
+    clamp(24px, 2.4vw, 34px);
   background: linear-gradient(96deg, #ff1162 0%, #f71969 78%, #ff2171 100%);
   color: #ffffff;
-  font-size: clamp(18px, min(2.05vw, 3.25vh), 27px);
+  font-size: clamp(23px, min(2.4vw, 3.85vh), 32px);
+  letter-spacing: 0.065em;
+  -webkit-text-stroke: 0.8px currentColor;
   transform: skewX(-12deg);
   transform-origin: left center;
   box-shadow: 4px 6px 0 #0a192f;
@@ -330,15 +319,9 @@
   transform: skewX(-12deg) translateX(3px);
 }
 
-.welcome-menu-btn.is-active .welcome-menu-icon,
-.welcome-menu-btn.is-active:hover .welcome-menu-icon {
-  color: #ffffff;
-  filter: drop-shadow(1px 2px 0 rgba(10, 25, 47, 0.35));
-}
-
 .welcome-menu-btn.is-active .welcome-menu-label {
   transform: none;
-  text-shadow: 2px 2px 0 rgba(10, 25, 47, 0.28);
+  text-shadow: 2px 3px 0 rgba(10, 25, 47, 0.36);
 }
 
 /* Golden-yellow diagonal speed stripe on the right edge of the active ribbon */
@@ -368,10 +351,11 @@
 .welcome-popout-card {
   position: absolute;
   /* Attached cleanly to the right edge of the protruding active menu ribbon */
-  left: calc(100% + 58px);
+  left: calc(100% + 52px);
   top: 50%;
   transform: translateY(-50%) skewX(-10deg);
   transform-origin: left center;
+  max-width: calc(100vw - var(--sidebar-w) - 64px);
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -420,6 +404,7 @@
 .welcome-popout-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 8px 24px 8px 16px;
   background: #ffffff;
@@ -575,56 +560,8 @@
   color: #38f6ff;
 }
 
-.welcome-bottom-hud {
-  position: absolute;
-  right: 24px;
-  bottom: 20px;
-  z-index: 12;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.welcome-hint-bar {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 8px 16px;
-  background: rgba(8, 17, 32, 0.88);
-  backdrop-filter: blur(8px);
-  border-radius: 6px;
-  color: #e2e8f0;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  box-shadow: 0 8px 24px rgba(4, 15, 32, 0.35);
-}
-
-.welcome-hint-bar span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.welcome-keycap {
-  display: inline-grid;
-  place-items: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 99px;
-  background: #ffffff;
-  color: #0b1628;
-  font-size: 10px;
-  font-weight: 900;
-}
-
-
-
 /* ==========================================================================
-   GAME OVERLAY MODALS (OPTIONS & CREDIT) — CLEAN ARCADE PANEL
+   GAME OVERLAY MODALS (OPTIONS & RANKING) — CLEAN ARCADE PANEL
    ========================================================================== */
 
 .welcome-modal-backdrop {
@@ -953,13 +890,13 @@
   }
 
   .welcome-menu-btn {
-    padding: 6px 14px 6px 22px;
-    font-size: clamp(14px, 2.3vh, 18px);
+    padding: 7px 16px 7px 26px;
+    font-size: clamp(16px, 2.65vh, 21px);
   }
 
   .welcome-menu-btn.is-active {
-    padding: 7px 30px 7px 18px;
-    font-size: clamp(15px, 2.5vh, 20px);
+    padding: 8px 34px 8px 22px;
+    font-size: clamp(18px, 2.95vh, 23px);
   }
 }
 
@@ -1005,12 +942,13 @@
     position: relative;
     background: #ffffff;
     width: 100%;
-    padding: 18px 18px 14px;
+    padding: 18px 18px 24px;
     margin-top: -18px;
     clip-path: polygon(0 16px, 100% 0, 100% 100%, 0 100%);
     flex: 1;
-    justify-content: center;
-    overflow: hidden;
+    justify-content: flex-start;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .welcome-menu-list {
@@ -1029,16 +967,20 @@
   .welcome-menu-btn {
     width: 100%;
     min-width: 0;
-    font-size: clamp(14px, 2.1vh, 17px);
-    padding: clamp(5px, 0.9vh, 9px) 14px clamp(5px, 0.9vh, 9px) 10px;
+    font-size: clamp(16px, 2.4vh, 20px);
+    padding: clamp(6px, 1vh, 10px) 16px clamp(6px, 1vh, 10px) 14px;
     margin-left: 0;
   }
 
   .welcome-menu-btn.is-active {
     width: 100%;
     margin-left: 0;
-    font-size: clamp(15px, 2.25vh, 19px);
-    padding: clamp(6px, 1.05vh, 10px) 28px clamp(6px, 1.05vh, 10px) 14px;
+    font-size: clamp(18px, 2.65vh, 22px);
+    padding: clamp(7px, 1.15vh, 11px) 30px clamp(7px, 1.15vh, 11px) 16px;
+  }
+
+  .welcome-menu-row:has(.welcome-popout-card) {
+    z-index: 25;
   }
 
   .welcome-popout-card {
@@ -1049,16 +991,13 @@
     animation: none;
     margin-top: 6px;
     width: 100%;
+    max-width: 100%;
     min-width: 0;
   }
 
   .welcome-popout-bar {
     width: 100%;
     flex-wrap: wrap;
-  }
-
-  .welcome-bottom-hud {
-    display: none;
   }
 
   .welcome-top-hud {

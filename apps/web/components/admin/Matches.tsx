@@ -26,6 +26,7 @@ import {
   RefreshCw,
   RotateCcw,
   ShieldCheck,
+  Sun,
   SkipForward,
   Square,
   Swords,
@@ -245,6 +246,12 @@ export function CreateMatch() {
                     text: 'Padang petualangan penuh tantangan',
                     icon: Flag,
                   },
+                  {
+                    id: 'beach',
+                    title: 'Arena Pantai',
+                    text: 'Pantai senja tropis eksotis',
+                    icon: Sun,
+                  },
                 ] as const
               ).map((a) => (
                 <button
@@ -307,7 +314,7 @@ export function CreateMatch() {
             </div>
             <div>
               <dt>Arena</dt>
-              <dd>{settings.arena === 'hospital' ? 'Hospital Battle' : 'Fantasy Battlefield'}</dd>
+              <dd>{settings.arena === 'hospital' ? 'Hospital Battle' : settings.arena === 'fantasy' ? 'Fantasy Battlefield' : 'Arena Pantai'}</dd>
             </div>
             <div>
               <dt>Power jawaban benar</dt>

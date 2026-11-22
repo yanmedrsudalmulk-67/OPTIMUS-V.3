@@ -3,23 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import {
-  ArrowLeft,
   Bot,
   CheckCheck,
   Copy,
   Home,
-  Maximize,
-  Minimize,
   Pause,
   Play,
-  QrCode,
-  RotateCcw,
-  Users,
-  Volume2,
-  VolumeX,
   X,
 } from 'lucide-react';
 import type { Team } from '../../../../packages/shared/src';
@@ -27,11 +18,15 @@ import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
 import {
   readGamePrefs,
   readQuickSession,
-  saveQuickSession,
   type QuickPlayMode,
 } from '../../lib/gamePrefs';
+import {
+  getQuestionCountdownState,
+  QUICK_QUESTION_DURATION_SEC,
+} from '../../lib/arenaLayout';
 import { emit } from '../../lib/socket';
-import { Balance, ResultCard } from './RoomParts';
+import { Balance } from './RoomParts';
+import VictoryBanner from './VictoryBanner';
 import { useRoom } from './useRoom';
 import './game.css';
 import './quick-play.css';
@@ -52,13 +47,12 @@ const TEAM_B_KEYS = ['7', '8', '9', '0'] as const;
 
 export default function QuickBattleView({ code: rawCode }: { code: string }) {
   const code = rawCode.toUpperCase();
-  const router = useRouter();
   const { state, loading, error, seconds } = useRoom(code, false);
 
   const [quickToken, setQuickToken] = useState('');
   const [mode, setMode] = useState<QuickPlayMode>('local');
-  const [muted, updateMuted] = useState(isAudioMuted);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [, updateMuted] = useState(isAudioMuted);
+  const [, setFullscreen] = useState(false);
   const [busyA, setBusyA] = useState(false);
   const [busyB, setBusyB] = useState(false);
   const [hostBusy, setHostBusy] = useState(false);
@@ -167,7 +161,7 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
     const qid = state.question.id;
     if (botAnsweredQid.current === qid) return;
 
-    const delayMs = 2400 + Math.floor(Math.random() * 2300);
+    const delayMs = 1200 + Math.floor(Math.random() * 2200);
     const timer = setTimeout(() => {
       botAnsweredQid.current = qid;
       void emit('quick:bot-answer', {
@@ -224,31 +218,6 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
     }
   };
 
-  const toggleMode = () => {
-    const next: QuickPlayMode = mode === 'local' ? 'bot' : 'local';
-    setMode(next);
-    if (quickToken) {
-      saveQuickSession({
-        code,
-        quickToken,
-        mode: next,
-        title: state?.title,
-        updatedAt: Date.now(),
-      });
-    }
-    playSound('select');
-  };
-
-  const toggleFullscreen = async () => {
-    if (!rootRef.current) return;
-    try {
-      if (!document.fullscreenElement) await rootRef.current.requestFullscreen();
-      else await document.exitFullscreen();
-    } catch {
-      /* Browser may block fullscreen outside direct gesture. */
-    }
-  };
-
   if (!state) {
     return (
       <div className="qb-shell" style={{ display: 'grid', placeItems: 'center', padding: 24 }}>
@@ -282,6 +251,14 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
 
   const canAnswer = Boolean(quickToken) && state.phase === 'QUESTION_ACTIVE' && !state.paused;
   const showReveal = state.correctAnswer !== undefined;
+  const countdown = getQuestionCountdownState(
+    state.phase,
+    seconds,
+    state.question?.duration || QUICK_QUESTION_DURATION_SEC,
+  );
+  const ringRadius = 26;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringOffset = ringCircumference * (1 - countdown.progress);
 
   return (
     <div className="qb-shell" ref={rootRef}>
@@ -289,7 +266,7 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
       <section className="qb-arena-stage">
         <Arena state={state} theme={state.settings.arena} quality={state.settings.quality} />
 
-        {/* TOP ARCADE SCOREBOARD (SCORES ONLY) */}
+        {/* TOP ARCADE SCOREBOARD + CENTER 5-SECOND QUESTION COUNTDOWN */}
         <header className="qb-hud-top">
           <div className="qb-team-hud team-a">
             <span className="team-dot" />
@@ -300,6 +277,39 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
               </small>
             </div>
             <span className="qb-power-num">{state.teams.A.power}P</span>
+          </div>
+
+          <div className="qb-top-countdown-slot">
+            {countdown.visible && (
+              <div
+                className={`qb-top-countdown ${countdown.urgent ? 'is-urgent' : ''}`}
+                data-testid="question-countdown"
+                role="timer"
+                aria-live="polite"
+                aria-label={`Sisa waktu menjawab ${countdown.seconds} detik`}
+              >
+                <svg
+                  className="qb-countdown-ring"
+                  viewBox="0 0 64 64"
+                  aria-hidden="true"
+                >
+                  <circle className="qb-countdown-track" cx="32" cy="32" r={ringRadius} />
+                  <circle
+                    className="qb-countdown-arc"
+                    cx="32"
+                    cy="32"
+                    r={ringRadius}
+                    strokeDasharray={ringCircumference}
+                    strokeDashoffset={ringOffset}
+                    transform="rotate(-90 32 32)"
+                  />
+                </svg>
+                <div className="qb-countdown-inner">
+                  <span className="qb-countdown-num">{countdown.seconds}</span>
+                  <span className="qb-countdown-unit">DETIK</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="qb-team-hud team-b">
@@ -314,22 +324,14 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
           </div>
         </header>
 
-        {/* BOTTOM-CENTER BALANCE BAR & BOTTOM-RIGHT SOAL BADGE */}
-        <div className="qb-arena-bottom-hud">
-          <div className="qb-balance-bottom">
-            <Balance state={state} />
+        {/* BOTTOM-CENTER BALANCE BAR (hidden on FINISHED to keep 3D Victory scene clear) */}
+        {state.phase !== 'FINISHED' && (
+          <div className="qb-arena-bottom-hud">
+            <div className="qb-balance-bottom">
+              <Balance state={state} />
+            </div>
           </div>
-        </div>
-
-        <div className="qb-hud-soal-badge">
-          <div className="qb-timer-pill">
-            <span>
-              SOAL {Math.min(state.questionIndex + 1, state.questionCount)}/{state.questionCount}
-            </span>
-            {state.phase === 'QUESTION_ACTIVE' && <b>{seconds}s</b>}
-            {state.phase === 'COUNTDOWN' && <b>{seconds || 'GO!'}</b>}
-          </div>
-        </div>
+        )}
 
         {/* DRAMATIC ARENA CENTER BANNERS */}
         {state.paused && (
@@ -477,35 +479,8 @@ export default function QuickBattleView({ code: rawCode }: { code: string }) {
         </section>
       )}
 
-      {/* VICTORY OVERLAY */}
-      {state.phase === 'FINISHED' && (
-        <div className="qb-victory-overlay">
-          <div style={{ maxWidth: 680, width: '100%' }}>
-            <ResultCard state={state} />
-            <div className="qb-victory-actions">
-              {quickToken && (
-                <button
-                  type="button"
-                  className="qp-start-cta"
-                  style={{ height: 50, fontSize: 15 }}
-                  disabled={hostBusy}
-                  onClick={() => void runHostAction('rematch')}
-                >
-                  <RotateCcw size={17} /> MAIN LAGI (TIM SAMA)
-                </button>
-              )}
-              <button
-                type="button"
-                className="qp-back-btn"
-                style={{ height: 50 }}
-                onClick={() => router.push('/play')}
-              >
-                <Users size={16} /> PILIH KARAKTER BARU
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* TRANSPARENT ESPORTS VICTORY OVERLAY (3D Victory animation remains unobstructed) */}
+      {state.phase === 'FINISHED' && <VictoryBanner state={state} />}
 
       {/* OPTIONAL MULTI-DEVICE QR MODAL */}
       {showQr && (

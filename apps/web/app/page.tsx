@@ -6,15 +6,11 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
-  CreditCard,
   Gamepad2,
   Heart,
-  Info,
-  LogOut,
-  Play,
   Settings,
-  ShieldCheck,
   Sparkles,
+  Sun,
   Swords,
   Trophy,
   Users,
@@ -41,8 +37,8 @@ const Arena = dynamic(() => import('../components/arena/Arena'), {
   loading: () => null,
 });
 
-type MenuId = 'continue' | 'start' | 'characters' | 'options' | 'credit' | 'admin' | 'quit';
-type ModalId = 'options' | 'credit' | 'ranking';
+type MenuId = 'continue' | 'start' | 'characters' | 'ranking' | 'options' | 'quit';
+type ModalId = 'options' | 'ranking';
 
 type PublicLeader = {
   id: string;
@@ -92,7 +88,6 @@ export default function HomePage() {
     // Pre-warm primary routes so confirming a menu is instantaneous
     router.prefetch('/play');
     router.prefetch('/characters');
-    router.prefetch('/admin/login');
 
     api<{ packages: PublicPackageSummary[] }>('/public/packages')
       .then((res) => {
@@ -168,6 +163,11 @@ export default function HomePage() {
         setNavigatingTo('start');
         playSound('ready');
         router.push('/play');
+        window.setTimeout(() => {
+          if (mounted.current && window.location.pathname === '/') {
+            window.location.assign('/play');
+          }
+        }, 1200);
         return;
       }
       if (id === 'characters') {
@@ -175,6 +175,15 @@ export default function HomePage() {
         setNavigatingTo('characters');
         playSound('ready');
         router.push('/characters');
+        window.setTimeout(() => {
+          if (mounted.current && window.location.pathname === '/') {
+            window.location.assign('/characters');
+          }
+        }, 1200);
+        return;
+      }
+      if (id === 'ranking') {
+        openRanking();
         return;
       }
       if (id === 'options') {
@@ -183,24 +192,11 @@ export default function HomePage() {
         setModal('options');
         return;
       }
-      if (id === 'credit') {
-        setPopout(null);
-        playSound('click');
-        setModal('credit');
-        return;
-      }
-      if (id === 'admin') {
-        setPopout(null);
-        setNavigatingTo('admin');
-        playSound('click');
-        router.push('/admin/login');
-        return;
-      }
       if (id === 'quit') {
         void handleQuitGame();
       }
     },
-    [handleQuitGame, router],
+    [handleQuitGame, openRanking, router],
   );
 
   // Clicking a sidebar item highlights it and toggles its confirmation/choice popout first
@@ -226,7 +222,10 @@ export default function HomePage() {
   useEffect(() => {
     if (!popout) return;
     const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement | null;
+      const target =
+        e.target instanceof Element
+          ? e.target
+          : ((e.target as Node | null)?.parentElement ?? null);
       if (target && !target.closest('.welcome-menu-row')) {
         setPopout(null);
         setQuitNotice('');
@@ -242,9 +241,8 @@ export default function HomePage() {
       'continue',
       'start',
       'characters',
+      'ranking',
       'options',
-      'credit',
-      'admin',
       'quit',
     ];
     const onKeyDown = (e: KeyboardEvent) => {
@@ -467,24 +465,30 @@ export default function HomePage() {
             type="button"
             className="welcome-hud-pill"
             onClick={() => {
-              const nextArena = prefs.arena === 'hospital' ? 'fantasy' : 'hospital';
+              const nextArena: GamePrefs['arena'] =
+                prefs.arena === 'hospital'
+                  ? 'fantasy'
+                  : prefs.arena === 'fantasy'
+                    ? 'beach'
+                    : 'hospital';
               updatePrefs({ arena: nextArena });
               playSound('select');
             }}
           >
-            <Heart size={14} />
-            {prefs.arena === 'hospital' ? 'Hospital Battle' : 'Fantasy Battlefield'}
+            {prefs.arena === 'hospital' ? (
+              <Heart size={14} />
+            ) : prefs.arena === 'fantasy' ? (
+              <Swords size={14} />
+            ) : (
+              <Sun size={14} />
+            )}
+            {prefs.arena === 'hospital'
+              ? 'Hospital Battle'
+              : prefs.arena === 'fantasy'
+                ? 'Fantasy Battlefield'
+                : 'Arena Pantai'}
           </button>
         )}
-        <button
-          type="button"
-          className="welcome-hud-pill"
-          title="Papan Peringkat"
-          onClick={openRanking}
-        >
-          <Trophy size={14} />
-          RANKING
-        </button>
         <button
           type="button"
           className="welcome-hud-icon-btn"
@@ -495,7 +499,7 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* INTERACTIVE SLANTED ARCADE GAME MENU — 100% MATCHING REFERENCE IMAGE */}
+      {/* INTERACTIVE SLANTED ARCADE GAME MENU */}
       <nav className="welcome-menu-layer" aria-label="Menu Utama Game">
         <div className="welcome-menu-list">
           {/* 1. CONTINUE */}
@@ -505,9 +509,6 @@ export default function HomePage() {
               className={`welcome-menu-btn ${activeId === 'continue' ? 'is-active' : ''}`}
               onClick={() => selectMenu('continue')}
             >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <Play size={22} strokeWidth={2.5} />
-              </span>
               <span className="welcome-menu-label">CONTINUE</span>
               <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
@@ -575,9 +576,6 @@ export default function HomePage() {
               className={`welcome-menu-btn ${activeId === 'start' ? 'is-active' : ''}`}
               onClick={() => selectMenu('start')}
             >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <Gamepad2 size={24} strokeWidth={2.4} />
-              </span>
               <span className="welcome-menu-label">
                 {navigatingTo === 'start' ? 'MEMBUKA…' : 'NEW GAME'}
               </span>
@@ -645,9 +643,6 @@ export default function HomePage() {
               className={`welcome-menu-btn ${activeId === 'characters' ? 'is-active' : ''}`}
               onClick={() => selectMenu('characters')}
             >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <Users size={22} strokeWidth={2.4} />
-              </span>
               <span className="welcome-menu-label">
                 {navigatingTo === 'characters' ? 'MEMBUKA…' : 'HERO GALLERY'}
               </span>
@@ -658,16 +653,28 @@ export default function HomePage() {
               renderConfirmPopout('characters', 'BUKA HERO GALLERY ?', 'BUKA GALERI', 'BATAL')}
           </div>
 
-          {/* 4. OPTIONS */}
+          {/* 4. RANKING */}
+          <div className="welcome-menu-row welcome-popout-anchor">
+            <button
+              type="button"
+              className={`welcome-menu-btn ${activeId === 'ranking' ? 'is-active' : ''}`}
+              onClick={() => selectMenu('ranking')}
+            >
+              <span className="welcome-menu-label">RANKING</span>
+              <span className="welcome-menu-slash" aria-hidden="true" />
+            </button>
+
+            {popout === 'ranking' &&
+              renderConfirmPopout('ranking', 'LIHAT PAPAN PERINGKAT ?', 'BUKA RANKING', 'BATAL')}
+          </div>
+
+          {/* 5. OPTIONS */}
           <div className="welcome-menu-row welcome-popout-anchor">
             <button
               type="button"
               className={`welcome-menu-btn ${activeId === 'options' ? 'is-active' : ''}`}
               onClick={() => selectMenu('options')}
             >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <Settings size={22} strokeWidth={2.4} />
-              </span>
               <span className="welcome-menu-label">OPTIONS</span>
               <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
@@ -676,54 +683,13 @@ export default function HomePage() {
               renderConfirmPopout('options', 'BUKA PENGATURAN ?', 'ATUR GAME', 'BATAL')}
           </div>
 
-          {/* 5. CREDIT */}
-          <div className="welcome-menu-row welcome-popout-anchor">
-            <button
-              type="button"
-              className={`welcome-menu-btn ${activeId === 'credit' ? 'is-active' : ''}`}
-              onClick={() => selectMenu('credit')}
-            >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <CreditCard size={22} strokeWidth={2.4} />
-              </span>
-              <span className="welcome-menu-label">CREDIT</span>
-              <span className="welcome-menu-slash" aria-hidden="true" />
-            </button>
-
-            {popout === 'credit' &&
-              renderConfirmPopout('credit', 'LIHAT CREDIT & PANDUAN ?', 'BUKA INFO', 'BATAL')}
-          </div>
-
-          {/* 6. ADMIN PANEL */}
-          <div className="welcome-menu-row welcome-popout-anchor">
-            <button
-              type="button"
-              className={`welcome-menu-btn ${activeId === 'admin' ? 'is-active' : ''}`}
-              onClick={() => selectMenu('admin')}
-            >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <ShieldCheck size={22} strokeWidth={2.4} />
-              </span>
-              <span className="welcome-menu-label">
-                {navigatingTo === 'admin' ? 'MEMBUKA…' : 'ADMIN PANEL'}
-              </span>
-              <span className="welcome-menu-slash" aria-hidden="true" />
-            </button>
-
-            {popout === 'admin' &&
-              renderConfirmPopout('admin', 'MASUK PANEL ADMIN ?', 'LOGIN ADMIN', 'BATAL')}
-          </div>
-
-          {/* 7. QUIT GAME */}
+          {/* 6. QUIT GAME */}
           <div className="welcome-menu-row welcome-popout-anchor">
             <button
               type="button"
               className={`welcome-menu-btn ${activeId === 'quit' ? 'is-active' : ''}`}
               onClick={() => selectMenu('quit')}
             >
-              <span className="welcome-menu-icon" aria-hidden="true">
-                <LogOut size={22} strokeWidth={2.5} />
-              </span>
               <span className="welcome-menu-label">QUIT GAME</span>
               <span className="welcome-menu-slash" aria-hidden="true" />
             </button>
@@ -733,18 +699,6 @@ export default function HomePage() {
           </div>
         </div>
       </nav>
-
-      {/* CONSOLE-STYLE KEY HINT HUD */}
-      <div className="welcome-bottom-hud" aria-hidden="true">
-        <div className="welcome-hint-bar">
-          <span>
-            <b className="welcome-keycap">↑↓</b> NAVIGASI
-          </span>
-          <span>
-            <b className="welcome-keycap">A / ↵</b> KONFIRMASI
-          </span>
-        </div>
-      </div>
 
       {/* RANKING / PAPAN PERINGKAT MODAL */}
       {modal === 'ranking' && (
@@ -856,6 +810,16 @@ export default function HomePage() {
                   >
                     <Swords size={15} /> Fantasy Battlefield
                   </button>
+                  <button
+                    type="button"
+                    className={`welcome-option-pill ${prefs.arena === 'beach' ? 'selected' : ''}`}
+                    onClick={() => {
+                      updatePrefs({ arena: 'beach' });
+                      playSound('select');
+                    }}
+                  >
+                    <Sun size={15} /> Arena Pantai
+                  </button>
                 </div>
               </div>
 
@@ -961,77 +925,6 @@ export default function HomePage() {
                 }}
               >
                 LANJUT NEW GAME <ArrowRight size={16} />
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CREDIT & HOW TO PLAY MODAL */}
-      {modal === 'credit' && (
-        <div className="welcome-modal-backdrop" onClick={() => setModal(null)}>
-          <div
-            className="welcome-modal"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Credit & Cara Bermain"
-          >
-            <div className="welcome-modal-top">
-              <h2>
-                <Info size={20} /> TENTANG &amp; CARA BERMAIN
-              </h2>
-              <button
-                type="button"
-                className="welcome-modal-close"
-                onClick={() => setModal(null)}
-                aria-label="Tutup credit"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="welcome-modal-body">
-              <div className="welcome-credit-grid">
-                <div className="welcome-credit-step">
-                  <b>01</b>
-                  <div>
-                    <strong>Pilih Hero dari 2 Tim</strong>
-                    <p>
-                      Tekan NEW GAME lalu pilih 3 pahlawan kesehatan untuk Tim Hijau dan Tim Biru.
-                    </p>
-                  </div>
-                </div>
-                <div className="welcome-credit-step">
-                  <b>02</b>
-                  <div>
-                    <strong>Jawab Kuis Tarik Tambang</strong>
-                    <p>
-                      Tim Hijau pakai tombol 1–4 (atau sentuh layar kiri) &amp; Tim Biru pakai 7–0
-                      (atau lawan AI Bot). Setiap jawaban benar memberi tarikan kuat!
-                    </p>
-                  </div>
-                </div>
-                <div className="welcome-credit-step">
-                  <b>03</b>
-                  <div>
-                    <strong>Tarik Sampai Garis Juara</strong>
-                    <p>
-                      Dikembangkan untuk edukasi keselamatan pasien &amp; PPI RSUD Al-Mulk dalam
-                      kemasan arena kuis 3D interaktif.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="welcome-modal-foot">
-              <Link
-                href="/play"
-                className="welcome-cta-slanted"
-                onClick={() => {
-                  playSound('ready');
-                  setModal(null);
-                }}
-              >
-                MULAI GAME SEKARANG <ArrowRight size={16} />
               </Link>
             </div>
           </div>

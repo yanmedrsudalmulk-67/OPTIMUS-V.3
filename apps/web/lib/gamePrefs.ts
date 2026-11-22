@@ -10,7 +10,7 @@ export interface PublicPackageSummary {
 }
 
 export interface GamePrefs {
-  arena: 'hospital' | 'fantasy';
+  arena: 'hospital' | 'fantasy' | 'beach';
   packageId: string;
   questionCount: number;
   duration: number;
@@ -33,7 +33,7 @@ export const DEFAULT_GAME_PREFS: GamePrefs = {
   arena: 'hospital',
   packageId: '',
   questionCount: 5,
-  duration: 20,
+  duration: 5,
   playMode: 'local',
   sound: true,
   music: true,

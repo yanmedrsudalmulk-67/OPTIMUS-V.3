@@ -16,25 +16,19 @@ import Environment from './Environment';
 import Rope from './Rope';
 import StudioEnvironment from './StudioEnvironment';
 import WebGLBoundary from './WebGLBoundary';
+import { getArenaLayoutConfig, imageYToNdcY, type ArenaThemeId } from '../../lib/arenaLayout';
 
 export interface ArenaProps {
   state?: RoomState | null;
   preview?: boolean;
-  theme?: 'hospital' | 'fantasy';
+  theme?: ArenaThemeId;
   quality?: Quality;
   className?: string;
 }
 
-function imageYToNdcY(
-  imgFrac: number,
-  containerAspect: number,
-  imgAspect: number,
-  objPosY = 0.72,
-): number {
-  const scale = containerAspect > imgAspect ? containerAspect / imgAspect : 1;
-  const screenFrac = imgFrac * scale - objPosY * (scale - 1);
-  return 1 - 2 * screenFrac;
-}
+const CONFETTI_COLORS = ['#ecc257', '#e98171', '#6db8a2', '#6d9bda', '#faf2cc'].map(
+  (hex) => new THREE.Color(hex),
+);
 
 function SceneBackdropSync() {
   const { gl, scene } = useThree();
@@ -52,10 +46,10 @@ function CameraRig({
   theme,
 }: {
   state?: RoomState | null;
-  theme: 'hospital' | 'fantasy';
+  theme: ArenaThemeId;
 }) {
   const { size } = useThree();
-  const isFantasy = theme === 'fantasy';
+  const layout = getArenaLayoutConfig(theme);
   useFrame(({ camera, clock }, delta) => {
     const movement = state?.settings.cameraMotion !== false;
     const pulling = state?.phase === 'PULL_ANIMATION' && movement;
@@ -63,18 +57,18 @@ function CameraRig({
     camera.position.x = THREE.MathUtils.damp(camera.position.x, shake, 5, delta);
 
     const aspect = size.width / Math.max(1, size.height);
-    const fit = Math.max(1, 1.75 / aspect);
-    const targetZ = 12.8 * fit;
-    const targetY = 2.65;
+    const fit = Math.max(1, layout.cameraFitAspect / aspect);
+    const targetZ = layout.cameraBaseZ * fit;
+    const targetY = layout.cameraY;
     camera.position.z = THREE.MathUtils.damp(camera.position.z, targetZ, 8, delta);
     camera.position.y = THREE.MathUtils.damp(camera.position.y, targetY, 8, delta);
 
-    // Lock hero feet (y=0, z=0.05) cleanly inside each 2D arena's glowing floor court
+    // Lock hero feet (y=0, z=0.05) cleanly inside the proportional center of each 2D arena's court
     const courtNdcY = imageYToNdcY(
-      isFantasy ? 0.815 : 0.822,
+      layout.courtFeetImgFrac,
       aspect,
-      isFantasy ? 1672 / 941 : 2.0,
-      0.72,
+      layout.imgAspect,
+      layout.objPosY,
     );
     const tanHalfFov = Math.tan((44 * Math.PI) / 360);
     const alpha = Math.atan(-courtNdcY * tanHalfFov);
@@ -114,10 +108,7 @@ function Confetti({ active }: { active: boolean }) {
       dummy.rotation.set(t * 2 + i, t + i, t * 3);
       dummy.updateMatrix();
       mesh.current.setMatrixAt(i, dummy.matrix);
-      mesh.current.setColorAt(
-        i,
-        new THREE.Color(['#ecc257', '#e98171', '#6db8a2', '#6d9bda', '#faf2cc'][i % 5]),
-      );
+      mesh.current.setColorAt(i, CONFETTI_COLORS[i % CONFETTI_COLORS.length]);
     }
     mesh.current.instanceMatrix.needsUpdate = true;
     if (mesh.current.instanceColor) mesh.current.instanceColor.needsUpdate = true;
@@ -155,7 +146,15 @@ function Dust({ active }: { active: boolean }) {
 }
 
 type LabelRefs = MutableRefObject<Record<string, HTMLDivElement | null>>;
-function NameAnchor({ id, labels }: { id: string; labels: LabelRefs }) {
+function NameAnchor({
+  id,
+  labels,
+  anchorY,
+}: {
+  id: string;
+  labels: LabelRefs;
+  anchorY: number;
+}) {
   const ref = useRef<THREE.Group>(null);
   const point = useMemo(() => new THREE.Vector3(), []);
   const { size } = useThree();
@@ -167,7 +166,7 @@ function NameAnchor({ id, labels }: { id: string; labels: LabelRefs }) {
     element.style.transform = `translate(-50%,-50%) translate(${(point.x * 0.5 + 0.5) * size.width}px,${(-point.y * 0.5 + 0.5) * size.height}px)`;
     element.style.visibility = point.z > 1 || point.z < -1 ? 'hidden' : 'visible';
   });
-  return <group ref={ref} position={[0, 2.95, 0]} />;
+  return <group ref={ref} position={[0, anchorY, 0]} />;
 }
 
 function useSoftShadowTexture() {
@@ -196,9 +195,18 @@ function useSoftShadowTexture() {
   return texture;
 }
 
-function Contestants({ state, labels }: { state?: RoomState | null; labels: LabelRefs }) {
+function Contestants({
+  state,
+  labels,
+  theme,
+}: {
+  state?: RoomState | null;
+  labels: LabelRefs;
+  theme: ArenaThemeId;
+}) {
   const group = useRef<THREE.Group>(null);
   const shadowTex = useSoftShadowTexture();
+  const layout = getArenaLayoutConfig(theme);
   const slots = useMemo(
     () =>
       ['A', 'B'].flatMap((team) =>
@@ -218,7 +226,7 @@ function Contestants({ state, labels }: { state?: RoomState | null; labels: Labe
   });
   const sample = ['doctor-m', 'nurse-f', 'ambulance', 'doctor-f', 'analyst', 'pharmacist'];
   return (
-    <group ref={group}>
+    <group ref={group} scale={layout.contestantScale}>
       <Rope phase={state?.phase} />
       {slots.map(({ team, index, player }, i) => {
         const x = team === 'A' ? -5.8 + index * 1.75 : 2.3 + index * 1.75;
@@ -248,7 +256,7 @@ function Contestants({ state, labels }: { state?: RoomState | null; labels: Labe
               seed={i}
               holdRope
             />
-            <NameAnchor id={team + index} labels={labels} />
+            <NameAnchor id={team + index} labels={labels} anchorY={layout.nameAnchorY} />
           </group>
         );
       })}
@@ -272,6 +280,7 @@ function ArenaInner({ state, preview = false, theme, quality, className }: Arena
   const resolved = quality ?? state?.settings.quality ?? 'AUTO';
   const low = resolved === 'LOW' || (resolved === 'AUTO' && lowPower);
   const arenaTheme = theme || state?.settings.arena || 'hospital';
+  const isBeach = arenaTheme === 'beach';
   const isFantasy = arenaTheme === 'fantasy';
   return (
     <div
@@ -288,8 +297,20 @@ function ArenaInner({ state, preview = false, theme, quality, className }: Arena
       }}
     >
       <Image
-        src={isFantasy ? '/images/fantasy-battlefield-bg.png' : '/images/hospital-battle-bg.png'}
-        alt={isFantasy ? 'RSUD Al-Mulk Lobby Battlefield' : 'RSUD Al-Mulk Hospital Battle Arena'}
+        src={
+          isBeach
+            ? '/images/beach-battle-bg.png'
+            : isFantasy
+            ? '/images/fantasy-battlefield-bg.png'
+            : '/images/hospital-battle-bg.png'
+        }
+        alt={
+          isBeach
+            ? 'Arena Pantai Tropis RSUD Al-Mulk'
+            : isFantasy
+            ? 'RSUD Al-Mulk Lobby Battlefield'
+            : 'RSUD Al-Mulk Hospital Battle Arena'
+        }
         fill
         priority
         sizes="100vw"
@@ -330,9 +351,13 @@ function ArenaInner({ state, preview = false, theme, quality, className }: Arena
           >
             <SceneBackdropSync />
             {/* Controlled Studio IBL reflections so clearcoat hair, eyes, and leather pop without washing out shadows */}
-            <StudioEnvironment intensity={isFantasy ? 0.5 : 0.48} />
+            <StudioEnvironment intensity={isBeach || isFantasy ? 0.5 : 0.48} />
             <hemisphereLight
-              args={[isFantasy ? '#fff5e4' : '#eef8ff', isFantasy ? '#5a6e6a' : '#6c7a89', 0.6]}
+              args={[
+                isBeach || isFantasy ? '#fff5e4' : '#eef8ff',
+                isBeach || isFantasy ? '#5a6e6a' : '#6c7a89',
+                0.6,
+              ]}
             />
             <ambientLight intensity={0.18} />
             {/* Subtle front fill for eye catchlights */}
@@ -341,10 +366,10 @@ function ArenaInner({ state, preview = false, theme, quality, className }: Arena
               intensity={0.46}
               color="#ffe8cc"
             />
-            {/* High-contrast warm golden key light matching both 2D backdrops */}
+            {/* High-contrast warm golden key light matching 2D backdrops */}
             <directionalLight
-              position={isFantasy ? [0, 11, 6.5] : [-4.5, 11.5, 7.5]}
-              color={isFantasy ? '#fff0d4' : '#fff2d6'}
+              position={isBeach || isFantasy ? [0, 11, 6.5] : [-4.5, 11.5, 7.5]}
+              color={isBeach || isFantasy ? '#fff0d4' : '#fff2d6'}
               intensity={2.25}
               castShadow={!low}
               shadow-mapSize={resolved === 'HIGH' ? 2048 : 1024}
@@ -357,11 +382,11 @@ function ArenaInner({ state, preview = false, theme, quality, className }: Arena
               shadow-bias={-0.0006}
               shadow-normalBias={0.035}
             />
-            {/* Cool emerald/sky rim light to match the stadium floodlights & lobby spotlights */}
+            {/* Cool rim light */}
             <directionalLight
               position={[7.5, 6.5, -8.5]}
               intensity={1.35}
-              color={isFantasy ? '#5eead4' : '#7dd3fc'}
+              color={isBeach || isFantasy ? '#5eead4' : '#7dd3fc'}
             />
             <Suspense fallback={null}>
               <Environment
@@ -370,7 +395,7 @@ function ArenaInner({ state, preview = false, theme, quality, className }: Arena
                 phase={state?.phase}
                 paused={state?.paused}
               />
-              <Contestants state={state} labels={labels} />
+              <Contestants state={state} labels={labels} theme={arenaTheme} />
             </Suspense>
             <CameraRig state={state} theme={arenaTheme} />
           </Canvas>

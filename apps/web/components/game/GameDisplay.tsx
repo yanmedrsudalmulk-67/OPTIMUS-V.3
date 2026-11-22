@@ -23,7 +23,8 @@ import {
 } from 'lucide-react';
 import { CHARACTERS, type Quality } from '@shared/index';
 import { isAudioMuted, playSound, setMuted } from '../../lib/audio';
-import { Balance, ResultCard } from './RoomParts';
+import { Balance } from './RoomParts';
+import VictoryBanner from './VictoryBanner';
 import { useRoom } from './useRoom';
 import './game.css';
 import './team-selection.css';
@@ -303,9 +304,7 @@ export default function GameDisplay({ code: rawCode }: { code: string }) {
 
       {/* BOTTOM AREA: SEPARATE QUESTION PANEL DURING PLAY (LOBBY BOTTOM BARCODE REMOVED) */}
       {lobby ? null : state.phase === 'FINISHED' ? (
-        <div className="display-results-overlay">
-          <ResultCard state={state} />
-        </div>
+        <VictoryBanner state={state} />
       ) : state.question ? (
         <section className="display-question separate-question-panel">
           <div className="display-question-number">

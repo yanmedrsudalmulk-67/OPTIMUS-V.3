@@ -15,7 +15,7 @@ export const settingsSchema = z.object({
   comboBonus: z.boolean(),
   autoClose: z.boolean(),
   suddenDeath: z.boolean(),
-  arena: z.enum(['hospital', 'fantasy']),
+  arena: z.enum(['hospital', 'fantasy', 'beach']),
   quality: z.enum(['AUTO', 'LOW', 'MEDIUM', 'HIGH']),
   particles: z.boolean(),
   sound: z.boolean(),

@@ -1716,6 +1716,228 @@
 .display-results-overlay .game-results {
   padding: 30px 0;
 }
+
+/* Transparent Kinetic Esports Victory Banner (shared by QuickBattleView & GameDisplay) */
+.vb-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(10px, 2.2vh, 26px) 20px clamp(20px, 3.6vh, 36px);
+  overflow: hidden;
+}
+
+.vb-header-burst {
+  position: relative;
+  width: min(860px, 94vw);
+  height: clamp(168px, 26vh, 240px);
+  display: grid;
+  place-items: center;
+  margin-top: clamp(2px, 1vh, 14px);
+  user-select: none;
+}
+
+.vb-slash-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+.vb-title-stack {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  transform: translateY(-2px);
+}
+
+.vb-headline {
+  margin: 0;
+  font-size: clamp(46px, 7.2vw, 84px);
+  font-weight: 900;
+  font-style: italic;
+  line-height: 0.92;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, #ffffff 10%, #d9ff72 52%, #4ade80 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 4px 0 rgba(5, 10, 20, 0.96))
+    drop-shadow(0 10px 26px rgba(74, 222, 128, 0.42));
+  padding: 0 12px;
+}
+
+.vb-overlay.is-team-b .vb-headline {
+  background: linear-gradient(180deg, #ffffff 10%, #a5f3fc 52%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 4px 0 rgba(5, 10, 20, 0.96))
+    drop-shadow(0 10px 26px rgba(56, 189, 248, 0.45));
+}
+
+.vb-overlay.is-draw .vb-headline {
+  background: linear-gradient(180deg, #ffffff 10%, #fef08a 52%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 4px 0 rgba(5, 10, 20, 0.96))
+    drop-shadow(0 10px 26px rgba(250, 204, 21, 0.45));
+}
+
+.vb-subtitle-strip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(190px, 28vw, 310px);
+  padding: 4px 20px;
+  background: rgba(5, 10, 20, 0.94);
+  border-left: 3px solid #84ff1f;
+  border-right: 3px solid #22d3ee;
+  transform: skewX(-14deg);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.vb-overlay.is-team-b .vb-subtitle-strip {
+  border-left-color: #22d3ee;
+  border-right-color: #a855f7;
+}
+
+.vb-overlay.is-draw .vb-subtitle-strip {
+  border-left-color: #fde047;
+  border-right-color: #f59e0b;
+}
+
+.vb-subtitle-strip span {
+  display: inline-block;
+  transform: skewX(14deg);
+  color: #f8fafc;
+  font-size: clamp(10px, 1.05vw, 13px);
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.vb-score-row {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: clamp(12px, 1.8vw, 20px);
+  margin-top: 4px;
+  font-style: italic;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.vb-score-num {
+  font-size: clamp(32px, 4.4vw, 52px);
+  text-shadow:
+    0 3px 0 rgba(5, 10, 20, 0.95),
+    0 8px 20px rgba(0, 0, 0, 0.6);
+}
+
+.vb-score-a {
+  color: #34d399;
+}
+
+.vb-score-b {
+  color: #38bdf8;
+}
+
+.vb-score-dash {
+  font-size: clamp(24px, 3vw, 34px);
+  color: #f8fafc;
+  text-shadow: 0 3px 0 rgba(5, 10, 20, 0.95);
+}
+
+.vb-bottom-actions {
+  pointer-events: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.vb-home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 28px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0b1930 0%, #102a4c 100%);
+  border: 2px solid rgba(56, 189, 248, 0.85);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  box-shadow:
+    0 10px 28px rgba(2, 10, 22, 0.58),
+    0 0 0 1px rgba(132, 255, 31, 0.25) inset;
+  transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.vb-home-btn:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(135deg, #102a4c 0%, #0e7490 100%);
+  border-color: #84ff1f;
+  box-shadow:
+    0 14px 32px rgba(2, 10, 22, 0.7),
+    0 0 18px rgba(132, 255, 31, 0.32);
+}
+
+.vb-home-btn:active {
+  transform: translateY(0);
+}
+
+.vb-header-burst {
+  animation: vbBurstIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.vb-bottom-actions {
+  animation: vbHomeIn 0.36s 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes vbBurstIn {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes vbHomeIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vb-header-burst,
+  .vb-bottom-actions {
+    animation: none;
+  }
+}
 .display-notice {
   position: absolute;
   left: 50%;

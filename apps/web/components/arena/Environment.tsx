@@ -6,6 +6,7 @@ import HospitalBuilding from './HospitalBuilding';
 import PapercraftTree from './PapercraftTree';
 import * as THREE from 'three';
 import type { Quality } from '../../../../packages/shared/src';
+import { getArenaLayoutConfig, type ArenaThemeId } from '../../lib/arenaLayout';
 
 function Box({
   position,
@@ -236,24 +237,30 @@ export default function Environment({
   phase,
   paused = false,
 }: {
-  theme?: 'hospital' | 'fantasy';
+  theme?: ArenaThemeId;
   quality?: Quality;
   phase?: string;
   paused?: boolean;
 }) {
-  const fantasy = theme === 'fantasy';
+  const layout = getArenaLayoutConfig(theme);
   return (
     <group>
       <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[28, 18]} />
         <shadowMaterial transparent opacity={0.28} />
       </mesh>
-      {!fantasy && (
+      {layout.crowd.enabled && (
         <Crowd
           low={quality === 'LOW'}
           phase={phase}
           paused={paused}
-          behindBarricade
+          mode={layout.crowd.mode}
+          imgAspect={layout.imgAspect}
+          anchorImgFrac={layout.crowd.anchorImgFrac}
+          crowdZ={layout.crowd.crowdZ}
+          scaleBase={layout.crowd.scaleBase}
+          spanRatio={layout.crowd.spanRatio}
+          beachPalette={theme === 'beach'}
         />
       )}
     </group>

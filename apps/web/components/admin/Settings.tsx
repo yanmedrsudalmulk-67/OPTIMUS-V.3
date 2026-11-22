@@ -285,6 +285,7 @@ export function GameSettingsPage() {
               >
                 <option value="hospital">Hospital Battle</option>
                 <option value="fantasy">Fantasy Battlefield</option>
+                <option value="beach">Arena Pantai</option>
               </select>
             </label>
             <label className="field">

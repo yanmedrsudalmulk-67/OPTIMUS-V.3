@@ -193,7 +193,7 @@ export interface GameSettings {
   comboBonus: boolean;
   autoClose: boolean;
   suddenDeath: boolean;
-  arena: 'hospital' | 'fantasy';
+  arena: 'hospital' | 'fantasy' | 'beach';
   quality: Quality;
   particles: boolean;
   sound: boolean;

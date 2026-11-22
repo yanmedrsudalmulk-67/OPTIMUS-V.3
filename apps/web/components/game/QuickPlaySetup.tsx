@@ -13,6 +13,7 @@ import {
   Layers,
   Play,
   Shuffle,
+  Sun,
   Swords,
   Users,
 } from 'lucide-react';
@@ -287,7 +288,7 @@ export default function QuickPlaySetup() {
   const [packages, setPackages] = useState<PublicPackageSummary[]>([]);
   const [packageId, setPackageId] = useState('');
   const [questionCount, setQuestionCount] = useState(DEFAULT_GAME_PREFS.questionCount);
-  const [arena, setArena] = useState<'hospital' | 'fantasy'>(DEFAULT_GAME_PREFS.arena);
+  const [arena, setArena] = useState<'hospital' | 'fantasy' | 'beach'>(DEFAULT_GAME_PREFS.arena);
   const [playMode, setPlayMode] = useState<QuickPlayMode>(DEFAULT_GAME_PREFS.playMode);
   const [launching, setLaunching] = useState(false);
   const [error, setError] = useState('');
@@ -387,7 +388,7 @@ export default function QuickPlaySetup() {
           settings: {
             arena,
             questionCount,
-            duration: prefs.duration,
+            duration: 5,
             autoClose: true,
             countdownSeconds: 3,
             revealSeconds: 2,
@@ -700,19 +701,30 @@ export default function QuickPlaySetup() {
             </select>
           </div>
 
-          <button
-            type="button"
-            className={`qp-pill ${arena === 'hospital' ? 'is-active' : ''}`}
-            onClick={() => {
-              const next = arena === 'hospital' ? 'fantasy' : 'hospital';
-              setArena(next);
-              saveGamePrefs({ arena: next });
-              playSound('select');
-            }}
-          >
-            {arena === 'hospital' ? <Heart size={13} /> : <Swords size={13} />}
-            {arena === 'hospital' ? 'Hospital' : 'Fantasy'}
-          </button>
+          <div className="qp-select-wrap">
+            {arena === 'hospital' ? (
+              <Heart size={13} className="qp-select-icon" />
+            ) : arena === 'fantasy' ? (
+              <Swords size={13} className="qp-select-icon" />
+            ) : (
+              <Sun size={13} className="qp-select-icon" />
+            )}
+            <select
+              aria-label="Pilih tema arena"
+              className="qp-select"
+              value={arena}
+              onChange={(e) => {
+                const next = e.target.value as 'hospital' | 'fantasy' | 'beach';
+                setArena(next);
+                saveGamePrefs({ arena: next });
+                playSound('select');
+              }}
+            >
+              <option value="hospital">Hospital Battle</option>
+              <option value="fantasy">Fantasy Battlefield</option>
+              <option value="beach">Arena Pantai</option>
+            </select>
+          </div>
 
           <button
             type="button"
